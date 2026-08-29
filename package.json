@@ -1,0 +1,23 @@
+{
+  "name": "homecloud",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @homecloud/web dev",
+    "build": "pnpm --filter @homecloud/web build",
+    "lint": "pnpm --filter @homecloud/web lint",
+    "typecheck": "pnpm --filter @homecloud/web typecheck",
+    "test": "pnpm --filter @homecloud/web test",
+    "test:e2e": "pnpm --filter @homecloud/web test:e2e"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver",
+      "sharp"
+    ]
+  }
+}

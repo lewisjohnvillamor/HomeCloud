@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+members = ["crates/domain", "crates/api"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/lewisjohnvillamor/HomeCloud"
+
+[workspace.dependencies]
+homecloud-domain = { path = "crates/domain" }
+homecloud-storage = { path = "crates/storage" }
+
+anyhow = "1"
+axum = "0.7"
+http = "1"
+http-body-util = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls-ring",
+    "postgres",
+    "uuid",
+    "time",
+    "macros",
+    "migrate",
+] }
+thiserror = "2"
+time = { version = "0.3", features = ["serde"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "fs"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "limit", "set-header", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[profile.dev]
+debug = 1
