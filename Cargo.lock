@@ -551,6 +551,7 @@ name = "homecloud-domain"
 version = "0.1.0"
 dependencies = [
  "thiserror",
+ "uuid",
 ]
 
 [[package]]

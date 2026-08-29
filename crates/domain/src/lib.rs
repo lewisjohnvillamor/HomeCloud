@@ -4,6 +4,10 @@
 //! database, or filesystem details. It intentionally has no I/O
 //! dependencies so the rules can be tested in isolation.
 
+pub mod identity;
+pub mod library;
 pub mod naming;
 
+pub use identity::{LibraryId, UserId};
+pub use library::{Library, LibraryRole, Membership, MembershipError};
 pub use naming::{LibraryName, NameError};

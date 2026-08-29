@@ -5,6 +5,7 @@
 //! and the listener.
 
 pub mod app;
+pub mod bootstrap;
 pub mod config;
 pub mod db;
 pub mod error;
