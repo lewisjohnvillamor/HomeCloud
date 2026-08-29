@@ -27,6 +27,12 @@ export default defineConfig({
   webServer: {
     command: `pnpm build && pnpm exec next start --port ${port}`,
     url: baseURL,
+    env: {
+      // Port 9 (discard) is never listening, so the "API unavailable"
+      // journey is exercised deterministically whether or not a real API
+      // happens to be running on the developer's machine.
+      HOMECLOUD_API_ORIGIN: "http://127.0.0.1:9",
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

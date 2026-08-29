@@ -10,7 +10,7 @@ use std::time::Instant;
 use axum::extract::Request;
 use axum::http::{HeaderName, HeaderValue};
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use tracing::Instrument;
 use uuid::Uuid;
 
@@ -112,7 +112,5 @@ pub async fn request_id_middleware(mut request: Request, next: Next) -> Response
 /// panic payload never reaches the client; the correlation layer above
 /// re-renders this response with the request id.
 pub fn panic_response(_panic: Box<dyn std::any::Any + Send + 'static>) -> Response {
-    use axum::response::IntoResponse;
-
     ApiError::internal().into_response()
 }

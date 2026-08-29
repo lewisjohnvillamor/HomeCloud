@@ -3,6 +3,9 @@
 //! Only read-only primitives exist today: containment behaviour is
 //! proven before any code can mutate a user's files.
 
+// Application crates have no need for `unsafe`; an exception requires an ADR.
+#![forbid(unsafe_code)]
+
 pub mod filesystem;
 pub mod path;
 

@@ -67,19 +67,14 @@ impl FilesystemStorage {
         Ok(resolved)
     }
 
-    async fn entry_for(
-        &self,
-        path: LibraryPath,
-        resolved: &Path,
-        metadata: &std::fs::Metadata,
-    ) -> Result<Entry, StorageError> {
+    fn entry_for(path: LibraryPath, resolved: &Path, metadata: &std::fs::Metadata) -> Entry {
         let name = match resolved.file_name() {
             Some(name) => name.to_string_lossy().into_owned(),
             // Only the root has no file name of its own.
             None => String::new(),
         };
 
-        Ok(Entry {
+        Entry {
             path,
             name,
             kind: if metadata.is_dir() {
@@ -89,7 +84,7 @@ impl FilesystemStorage {
             },
             size_bytes: metadata.len(),
             modified: metadata.modified().ok(),
-        })
+        }
     }
 }
 
@@ -100,7 +95,7 @@ impl ReadOnlyStorage for FilesystemStorage {
             .await
             .map_err(map_io_error)?;
 
-        self.entry_for(path.clone(), &resolved, &metadata).await
+        Ok(Self::entry_for(path.clone(), &resolved, &metadata))
     }
 
     async fn list(&self, path: &LibraryPath) -> Result<Vec<Entry>, StorageError> {
@@ -135,7 +130,7 @@ impl ReadOnlyStorage for FilesystemStorage {
             }
 
             let child_path = path.join_segment(name)?;
-            entries.push(self.entry_for(child_path, &child.path(), &metadata).await?);
+            entries.push(Self::entry_for(child_path, &child.path(), &metadata));
         }
 
         Ok(entries)

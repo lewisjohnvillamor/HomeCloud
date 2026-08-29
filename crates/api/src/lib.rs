@@ -4,6 +4,9 @@
 //! without binding a socket: `main` only wires configuration, logging,
 //! and the listener.
 
+// Application crates have no need for `unsafe`; an exception requires an ADR.
+#![forbid(unsafe_code)]
+
 pub mod app;
 pub mod bootstrap;
 pub mod config;
