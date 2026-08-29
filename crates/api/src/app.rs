@@ -12,6 +12,7 @@ use crate::bootstrap;
 use crate::error::ApiError;
 use crate::health;
 use crate::observability;
+use crate::security;
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
 /// internally reference-counted.
@@ -37,6 +38,11 @@ pub fn router(state: AppState) -> Router {
         .route("/health/ready", get(health::ready))
         .route("/api/v1/bootstrap", get(bootstrap::status))
         .fallback(not_found)
+        // Bodies are bounded before any handler sees them.
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(
+            security::MAX_METADATA_BODY_BYTES,
+        ))
+        .layer(axum::middleware::from_fn(security::security_middleware))
         // Panics are converted to a problem response first, then the
         // correlation layer wraps everything so even a panic response
         // carries a request id.

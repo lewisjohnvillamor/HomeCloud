@@ -15,6 +15,7 @@ use serde::Serialize;
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     BadRequest,
+    Forbidden,
     NotFound,
     PayloadTooLarge,
     DependencyUnavailable,
@@ -25,6 +26,7 @@ impl ErrorCode {
     fn status(self) -> StatusCode {
         match self {
             ErrorCode::BadRequest => StatusCode::BAD_REQUEST,
+            ErrorCode::Forbidden => StatusCode::FORBIDDEN,
             ErrorCode::NotFound => StatusCode::NOT_FOUND,
             ErrorCode::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             ErrorCode::DependencyUnavailable => StatusCode::SERVICE_UNAVAILABLE,
@@ -55,6 +57,10 @@ impl ApiError {
             ErrorCode::DependencyUnavailable,
             format!("The {dependency} is not available. Retry shortly."),
         )
+    }
+
+    pub fn forbidden(detail: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Forbidden, detail)
     }
 
     pub fn not_found() -> Self {

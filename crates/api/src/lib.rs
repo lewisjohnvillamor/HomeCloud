@@ -11,6 +11,7 @@ pub mod db;
 pub mod error;
 pub mod health;
 pub mod observability;
+pub mod security;
 
 /// Name reported by the API in logs and startup output.
 pub const SERVICE_NAME: &str = "homecloud-api";

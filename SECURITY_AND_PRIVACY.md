@@ -150,3 +150,39 @@ No release candidate if:
 - public share brute-force controls fail;
 - session invalidation tests fail;
 - upload resource limits can trivially exhaust the service.
+
+## 14. Deployment: Reverse Proxy Requirements
+
+The API binds to loopback by default and terminates no TLS of its own. A
+deployment that is reachable from a network must run it behind a reverse
+proxy configured as follows.
+
+**The proxy must:**
+
+- terminate TLS and redirect plaintext HTTP to HTTPS;
+- pass the browser's `Host` and `Origin` headers through unchanged — the
+  server compares them to reject cross-origin state-changing requests;
+- **strip client-supplied `X-Forwarded-*` and `Forwarded` headers** before
+  setting its own, so a client cannot spoof its address or scheme;
+- set `X-Request-Id` only if it generates the value itself; an inbound id
+  is accepted only when it is short and alphanumeric, and is replaced
+  otherwise;
+- apply its own connection, rate, and body limits in front of the API.
+
+**The server does not:**
+
+- trust any forwarded header for authorization decisions;
+- emit CORS headers, so no other origin can read an API response;
+- serve the web app and the API from different origins in the default
+  deployment. Splitting them requires an explicit CORS policy and a
+  cookie/CSRF design review first.
+
+Baseline response headers set by the API on every response:
+`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+`Cross-Origin-Resource-Policy: same-origin`,
+`Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy` with all
+optional capabilities disabled, and `Cache-Control: no-store`.
+
+Metadata request bodies are capped at 64 KiB. File transfer endpoints will
+define their own, larger, bounded limits when they are implemented.
