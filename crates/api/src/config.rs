@@ -84,6 +84,14 @@ pub struct DatabaseConfig {
     pub acquire_timeout: Duration,
 }
 
+impl DatabaseConfig {
+    /// Exposes the connection string for the database driver. Callers
+    /// must not log the returned value.
+    pub fn database_url(&self) -> &str {
+        self.url.expose()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub listen_addr: SocketAddr,
