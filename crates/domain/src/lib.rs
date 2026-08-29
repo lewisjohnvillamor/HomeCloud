@@ -11,6 +11,6 @@ pub mod identity;
 pub mod library;
 pub mod naming;
 
-pub use identity::{LibraryId, UserId};
+pub use identity::{ItemId, LibraryId, UserId};
 pub use library::{Library, LibraryRole, Membership, MembershipError};
 pub use naming::{LibraryName, NameError};

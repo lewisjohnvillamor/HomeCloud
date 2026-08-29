@@ -14,7 +14,8 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::error::ApiError;
 use crate::ratelimit::AttemptLimiter;
-use crate::{auth, bootstrap, health, observability, security};
+use crate::scanjob::ScanRegistry;
+use crate::{auth, bootstrap, health, items, library, observability, security, transfers};
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
 /// internally reference-counted and the rest is shared behind an `Arc`.
@@ -29,6 +30,7 @@ struct Inner {
     storage_root: PathBuf,
     secure_cookies: bool,
     login_attempts: AttemptLimiter,
+    scans: Arc<ScanRegistry>,
 }
 
 impl AppState {
@@ -39,6 +41,7 @@ impl AppState {
                 storage_root,
                 secure_cookies,
                 login_attempts: AttemptLimiter::new(),
+                scans: Arc::new(ScanRegistry::new()),
             }),
         }
     }
@@ -66,6 +69,10 @@ impl AppState {
     pub fn login_attempts(&self) -> &AttemptLimiter {
         &self.inner.login_attempts
     }
+
+    pub fn scans(&self) -> &Arc<ScanRegistry> {
+        &self.inner.scans
+    }
 }
 
 /// Builds the application router.
@@ -78,6 +85,27 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/logout", post(auth::logout))
         .route("/api/v1/session", get(auth::session_status))
+        .route("/api/v1/libraries", get(library::list))
+        .route("/api/v1/libraries/{library}/browse", get(library::browse))
+        .route("/api/v1/libraries/{library}/photos", get(library::photos))
+        .route("/api/v1/libraries/{library}/search", get(library::search))
+        .route("/api/v1/libraries/{library}/trash", get(library::trash))
+        .route(
+            "/api/v1/libraries/{library}/scan",
+            get(library::scan_status).post(library::start_scan),
+        )
+        .route(
+            "/api/v1/libraries/{library}/folders",
+            post(items::create_folder),
+        )
+        .route(
+            "/api/v1/items/{item}",
+            get(items::get).delete(items::trash_item),
+        )
+        .route("/api/v1/items/{item}/children", get(items::children))
+        .route("/api/v1/items/{item}/move", post(items::move_item))
+        .route("/api/v1/items/{item}/restore", post(items::restore_item))
+        .route("/api/v1/items/{item}/content", get(transfers::download))
         .fallback(not_found)
         // Metadata bodies are small; anything larger is a mistake or an
         // attack, and is rejected before a handler sees it.
@@ -85,7 +113,20 @@ pub fn router(state: AppState) -> Router {
             security::MAX_METADATA_BODY_BYTES,
         ));
 
+    // Transfers get their own, much larger, bound: a metadata limit of
+    // 64 KiB would make the product useless, and one shared limit of
+    // gigabytes would make every metadata route a memory risk.
+    let transfers = Router::new()
+        .route(
+            "/api/v1/libraries/{library}/upload",
+            post(transfers::upload),
+        )
+        .layer(RequestBodyLimitLayer::new(
+            transfers::MAX_UPLOAD_BYTES as usize,
+        ));
+
     metadata
+        .merge(transfers)
         .layer(axum::middleware::from_fn(security::security_middleware))
         // Panics become a problem response first, then the correlation
         // layer wraps everything so even a panic carries a request id.

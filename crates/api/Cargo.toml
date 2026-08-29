@@ -20,12 +20,15 @@ homecloud-storage.workspace = true
 
 anyhow.workspace = true
 axum.workspace = true
+futures.workspace = true
+percent-encoding.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
@@ -33,6 +36,7 @@ tracing-subscriber.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+homecloud-auth.workspace = true
 homecloud-domain.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

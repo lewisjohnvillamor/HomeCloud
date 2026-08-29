@@ -51,3 +51,9 @@ id_type!(
     /// membership. Data never crosses a library boundary implicitly.
     LibraryId
 );
+
+id_type!(
+    /// Identifies a catalogued file or folder. Stable across renames and
+    /// moves: a path describes where an item is, not what it is.
+    ItemId
+);

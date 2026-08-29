@@ -8,7 +8,9 @@ use std::fs;
 use std::os::unix::fs as unix_fs;
 
 use homecloud_storage::path::PathError;
-use homecloud_storage::{EntryKind, FilesystemStorage, LibraryPath, ReadOnlyStorage, StorageError};
+use homecloud_storage::{
+    EntryKind, FilesystemStorage, LibraryPath, MutableStorage, ReadOnlyStorage, StorageError,
+};
 use tempfile::TempDir;
 
 /// Builds a library root with a small tree, plus a sibling directory
@@ -213,4 +215,237 @@ async fn a_symlinked_root_is_canonicalised_once() {
             .expect("canonical")
     );
     assert!(storage.stat(&path("notes.txt")).await.is_ok());
+}
+
+// --- Mutation ---
+
+#[tokio::test]
+async fn a_folder_can_be_created_and_then_listed() {
+    let (_temp, storage) = library().await;
+
+    storage
+        .create_folder(&path("documents/2026"))
+        .await
+        .expect("create folder");
+
+    let entry = storage.stat(&path("documents/2026")).await.expect("stat");
+    assert_eq!(entry.kind, EntryKind::Directory);
+}
+
+#[tokio::test]
+async fn creating_a_folder_that_exists_is_refused() {
+    let (_temp, storage) = library().await;
+
+    let error = storage.create_folder(&path("photos")).await;
+
+    assert!(
+        matches!(error, Err(StorageError::AlreadyExists)),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn the_library_root_itself_cannot_be_modified() {
+    let (_temp, storage) = library().await;
+
+    let error = storage.create_folder(&LibraryPath::root()).await;
+
+    assert!(
+        matches!(error, Err(StorageError::RootIsNotAnEntry)),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_upload_is_only_visible_once_it_completes() {
+    let (temp, storage) = library().await;
+    let destination = path("upload.txt");
+
+    let mut staged = storage.begin_upload(1024).await.expect("begin upload");
+    staged.write_chunk(b"hello ").await.expect("write");
+    staged.write_chunk(b"world").await.expect("write");
+
+    // Still nothing at the destination while the upload is in flight.
+    assert!(storage.stat(&destination).await.is_err());
+
+    storage
+        .finish_upload(staged, &destination)
+        .await
+        .expect("finish upload");
+
+    let entry = storage.stat(&destination).await.expect("stat");
+    assert_eq!(entry.size_bytes, 11);
+    assert_eq!(
+        std::fs::read_to_string(temp.path().join("library/upload.txt")).expect("read"),
+        "hello world"
+    );
+}
+
+#[tokio::test]
+async fn an_upload_beyond_the_limit_is_refused_and_leaves_nothing_behind() {
+    let (temp, storage) = library().await;
+
+    let mut staged = storage.begin_upload(4).await.expect("begin upload");
+    let error = staged.write_chunk(b"too many bytes").await;
+
+    assert!(matches!(error, Err(StorageError::TooLarge)), "{error:?}");
+    staged.abort().await;
+
+    let staging = temp.path().join("library/.homecloud-incoming");
+    let leftovers = std::fs::read_dir(&staging)
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert_eq!(
+        leftovers, 0,
+        "an aborted upload left a temporary file behind"
+    );
+}
+
+#[tokio::test]
+async fn an_upload_never_overwrites_an_existing_file() {
+    let (_temp, storage) = library().await;
+
+    let staged = storage.begin_upload(1024).await.expect("begin upload");
+    let error = storage.finish_upload(staged, &path("notes.txt")).await;
+
+    assert!(
+        matches!(error, Err(StorageError::AlreadyExists)),
+        "{error:?}"
+    );
+    // The original is untouched.
+    assert_eq!(
+        storage
+            .stat(&path("notes.txt"))
+            .await
+            .expect("stat")
+            .size_bytes,
+        "hello".len() as u64
+    );
+}
+
+#[tokio::test]
+async fn a_free_name_is_derived_when_one_is_taken() {
+    let (_temp, storage) = library().await;
+
+    let free = storage
+        .available_path(&path("notes.txt"))
+        .await
+        .expect("available path");
+
+    assert_eq!(free.to_string(), "notes (2).txt");
+}
+
+#[tokio::test]
+async fn an_unused_name_is_returned_unchanged() {
+    let (_temp, storage) = library().await;
+
+    let free = storage
+        .available_path(&path("brand-new.txt"))
+        .await
+        .expect("available path");
+
+    assert_eq!(free.to_string(), "brand-new.txt");
+}
+
+#[tokio::test]
+async fn an_entry_can_be_renamed_and_moved() {
+    let (_temp, storage) = library().await;
+
+    storage
+        .move_entry(&path("notes.txt"), &path("photos/notes.txt"))
+        .await
+        .expect("move");
+
+    assert!(storage.stat(&path("notes.txt")).await.is_err());
+    assert!(storage.stat(&path("photos/notes.txt")).await.is_ok());
+}
+
+#[tokio::test]
+async fn a_move_never_overwrites_the_destination() {
+    let (_temp, storage) = library().await;
+    std::fs::write(
+        storage.root().join("photos").join("notes.txt"),
+        b"different",
+    )
+    .expect("write");
+
+    let error = storage
+        .move_entry(&path("notes.txt"), &path("photos/notes.txt"))
+        .await;
+
+    assert!(
+        matches!(error, Err(StorageError::AlreadyExists)),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_folder_cannot_be_moved_inside_itself() {
+    let (_temp, storage) = library().await;
+
+    let error = storage
+        .move_entry(&path("photos"), &path("photos/2024/photos"))
+        .await;
+
+    assert!(
+        matches!(error, Err(StorageError::WouldMoveIntoItself)),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn trashing_moves_the_file_rather_than_deleting_it() {
+    let (temp, storage) = library().await;
+
+    let trashed = storage
+        .move_to_trash(&path("notes.txt"))
+        .await
+        .expect("trash");
+
+    assert!(storage.stat(&path("notes.txt")).await.is_err());
+    let contents = std::fs::read_to_string(temp.path().join("library").join(trashed.to_string()))
+        .expect("the trashed file still exists");
+    assert_eq!(contents, "hello");
+}
+
+#[tokio::test]
+async fn a_trashed_file_can_be_moved_back() {
+    let (_temp, storage) = library().await;
+    let trashed = storage
+        .move_to_trash(&path("notes.txt"))
+        .await
+        .expect("trash");
+
+    storage
+        .move_entry(&trashed, &path("notes.txt"))
+        .await
+        .expect("restore");
+
+    assert!(storage.stat(&path("notes.txt")).await.is_ok());
+}
+
+#[tokio::test]
+async fn writes_do_not_follow_a_symlinked_directory() {
+    let (temp, storage) = library().await;
+    unix_fs::symlink(
+        temp.path().join("outside"),
+        temp.path().join("library/elsewhere"),
+    )
+    .expect("create symlink");
+
+    let error = storage.create_folder(&path("elsewhere/new")).await;
+
+    assert!(
+        matches!(error, Err(StorageError::SymlinkNotFollowed)),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn opening_a_file_returns_its_size() {
+    let (_temp, storage) = library().await;
+
+    let (_file, size) = storage.open_file(&path("notes.txt")).await.expect("open");
+
+    assert_eq!(size, "hello".len() as u64);
 }

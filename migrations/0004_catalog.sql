@@ -22,7 +22,10 @@ CREATE TABLE items (
     -- Set when a scan no longer finds the file. Never means "deleted from
     -- disk by HomeCloud"; see the trash flow for that.
     missing_since timestamptz,
-    trashed_at timestamptz
+    trashed_at timestamptz,
+    -- Where the bytes live while the item is in the trash. Only the
+    -- trashed item itself has one; its descendants moved with it.
+    trash_path text
 );
 
 -- One live row per path per library. Trashed rows keep their path so a

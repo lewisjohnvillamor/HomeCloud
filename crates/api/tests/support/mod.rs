@@ -254,3 +254,94 @@ impl TestApp {
         self.db.cleanup().await;
     }
 }
+
+impl TestApp {
+    /// The id of the library created during setup.
+    pub async fn library_id(&self) -> String {
+        let response = self.get("/api/v1/libraries").await;
+        response.json()[0]["id"]
+            .as_str()
+            .expect("the owner has a library")
+            .to_owned()
+    }
+
+    /// Writes a file directly into the library root, as if a person had
+    /// copied it there outside HomeCloud.
+    pub fn put_on_disk(&self, relative: &str, contents: &[u8]) {
+        let target = self.root_path().join(relative);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).expect("create parent");
+        }
+        std::fs::write(target, contents).expect("write file");
+    }
+
+    pub fn make_dir_on_disk(&self, relative: &str) {
+        std::fs::create_dir_all(self.root_path().join(relative)).expect("create dir");
+    }
+
+    /// Runs a scan and waits for it to finish.
+    pub async fn scan(&self, library: &str) {
+        let response = self
+            .post_json(
+                &format!("/api/v1/libraries/{library}/scan"),
+                serde_json::json!({}),
+            )
+            .await;
+        assert!(
+            response.status.is_success(),
+            "scan did not start: {}",
+            response.text()
+        );
+
+        for _ in 0..100 {
+            let status = self.get(&format!("/api/v1/libraries/{library}/scan")).await;
+            if status.json()["running"] == false && !status.json()["finished_at"].is_null() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+
+        panic!("the scan never finished");
+    }
+
+    pub async fn upload(&self, library: &str, path: &str, contents: &[u8]) -> TestResponse {
+        let encoded = path.replace(' ', "%20").replace('/', "%2F");
+
+        self.send(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/libraries/{library}/upload?path={encoded}"))
+                .header(axum::http::header::CONTENT_TYPE, "application/octet-stream")
+                .body(axum::body::Body::from(contents.to_vec()))
+                .expect("valid request"),
+        )
+        .await
+    }
+
+    pub async fn delete(&self, path: &str) -> TestResponse {
+        self.send(
+            axum::http::Request::builder()
+                .method("DELETE")
+                .uri(path)
+                .body(axum::body::Body::empty())
+                .expect("valid request"),
+        )
+        .await
+    }
+
+    /// Finds a browsed item by name, for tests that work in terms of
+    /// what a person sees rather than ids.
+    pub async fn find_item(&self, library: &str, folder: &str, name: &str) -> serde_json::Value {
+        let response = self
+            .get(&format!("/api/v1/libraries/{library}/browse?path={folder}"))
+            .await;
+
+        response.json()["items"]
+            .as_array()
+            .expect("items array")
+            .iter()
+            .find(|item| item["name"] == name)
+            .unwrap_or_else(|| panic!("`{name}` is not in `{folder}`: {}", response.text()))
+            .clone()
+    }
+}

@@ -14,9 +14,14 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod health;
+pub mod items;
+pub mod library;
 pub mod observability;
 pub mod ratelimit;
+pub mod scanjob;
 pub mod security;
+pub mod transfers;
+pub mod view;
 
 /// Name reported by the API in logs and startup output.
 pub const SERVICE_NAME: &str = "homecloud-api";
