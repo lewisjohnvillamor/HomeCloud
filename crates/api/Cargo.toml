@@ -13,4 +13,6 @@ path = "src/main.rs"
 
 [dependencies]
 homecloud-domain.workspace = true
+
+thiserror.workspace = true
 tokio.workspace = true

@@ -17,6 +17,7 @@ name = "homecloud-api"
 version = "0.1.0"
 dependencies = [
  "homecloud-domain",
+ "thiserror",
  "tokio",
 ]
 
