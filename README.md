@@ -115,6 +115,7 @@ docs/
 - `SECURITY.md` — vulnerability reporting and security policy.
 - `docs/adr/` — binding architecture decisions.
 - `docs/superpowers/plans/2026-08-29-foundation-mvp.md` — first implementation plan.
+- `docs/superpowers/plans/2026-08-29-mvp-final-ai.md` — final MVP private AI implementation plan.
 
 ## Definition of v1
 
