@@ -175,3 +175,28 @@ test("a wrong password is refused", async () => {
   // Scoped to `main`: the framework's route announcer is also an alert.
   await expect(page.getByRole("main").getByRole("alert")).toContainText("do not match");
 });
+
+test("the file list fits a phone screen without sideways scrolling", async ({ browser }) => {
+  // A fresh, phone-sized context: the row actions must stay on screen at
+  // 390 CSS pixels, which is where the layout is tightest.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 780 } });
+  const phonePage = await phone.newPage();
+
+  await phonePage.goto("/");
+  await phonePage.getByLabel("Your name").fill(OWNER.name);
+  await phonePage.getByLabel("Password").fill(OWNER.password);
+  await phonePage.getByRole("button", { name: "Sign in" }).click();
+  await expect(phonePage.getByRole("heading", { level: 1 })).toHaveText(
+    `Welcome back, ${OWNER.name}`,
+  );
+
+  await phonePage.goto("/files");
+  await expect(phonePage.getByRole("row").filter({ hasText: "notes.txt" })).toBeVisible();
+
+  const overflows = await phonePage.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1,
+  );
+  expect(overflows).toBe(false);
+
+  await phone.close();
+});

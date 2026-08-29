@@ -45,7 +45,10 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const { state, reload } = useAsyncData<Browse>(load);
 
   const run = useCallback(
-    async (label: string, action: () => Promise<{ ok: boolean; problem?: ApiProblem }>) => {
+    async (
+      label: string,
+      action: () => Promise<{ ok: boolean; problem?: ApiProblem }>,
+    ) => {
       setBusy(label);
       setProblem(null);
       setNotice(null);
@@ -72,9 +75,15 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
     let uploaded = 0;
     for (const file of Array.from(files)) {
       const ok = await run(`Uploading ${file.name}`, async () => {
-        const result = await uploadFile(library, joinPath(path, file.name), file);
+        const result = await uploadFile(
+          library,
+          joinPath(path, file.name),
+          file,
+        );
 
-        return result.ok ? { ok: true } : { ok: false, problem: result.problem };
+        return result.ok
+          ? { ok: true }
+          : { ok: false, problem: result.problem };
       });
 
       if (ok) {
@@ -114,7 +123,10 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
     }
 
     const renamed = await run("Renaming", async () => {
-      const result = await moveItem(item.id, joinPath(parentOf(item.path), name.trim()));
+      const result = await moveItem(
+        item.id,
+        joinPath(parentOf(item.path), name.trim()),
+      );
 
       return result.ok ? { ok: true } : { ok: false, problem: result.problem };
     });
@@ -163,7 +175,11 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   return (
     <div>
       <div className={styles.toolbar}>
-        <Button variant="primary" onClick={() => uploadInput.current?.click()} disabled={Boolean(busy)}>
+        <Button
+          variant="primary"
+          onClick={() => uploadInput.current?.click()}
+          disabled={Boolean(busy)}
+        >
           Upload files
         </Button>
         <Button onClick={() => void onNewFolder()} disabled={Boolean(busy)}>
@@ -187,7 +203,11 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                 Library
               </span>
             ) : (
-              <button type="button" className={styles.crumbButton} onClick={() => onNavigate("")}>
+              <button
+                type="button"
+                className={styles.crumbButton}
+                onClick={() => onNavigate("")}
+              >
                 Library
               </button>
             )}
@@ -235,79 +255,99 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
           description="Upload files, or copy them into the library folder on the server and run a scan from More."
         />
       ) : (
-        <table className={styles.table}>
-          <caption>
-            {listing.items.length} item{listing.items.length === 1 ? "" : "s"}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col" className={styles.hideNarrow}>
-                Size
-              </th>
-              <th scope="col" className={styles.hideNarrow}>
-                Modified
-              </th>
-              <th scope="col">
-                <span className={styles.visuallyHidden}>Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {listing.items.map((item) => (
-              <tr key={item.id}>
-                <td className={styles.nameCell}>
-                  {item.kind === "folder" ? (
-                    <button
-                      type="button"
-                      className={styles.name}
-                      onClick={() => onNavigate(item.path)}
-                    >
-                      <span className={styles.kindIcon} aria-hidden="true">
-                        📁
-                      </span>
-                      {item.name}
-                    </button>
-                  ) : (
-                    <span className={styles.name}>
-                      <span className={styles.kindIcon} aria-hidden="true">
-                        📄
-                      </span>
-                      {item.name}
-                    </span>
-                  )}
-                </td>
-                <td className={`${styles.numeric} ${styles.hideNarrow}`}>
-                  {item.kind === "folder" ? "—" : formatBytes(item.sizeBytes)}
-                </td>
-                <td className={`${styles.numeric} ${styles.hideNarrow}`}>
-                  <time dateTime={item.modifiedAt ?? undefined}>
-                    {formatDate(item.modifiedAt)}
-                  </time>
-                </td>
-                <td>
-                  <div className={styles.rowActions}>
-                    {item.kind === "file" ? (
-                      <a
-                        className={styles.downloadLink}
-                        href={contentUrl(item.id)}
-                        download={item.name}
-                      >
-                        Download<span className={styles.visuallyHidden}> {item.name}</span>
-                      </a>
-                    ) : null}
-                    <Button variant="quiet" onClick={() => void onRename(item)}>
-                      Rename<span className={styles.visuallyHidden}> {item.name}</span>
-                    </Button>
-                    <Button variant="quiet" onClick={() => void onTrash(item)}>
-                      Delete<span className={styles.visuallyHidden}> {item.name}</span>
-                    </Button>
-                  </div>
-                </td>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <caption>
+              {listing.items.length} item{listing.items.length === 1 ? "" : "s"}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col" className={styles.hideNarrow}>
+                  Size
+                </th>
+                <th scope="col" className={styles.hideNarrow}>
+                  Modified
+                </th>
+                <th scope="col">
+                  <span className={styles.visuallyHidden}>Actions</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {listing.items.map((item) => (
+                <tr key={item.id}>
+                  <td className={styles.nameCell}>
+                    {item.kind === "folder" ? (
+                      <button
+                        type="button"
+                        className={styles.name}
+                        onClick={() => onNavigate(item.path)}
+                      >
+                        <span className={styles.kindIcon} aria-hidden="true">
+                          📁
+                        </span>
+                        {item.name}
+                      </button>
+                    ) : (
+                      <span className={styles.name}>
+                        <span className={styles.kindIcon} aria-hidden="true">
+                          📄
+                        </span>
+                        {item.name}
+                      </span>
+                    )}
+                  </td>
+                  <td className={`${styles.numeric} ${styles.hideNarrow}`}>
+                    {item.kind === "folder" ? "—" : formatBytes(item.sizeBytes)}
+                  </td>
+                  <td className={`${styles.numeric} ${styles.hideNarrow}`}>
+                    <time dateTime={item.modifiedAt ?? undefined}>
+                      {formatDate(item.modifiedAt)}
+                    </time>
+                  </td>
+                  <td>
+                    <div className={styles.rowActions}>
+                      {item.kind === "file" ? (
+                        <a
+                          className={styles.downloadLink}
+                          href={contentUrl(item.id)}
+                          download={item.name}
+                        >
+                          Download
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </a>
+                      ) : null}
+                      <Button
+                        variant="quiet"
+                        onClick={() => void onRename(item)}
+                      >
+                        Rename
+                        <span className={styles.visuallyHidden}>
+                          {" "}
+                          {item.name}
+                        </span>
+                      </Button>
+                      <Button
+                        variant="quiet"
+                        onClick={() => void onTrash(item)}
+                      >
+                        Delete
+                        <span className={styles.visuallyHidden}>
+                          {" "}
+                          {item.name}
+                        </span>
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

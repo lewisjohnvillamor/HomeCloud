@@ -49,6 +49,12 @@
   font-weight: 600;
 }
 
+/* Safety net: a very narrow screen scrolls the table rather than
+   clipping the row actions off the edge of the page. */
+.tableWrap {
+  overflow-x: auto;
+}
+
 .table {
   inline-size: 100%;
   border-collapse: collapse;
@@ -77,12 +83,20 @@
 
 .nameCell {
   inline-size: 100%;
+  /* Lets a long file name shrink and ellipsise instead of pushing the
+     actions out of the viewport. */
+  max-inline-size: 0;
 }
 
 .name {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-block-size: 2.25rem;
   border: none;
   background: none;
@@ -111,14 +125,30 @@
 
 .rowActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   justify-content: flex-end;
 }
 
-/* Narrow screens: size and date are secondary to name and actions. */
+/* Narrow screens: size and date are secondary to name and actions, and
+   the actions tighten up so a row still reads as one line. */
 @media (max-width: 40rem) {
   .hideNarrow {
     display: none;
+  }
+
+  .table td {
+    padding: 0.375rem 0.25rem;
+  }
+
+  .rowActions {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  .rowActions > * {
+    padding-inline: 0.375rem;
+    font-size: 0.8125rem;
   }
 }
 
