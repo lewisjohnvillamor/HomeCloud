@@ -1,0 +1,104 @@
+//! The API's single error surface.
+//!
+//! Every failure a client can observe is rendered as the same stable JSON
+//! shape, modelled on RFC 9457 "problem details". Internal detail —
+//! driver errors, paths, SQL, stack context — is logged, never returned.
+
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::Json;
+use serde::Serialize;
+
+/// Stable machine-readable error codes. Clients may branch on these; they
+/// are part of the API contract and must not be renamed casually.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorCode {
+    BadRequest,
+    NotFound,
+    PayloadTooLarge,
+    DependencyUnavailable,
+    Internal,
+}
+
+impl ErrorCode {
+    fn status(self) -> StatusCode {
+        match self {
+            ErrorCode::BadRequest => StatusCode::BAD_REQUEST,
+            ErrorCode::NotFound => StatusCode::NOT_FOUND,
+            ErrorCode::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+            ErrorCode::DependencyUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            ErrorCode::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+/// An error as the client sees it.
+#[derive(Debug, Clone)]
+pub struct ApiError {
+    code: ErrorCode,
+    /// Safe, human-readable summary. Never interpolates untrusted input
+    /// or internal identifiers beyond a fixed vocabulary.
+    detail: String,
+}
+
+impl ApiError {
+    pub fn new(code: ErrorCode, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+        }
+    }
+
+    pub fn dependency_unavailable(dependency: &'static str) -> Self {
+        Self::new(
+            ErrorCode::DependencyUnavailable,
+            format!("The {dependency} is not available. Retry shortly."),
+        )
+    }
+
+    pub fn not_found() -> Self {
+        Self::new(
+            ErrorCode::NotFound,
+            "The requested resource does not exist.",
+        )
+    }
+
+    pub fn internal() -> Self {
+        Self::new(
+            ErrorCode::Internal,
+            "The server could not complete the request.",
+        )
+    }
+
+    pub fn code(&self) -> ErrorCode {
+        self.code
+    }
+
+    pub fn status(&self) -> StatusCode {
+        self.code.status()
+    }
+}
+
+/// Wire format. `request_id` lets a user quote one identifier that a
+/// server operator can find in the logs.
+#[derive(Debug, Serialize)]
+struct ProblemBody {
+    code: ErrorCode,
+    detail: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_id: Option<String>,
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let status = self.status();
+        let body = ProblemBody {
+            code: self.code,
+            detail: self.detail,
+            request_id: None,
+        };
+
+        (status, Json(body)).into_response()
+    }
+}
