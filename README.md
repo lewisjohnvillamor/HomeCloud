@@ -98,24 +98,50 @@ docs/
   superpowers/plans/
 ```
 
-## Developer Commands
+## Local Development
 
-Prerequisites: Rust (pinned by `rust-toolchain.toml`), Node.js 22+, pnpm 10+,
-and a reachable PostgreSQL 16 instance.
+Prerequisites: Rust (version pinned by `rust-toolchain.toml`), Node.js 22+,
+pnpm 10+, and Docker (for PostgreSQL only — the API and web app run
+natively).
 
 ```bash
-# Rust
-cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace
-
-# Web (from apps/web)
-pnpm install --frozen-lockfile   # run from the repository root
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
+make setup     # install web dependencies, create .env from .env.example
+make db-up     # start PostgreSQL and wait for it to accept connections
+make dev       # run the API and the web app together
 ```
+
+Ports: web app on <http://127.0.0.1:3000>, API on <http://127.0.0.1:8080>,
+PostgreSQL on `127.0.0.1:5432` (loopback only). The web dev server proxies
+`/api` and `/health` to the API, so the browser always talks to one origin.
+
+Verify the stack:
+
+```bash
+curl http://127.0.0.1:8080/health/live      # {"status":"ok"}
+curl http://127.0.0.1:8080/health/ready     # {"status":"ready"} once the DB is up
+curl http://127.0.0.1:3000/api/v1/bootstrap # {"needs_owner":true} on a fresh install
+```
+
+The API applies pending migrations at startup and skips already-applied
+ones, so restarting never reinitialises existing data. `make db-reset`
+deletes the development database and its volume; nothing else does.
+
+If you prefer to run PostgreSQL yourself, point `HOMECLOUD_DATABASE_URL`
+at it and skip `make db-up`. All configuration is documented in
+`.env.example`.
+
+## Developer Commands
+
+```bash
+make check       # everything CI runs except the browser tests
+make check-rust  # cargo fmt --check, clippy -D warnings, cargo test
+make check-web   # eslint, tsc --noEmit, vitest
+make e2e         # Playwright, desktop and mobile viewports
+```
+
+`cargo test --workspace` runs database integration tests when `DATABASE_URL`
+points at a PostgreSQL server it may create and drop databases on; without
+it those tests skip and say so. CI always sets it.
 
 CI (`.github/workflows/ci.yml`) runs exactly these commands; a check that
 fails locally fails in CI.

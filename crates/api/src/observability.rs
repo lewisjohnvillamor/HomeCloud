@@ -11,6 +11,7 @@ use axum::extract::Request;
 use axum::http::{HeaderName, HeaderValue};
 use axum::middleware::Next;
 use axum::response::Response;
+use tracing::Instrument;
 use uuid::Uuid;
 
 use crate::error::ApiError;
@@ -75,30 +76,36 @@ pub async fn request_id_middleware(mut request: Request, next: Next) -> Response
         method = %method,
         path = %path,
     );
-    let _entered = span.enter();
 
-    let started = Instant::now();
-    let mut response = next.run(request).await;
-    let duration_ms = started.elapsed().as_millis() as u64;
+    // `Instrument` rather than `Span::enter`: the guard from `enter` is
+    // dropped at the first await point, which would leave the handler's
+    // own log lines outside the request span.
+    async move {
+        let started = Instant::now();
+        let mut response = next.run(request).await;
+        let duration_ms = started.elapsed().as_millis() as u64;
 
-    // Errors are re-rendered here so the client receives the same id that
-    // appears in the logs.
-    if let Some(error) = response.extensions().get::<ApiError>().cloned() {
-        response = error.to_response(Some(request_id.as_str()));
+        // Errors are re-rendered here so the client receives the same id
+        // that appears in the logs.
+        if let Some(error) = response.extensions().get::<ApiError>().cloned() {
+            response = error.to_response(Some(request_id.as_str()));
+        }
+
+        let status = response.status();
+        if status.is_server_error() {
+            tracing::error!(status = status.as_u16(), duration_ms, "request failed");
+        } else {
+            tracing::info!(status = status.as_u16(), duration_ms, "request completed");
+        }
+
+        if let Ok(header) = HeaderValue::from_str(request_id.as_str()) {
+            response.headers_mut().insert(REQUEST_ID_HEADER, header);
+        }
+
+        response
     }
-
-    let status = response.status();
-    if status.is_server_error() {
-        tracing::error!(status = status.as_u16(), duration_ms, "request failed");
-    } else {
-        tracing::info!(status = status.as_u16(), duration_ms, "request completed");
-    }
-
-    if let Ok(header) = HeaderValue::from_str(request_id.as_str()) {
-        response.headers_mut().insert(REQUEST_ID_HEADER, header);
-    }
-
-    response
+    .instrument(span)
+    .await
 }
 
 /// Turns a panic in a handler into the standard problem response. The
