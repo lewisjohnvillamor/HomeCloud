@@ -1,0 +1,51 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.skipLink {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  transform: translateY(-200%);
+}
+
+.skipLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
+.main {
+  flex: 1 1 auto;
+  padding: 1.5rem 1rem;
+  /* Room for the fixed bottom bar so focused elements are never hidden
+     behind it. */
+  padding-block-end: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.main:focus {
+  outline: none;
+}
+
+@media (min-width: 48rem) {
+  .shell {
+    flex-direction: row;
+  }
+
+  .main {
+    padding: 2rem 2.5rem;
+    padding-block-end: 2rem;
+  }
+}
+
+.content {
+  max-inline-size: 68rem;
+  margin-inline: auto;
+}

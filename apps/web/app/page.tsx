@@ -1,8 +1,13 @@
+import { EmptyState } from "@/components/ui/states";
+
 export default function HomePage() {
   return (
-    <main>
+    <>
       <h1>HomeCloud</h1>
-      <p>The server is not configured yet.</p>
-    </main>
+      <EmptyState
+        title="This deployment is not set up yet"
+        description="Once the server is reachable and a library folder is configured, your files and photos appear here."
+      />
+    </>
   );
 }

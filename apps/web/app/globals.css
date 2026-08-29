@@ -1,16 +1,61 @@
 :root {
   color-scheme: light dark;
+
+  --background: #fbfbfd;
+  --surface: #ffffff;
+  --surface-hover: #f1f2f6;
+  --surface-selected: #e6ecfb;
+  --border: #dcdfe6;
+  --text: #14161a;
+  --text-muted: #565b66;
+  --focus: #2f5bd7;
+  --danger: #a3232b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e1013;
+    --surface: #16191e;
+    --surface-hover: #1f242b;
+    --surface-selected: #232d43;
+    --border: #2a2f38;
+    --text: #f2f4f7;
+    --text-muted: #a6adba;
+    --focus: #86a6ff;
+    --danger: #ff8f8f;
+  }
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
   font-family:
     system-ui,
     -apple-system,
     "Segoe UI",
     sans-serif;
+  line-height: 1.5;
+}
+
+/* Motion is opt-out by default: animation is decoration here, never the
+   only signal that something changed. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
