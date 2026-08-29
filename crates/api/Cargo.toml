@@ -12,7 +12,10 @@ name = "homecloud-api"
 path = "src/main.rs"
 
 [dependencies]
+homecloud-auth.workspace = true
+homecloud-catalog.workspace = true
 homecloud-domain.workspace = true
+homecloud-storage.workspace = true
 
 
 anyhow.workspace = true
@@ -31,6 +34,8 @@ uuid.workspace = true
 
 [dev-dependencies]
 homecloud-domain.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

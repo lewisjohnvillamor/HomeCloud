@@ -16,15 +16,19 @@ async fn every_response_carries_the_baseline_headers() {
         return;
     };
 
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .uri("/health/live")
-                .body(Body::empty())
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .uri("/health/live")
+            .body(Body::empty())
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     let headers = response.headers();
     for (name, expected) in [
@@ -55,16 +59,20 @@ async fn no_cors_headers_are_exposed() {
         return;
     };
 
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/bootstrap")
-                .header(header::ORIGIN, "https://evil.example")
-                .body(Body::empty())
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .uri("/api/v1/bootstrap")
+            .header(header::ORIGIN, "https://evil.example")
+            .body(Body::empty())
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     // Without `Access-Control-Allow-Origin` a browser will not hand the
     // response body to another origin.
@@ -82,19 +90,23 @@ async fn cross_origin_state_changing_requests_are_refused() {
         return;
     };
 
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/bootstrap")
-                .header(header::HOST, "homecloud.local")
-                .header(header::ORIGIN, "https://evil.example")
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from("{}"))
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/bootstrap")
+            .header(header::HOST, "homecloud.local")
+            .header(header::ORIGIN, "https://evil.example")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from("{}"))
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
@@ -107,19 +119,23 @@ async fn same_origin_state_changing_requests_reach_routing() {
         return;
     };
 
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/bootstrap")
-                .header(header::HOST, "homecloud.local")
-                .header(header::ORIGIN, "https://homecloud.local")
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from("{}"))
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/bootstrap")
+            .header(header::HOST, "homecloud.local")
+            .header(header::ORIGIN, "https://homecloud.local")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from("{}"))
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     // No POST route exists yet; what matters is that the origin check
     // let the request through to routing instead of rejecting it.
@@ -135,18 +151,22 @@ async fn oversized_request_bodies_are_rejected() {
     };
 
     let oversized = vec![b'a'; MAX_METADATA_BODY_BYTES + 1];
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/bootstrap")
-                .header(header::CONTENT_TYPE, "application/json")
-                .header(header::CONTENT_LENGTH, oversized.len())
-                .body(Body::from(oversized))
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/bootstrap")
+            .header(header::CONTENT_TYPE, "application/json")
+            .header(header::CONTENT_LENGTH, oversized.len())
+            .body(Body::from(oversized))
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 

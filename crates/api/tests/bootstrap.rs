@@ -6,6 +6,10 @@ use homecloud_api::bootstrap::{self, BootstrapError, BootstrapState};
 use homecloud_domain::naming::LibraryName;
 use support::TestDatabase;
 
+fn root_path() -> String {
+    "/srv/homecloud/library".to_owned()
+}
+
 fn library_name() -> LibraryName {
     LibraryName::parse("Home").expect("valid name")
 }
@@ -29,7 +33,7 @@ async fn creating_the_owner_creates_its_library_and_membership() {
         return;
     };
 
-    let owner = bootstrap::create_owner(&db.pool, "Ada", &library_name())
+    let owner = bootstrap::create_owner(&db.pool, "Ada", "hash", &library_name(), root_path())
         .await
         .expect("owner is created");
 
@@ -57,11 +61,11 @@ async fn a_second_owner_is_refused() {
         return;
     };
 
-    bootstrap::create_owner(&db.pool, "Ada", &library_name())
+    bootstrap::create_owner(&db.pool, "Ada", "hash", &library_name(), root_path())
         .await
         .expect("first owner");
 
-    let error = bootstrap::create_owner(&db.pool, "Mallory", &library_name())
+    let error = bootstrap::create_owner(&db.pool, "Mallory", "hash", &library_name(), root_path())
         .await
         .expect_err("a second owner must be refused");
 
@@ -79,7 +83,14 @@ async fn concurrent_bootstrap_attempts_create_exactly_one_owner() {
     let attempts = (0..8).map(|index| {
         let pool = db.pool.clone();
         tokio::spawn(async move {
-            bootstrap::create_owner(&pool, &format!("Claimant {index}"), &library_name()).await
+            bootstrap::create_owner(
+                &pool,
+                &format!("Claimant {index}"),
+                "hash",
+                &library_name(),
+                root_path(),
+            )
+            .await
         })
     });
 
@@ -114,7 +125,7 @@ async fn membership_lookup_uses_the_user_index() {
         return;
     };
 
-    let owner = bootstrap::create_owner(&db.pool, "Ada", &library_name())
+    let owner = bootstrap::create_owner(&db.pool, "Ada", "hash", &library_name(), root_path())
         .await
         .expect("owner is created");
 

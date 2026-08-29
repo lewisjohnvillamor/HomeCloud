@@ -48,7 +48,11 @@ async fn liveness_succeeds_without_a_database() {
         .await
         .expect("lazy pool");
 
-    let (status, body) = get(router(AppState::new(pool)), "/health/live").await;
+    let (status, body) = get(
+        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        "/health/live",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
@@ -66,7 +70,11 @@ async fn readiness_fails_when_the_database_is_unreachable() {
         .await
         .expect("lazy pool");
 
-    let (status, body) = get(router(AppState::new(pool)), "/health/ready").await;
+    let (status, body) = get(
+        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        "/health/ready",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(body["code"], "dependency_unavailable");
@@ -87,7 +95,15 @@ async fn readiness_succeeds_against_a_live_database() {
         return;
     };
 
-    let (status, body) = get(router(AppState::new(db.pool.clone())), "/health/ready").await;
+    let (status, body) = get(
+        router(AppState::new(
+            db.pool.clone(),
+            std::path::PathBuf::from("."),
+            false,
+        )),
+        "/health/ready",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ready");
@@ -101,7 +117,15 @@ async fn unknown_routes_return_the_problem_shape() {
         return;
     };
 
-    let (status, body) = get(router(AppState::new(db.pool.clone())), "/does-not-exist").await;
+    let (status, body) = get(
+        router(AppState::new(
+            db.pool.clone(),
+            std::path::PathBuf::from("."),
+            false,
+        )),
+        "/does-not-exist",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "not_found");
@@ -116,15 +140,19 @@ async fn problems_use_the_problem_json_media_type() {
         return;
     };
 
-    let response = router(AppState::new(db.pool.clone()))
-        .oneshot(
-            Request::builder()
-                .uri("/does-not-exist")
-                .body(Body::empty())
-                .expect("valid request"),
-        )
-        .await
-        .expect("router responds");
+    let response = router(AppState::new(
+        db.pool.clone(),
+        std::path::PathBuf::from("."),
+        false,
+    ))
+    .oneshot(
+        Request::builder()
+            .uri("/does-not-exist")
+            .body(Body::empty())
+            .expect("valid request"),
+    )
+    .await
+    .expect("router responds");
 
     assert_eq!(
         response
@@ -143,7 +171,15 @@ async fn bootstrap_status_reports_that_an_owner_is_needed() {
         return;
     };
 
-    let (status, body) = get(router(AppState::new(db.pool.clone())), "/api/v1/bootstrap").await;
+    let (status, body) = get(
+        router(AppState::new(
+            db.pool.clone(),
+            std::path::PathBuf::from("."),
+            false,
+        )),
+        "/api/v1/bootstrap",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["needs_owner"], true);
@@ -163,7 +199,11 @@ async fn bootstrap_status_is_unavailable_without_a_database() {
         .await
         .expect("lazy pool");
 
-    let (status, body) = get(router(AppState::new(pool)), "/api/v1/bootstrap").await;
+    let (status, body) = get(
+        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        "/api/v1/bootstrap",
+    )
+    .await;
 
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(body["code"], "dependency_unavailable");

@@ -36,6 +36,13 @@ async fn run() -> anyhow::Result<()> {
     let pool = db::connect(&config.database).await?;
     db::run_migrations(&pool).await?;
 
+    // Create the library root if it does not exist yet: the path is
+    // explicit configuration, and a first run should not fail because an
+    // empty directory is missing. Existing directories are left alone.
+    tokio::fs::create_dir_all(&config.storage_root).await?;
+    let storage_root = tokio::fs::canonicalize(&config.storage_root).await?;
+    tracing::info!(root = %storage_root.display(), "library root ready");
+
     let listener = TcpListener::bind(config.listen_addr).await?;
     let bound = listener.local_addr()?;
 
@@ -46,7 +53,9 @@ async fn run() -> anyhow::Result<()> {
         "listening"
     );
 
-    axum::serve(listener, router(AppState::new(pool)))
+    let state = AppState::new(pool, storage_root, config.environment.is_production());
+
+    axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 

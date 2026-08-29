@@ -8,12 +8,14 @@
 #![forbid(unsafe_code)]
 
 pub mod app;
+pub mod auth;
 pub mod bootstrap;
 pub mod config;
 pub mod db;
 pub mod error;
 pub mod health;
 pub mod observability;
+pub mod ratelimit;
 pub mod security;
 
 /// Name reported by the API in logs and startup output.

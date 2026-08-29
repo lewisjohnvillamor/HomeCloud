@@ -62,7 +62,9 @@ pub async fn state(pool: &PgPool) -> Result<BootstrapState, BootstrapError> {
 pub async fn create_owner(
     pool: &PgPool,
     display_name: &str,
+    password_hash: &str,
     library_name: &LibraryName,
+    root_path: String,
 ) -> Result<Owner, BootstrapError> {
     let mut tx = pool.begin().await?;
 
@@ -70,12 +72,13 @@ pub async fn create_owner(
     // race explicit: the loser gets no row back and is told the
     // deployment is already initialised.
     let user: Option<uuid::Uuid> = sqlx::query_scalar(
-        "INSERT INTO users (display_name, is_deployment_owner)
-         VALUES ($1, TRUE)
+        "INSERT INTO users (display_name, password_hash, is_deployment_owner)
+         VALUES ($1, $2, TRUE)
          ON CONFLICT (is_deployment_owner) WHERE is_deployment_owner DO NOTHING
          RETURNING id",
     )
     .bind(display_name)
+    .bind(password_hash)
     .fetch_optional(&mut *tx)
     .await?;
 
@@ -85,8 +88,9 @@ pub async fn create_owner(
     };
 
     let library: uuid::Uuid =
-        sqlx::query_scalar("INSERT INTO libraries (name) VALUES ($1) RETURNING id")
+        sqlx::query_scalar("INSERT INTO libraries (name, root_path) VALUES ($1, $2) RETURNING id")
             .bind(library_name.as_str())
+            .bind(&root_path)
             .fetch_one(&mut *tx)
             .await?;
 

@@ -15,7 +15,10 @@ use serde::Serialize;
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     BadRequest,
+    Unauthenticated,
     Forbidden,
+    Conflict,
+    TooManyRequests,
     NotFound,
     PayloadTooLarge,
     DependencyUnavailable,
@@ -26,7 +29,10 @@ impl ErrorCode {
     fn status(self) -> StatusCode {
         match self {
             ErrorCode::BadRequest => StatusCode::BAD_REQUEST,
+            ErrorCode::Unauthenticated => StatusCode::UNAUTHORIZED,
             ErrorCode::Forbidden => StatusCode::FORBIDDEN,
+            ErrorCode::Conflict => StatusCode::CONFLICT,
+            ErrorCode::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::NotFound => StatusCode::NOT_FOUND,
             ErrorCode::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             ErrorCode::DependencyUnavailable => StatusCode::SERVICE_UNAVAILABLE,
@@ -56,6 +62,34 @@ impl ApiError {
         Self::new(
             ErrorCode::DependencyUnavailable,
             format!("The {dependency} is not available. Retry shortly."),
+        )
+    }
+
+    pub fn bad_request(detail: impl Into<String>) -> Self {
+        Self::new(ErrorCode::BadRequest, detail)
+    }
+
+    /// No usable session. The web app treats this as "show the sign-in
+    /// screen", never as an unexpected failure.
+    pub fn unauthenticated() -> Self {
+        Self::new(ErrorCode::Unauthenticated, "Sign in to continue.")
+    }
+
+    /// Credentials were supplied and rejected.
+    pub fn unauthorized(detail: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Unauthenticated, detail)
+    }
+
+    pub fn conflict(detail: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Conflict, detail)
+    }
+
+    pub fn too_many_requests(retry_after: std::time::Duration) -> Self {
+        let seconds = retry_after.as_secs().max(1);
+
+        Self::new(
+            ErrorCode::TooManyRequests,
+            format!("Too many attempts. Try again in {seconds} seconds."),
         )
     }
 
