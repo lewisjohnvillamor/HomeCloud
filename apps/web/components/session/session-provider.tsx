@@ -1,13 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import {
   fetchBootstrapStatus,
   fetchLibraries,
   fetchSession,
   signOut as signOutRequest,
 } from "@/lib/api/endpoints";
-import type { ApiResult } from "@/lib/api/client";
+import { onSessionEnded, type ApiResult } from "@/lib/api/client";
 import type { ApiProblem } from "@/lib/api/problem";
 import type { Library, Session } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
@@ -94,6 +94,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     await reload();
+  }, [reload]);
+
+  // A session can expire or be revoked while the page is open. When the
+  // server says so, re-check rather than leaving the user staring at an
+  // error they cannot act on.
+  useEffect(() => {
+    onSessionEnded(() => void reload());
+
+    return () => onSessionEnded(null);
   }, [reload]);
 
   const signOut = useCallback(async () => {

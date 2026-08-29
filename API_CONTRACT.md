@@ -15,6 +15,39 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 
 ## 3. Core Resources
 
+> **Implemented today.** The endpoints below marked *(built)* exist and are
+> covered by tests; the rest are the target contract. Authentication ships as
+> a password credential rather than passkeys — see
+> `docs/adr/0004-password-sessions-before-passkeys.md`.
+>
+> ```text
+> GET    /health/live                              (built) liveness, no database
+> GET    /health/ready                             (built) readiness, bounded DB probe
+> GET    /api/v1/bootstrap                         (built) does this deployment need an owner
+> POST   /api/v1/setup                             (built) create the owner, library, and session
+> POST   /api/v1/auth/login                        (built) sign in
+> POST   /api/v1/auth/logout                       (built) sign out
+> GET    /api/v1/session                           (built) who is signed in
+> GET    /api/v1/libraries                         (built) libraries this account can see
+> GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb
+> GET    /api/v1/libraries/{id}/photos             (built) images, newest first
+> GET    /api/v1/libraries/{id}/search?q=          (built) name search
+> GET    /api/v1/libraries/{id}/trash              (built) trashed items
+> POST   /api/v1/libraries/{id}/scan               (built) start a background reconciliation
+> GET    /api/v1/libraries/{id}/scan               (built) scan status
+> POST   /api/v1/libraries/{id}/folders            (built) create a folder
+> POST   /api/v1/libraries/{id}/upload?path=       (built) streaming upload, never overwrites
+> GET    /api/v1/items/{id}                        (built) item metadata
+> GET    /api/v1/items/{id}/children               (built) folder contents by id
+> GET    /api/v1/items/{id}/content                (built) download, supports one byte range
+> POST   /api/v1/items/{id}/move                   (built) rename or move
+> DELETE /api/v1/items/{id}                        (built) move to trash
+> POST   /api/v1/items/{id}/restore                (built) restore from trash
+> ```
+>
+> Errors use the problem shape described in section 6, served as
+> `application/problem+json` with the request id that appears in the logs.
+
 ### Auth
 - `POST /api/v1/auth/passkeys/register/options`
 - `POST /api/v1/auth/passkeys/register/verify`

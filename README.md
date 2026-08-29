@@ -98,6 +98,27 @@ docs/
   superpowers/plans/
 ```
 
+## What Works Today
+
+A single-user deployment is usable end to end:
+
+- **First run** — open the app, create the owner account, and the server
+  indexes the library folder it was pointed at.
+- **Files** — browse folders, upload (streamed, never overwriting), download
+  (with byte ranges, so media seeks), create folders, rename, move, and delete
+  to a trash folder that keeps your files on disk.
+- **Photos** — every indexed image, newest first. Full-size originals for now;
+  thumbnails arrive with the derivative pipeline.
+- **Search** — name search across the library.
+- **More** — rescan the library, restore from trash, sign out.
+- **Security** — Argon2id passwords, `HttpOnly` session cookies, throttled
+  sign-in, server-enforced library membership on every route, canonical-root
+  containment, and no symlink following.
+
+Not yet built: passkeys, sharing, multi-user invitations, thumbnails and
+transcoding, offline sync, the TV interface, and the local AI features. See
+`ROADMAP.md`.
+
 ## Local Development
 
 Prerequisites: Rust (version pinned by `rust-toolchain.toml`), Node.js 22+,
@@ -136,8 +157,13 @@ at it and skip `make db-up`. All configuration is documented in
 make check       # everything CI runs except the browser tests
 make check-rust  # cargo fmt --check, clippy -D warnings, cargo test
 make check-web   # eslint, tsc --noEmit, vitest
-make e2e         # Playwright, desktop and mobile viewports
+make e2e         # Playwright UI checks, desktop and mobile viewports
+make e2e-full    # full-stack journeys: real API, real PostgreSQL, built web app
 ```
+
+`make e2e-full` recreates the `homecloud_e2e` database before it runs, because
+the journeys start at first-run setup. Point it at a different server with
+`HOMECLOUD_E2E_ADMIN_URL` and `HOMECLOUD_E2E_DATABASE_URL`.
 
 `cargo test --workspace` runs database integration tests when `DATABASE_URL`
 points at a PostgreSQL server it may create and drop databases on; without

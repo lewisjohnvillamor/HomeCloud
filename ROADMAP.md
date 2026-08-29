@@ -1,5 +1,13 @@
 # Roadmap
 
+> **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
+> for the filesystem backend: the catalog reconciles against disk, and
+> transfers, folders, renames, moves, and trash/restore all work. Phase 3 has
+> landed in its single-user form — password-backed sessions and
+> server-enforced library membership — with passkeys, invitations, and sharing
+> still ahead. Phase 4 has the Photos view over indexed images but no
+> derivative pipeline. Phases 5 and 6 have not started.
+
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 
 **MVP boundary:** Phases **0 through 6** are the MVP. Phase 6, **Search and Private AI**, is intentionally the final MVP milestone so AI lands on top of a trustworthy storage/media foundation instead of blocking it.

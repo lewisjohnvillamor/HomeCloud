@@ -126,3 +126,31 @@ describe("AuthGate", () => {
     expect(await screen.findByText("Private content")).toBeInTheDocument();
   });
 });
+
+describe("session expiry", () => {
+  it("returns to sign-in when the server says the session is gone", async () => {
+    let authenticated = true;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/v1/session")) {
+        return json({ authenticated, display_name: "Ada" });
+      }
+      if (url.includes("/api/v1/bootstrap")) {
+        return json({ needs_owner: false });
+      }
+      if (url.includes("/api/v1/libraries")) {
+        // The session expires between the first load and this call.
+        authenticated = false;
+        return json({ code: "unauthenticated", detail: "Sign in to continue." }, { status: 401 });
+      }
+
+      return json({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderGate();
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+});

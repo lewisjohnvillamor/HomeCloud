@@ -11,6 +11,27 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const REQUEST_ID_HEADER = "x-request-id";
 
+/**
+ * Endpoints where a 401 is an answer rather than an expired session:
+ * signing in with the wrong password, or asking who is signed in.
+ */
+const AUTHENTICATION_PATHS = ["/api/v1/session", "/api/v1/auth/login", "/api/v1/setup"];
+
+type SessionEndedListener = () => void;
+
+let sessionEndedListener: SessionEndedListener | null = null;
+
+/**
+ * Registers what to do when the server says the session is gone.
+ *
+ * A session can expire or be revoked while a page is open; without this,
+ * the next action would show a confusing error instead of the sign-in
+ * screen. The session provider owns the handler.
+ */
+export function onSessionEnded(listener: SessionEndedListener | null): void {
+  sessionEndedListener = listener;
+}
+
 export type RequestOptions = {
   signal?: AbortSignal;
   /** Injected in tests; defaults to the platform `fetch`. */
@@ -71,7 +92,16 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    return { ok: false, problem: toProblem(response.status, body, requestId) };
+    const problem = toProblem(response.status, body, requestId);
+
+    if (
+      problem.code === "unauthenticated" &&
+      !AUTHENTICATION_PATHS.some((candidate) => path.startsWith(candidate))
+    ) {
+      sessionEndedListener?.();
+    }
+
+    return { ok: false, problem };
   }
 
   const parsed = parse(body);

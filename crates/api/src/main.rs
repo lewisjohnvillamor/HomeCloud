@@ -43,6 +43,8 @@ async fn run() -> anyhow::Result<()> {
     let storage_root = tokio::fs::canonicalize(&config.storage_root).await?;
     tracing::info!(root = %storage_root.display(), "library root ready");
 
+    spawn_session_purge(pool.clone());
+
     let listener = TcpListener::bind(config.listen_addr).await?;
     let bound = listener.local_addr()?;
 
@@ -65,6 +67,31 @@ async fn run() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
+}
+
+/// Periodically removes expired session rows.
+///
+/// Correctness does not depend on this — every lookup checks expiry in
+/// the database — so a failure is logged and the loop continues.
+fn spawn_session_purge(pool: sqlx::PgPool) {
+    const INTERVAL: std::time::Duration = std::time::Duration::from_secs(6 * 60 * 60);
+
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(INTERVAL);
+        // The first tick fires immediately; skip it so startup does no
+        // database work it does not need to.
+        ticker.tick().await;
+
+        loop {
+            ticker.tick().await;
+
+            match homecloud_auth::session::purge_expired(&pool).await {
+                Ok(0) => {}
+                Ok(removed) => tracing::info!(removed, "purged expired sessions"),
+                Err(error) => tracing::warn!(error = %error, "session purge failed"),
+            }
+        }
+    });
 }
 
 /// Stops accepting new connections on Ctrl-C or SIGTERM so in-flight

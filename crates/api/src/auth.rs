@@ -141,10 +141,28 @@ pub async fn setup(
             ApiError::conflict("This deployment already has an owner.")
         }
         bootstrap::BootstrapError::Database(error) => {
+            if is_unique_violation(&error) {
+                return ApiError::conflict("An account with that name already exists.");
+            }
+
             tracing::error!(error = %error, "owner creation failed");
             ApiError::internal()
         }
     })?;
+
+    // A deployment pointed at an existing folder should show its files
+    // immediately, so the first scan starts as soon as the owner exists.
+    match crate::library::storage_for(&state, owner.library).await {
+        Ok(storage) => {
+            state
+                .scans()
+                .start(owner.library, state.db().clone(), storage);
+        }
+        Err(error) => {
+            // Setup itself still succeeded; the owner can scan manually.
+            tracing::warn!(error = ?error.code(), "initial scan could not be started");
+        }
+    }
 
     issue_session(&state, owner.user, display_name).await
 }
@@ -165,7 +183,7 @@ pub async fn login(
     }
 
     let row: Option<(uuid::Uuid, Option<String>)> =
-        sqlx::query_as("SELECT id, password_hash FROM users WHERE display_name = $1")
+        sqlx::query_as("SELECT id, password_hash FROM users WHERE lower(display_name) = lower($1)")
             .bind(&display_name)
             .fetch_optional(state.db())
             .await
@@ -296,6 +314,15 @@ async fn issue_session(
             Err(ApiError::internal())
         }
     }
+}
+
+/// Whether a database error is a unique-constraint violation, which is
+/// how a duplicate account name arrives.
+fn is_unique_violation(error: &sqlx::Error) -> bool {
+    matches!(
+        error.as_database_error().and_then(|error| error.code()),
+        Some(code) if code == "23505"
+    )
 }
 
 /// A real Argon2 hash of a value nobody knows, used to keep the timing of

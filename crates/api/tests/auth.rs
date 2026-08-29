@@ -276,3 +276,52 @@ async fn the_session_token_is_not_stored_in_the_database() {
 
     app.cleanup().await;
 }
+
+#[tokio::test]
+async fn two_accounts_cannot_share_a_name() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    app.sign_up_owner().await;
+
+    // Same name in different case: the database, not application code,
+    // is the authority on this.
+    let duplicate =
+        sqlx::query("INSERT INTO users (display_name, password_hash) VALUES ('ada', 'x')")
+            .execute(&app.db.pool)
+            .await;
+
+    assert!(duplicate.is_err(), "a duplicate account name was accepted");
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn setup_starts_the_first_scan_so_existing_files_appear() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    // A folder that already has files in it, as a person pointing
+    // HomeCloud at their existing library would have.
+    app.put_on_disk("existing.txt", b"already here");
+
+    app.sign_up_owner().await;
+    let library = app.library_id().await;
+
+    // The scan runs in the background; wait for it to settle.
+    for _ in 0..100 {
+        let listing = app
+            .get(&format!("/api/v1/libraries/{library}/browse"))
+            .await;
+        if listing.json()["items"]
+            .as_array()
+            .is_some_and(|items| !items.is_empty())
+        {
+            app.cleanup().await;
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+
+    panic!("the initial scan never indexed the existing file");
+}
