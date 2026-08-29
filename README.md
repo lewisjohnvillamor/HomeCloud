@@ -98,6 +98,28 @@ docs/
   superpowers/plans/
 ```
 
+## Developer Commands
+
+Prerequisites: Rust (pinned by `rust-toolchain.toml`), Node.js 22+, pnpm 10+,
+and a reachable PostgreSQL 16 instance.
+
+```bash
+# Rust
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
+
+# Web (from apps/web)
+pnpm install --frozen-lockfile   # run from the repository root
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:e2e
+```
+
+CI (`.github/workflows/ci.yml`) runs exactly these commands; a check that
+fails locally fails in CI.
+
 ## Documentation Map
 
 - `PRODUCT_SPEC.md` — scope, personas, requirements, acceptance criteria.
