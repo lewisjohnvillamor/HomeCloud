@@ -67,9 +67,9 @@ test.describe("application shell", () => {
     await expect(page.getByRole("link", { name: "Files", exact: true })).toHaveCount(1);
   });
 
-  test("every section renders a heading and a stated empty state", async ({ page }) => {
-    for (const [path, heading] of [
-      ["/", "HomeCloud"],
+  test("every section stays reachable when the server is unavailable", async ({ page }) => {
+    for (const [path, destination] of [
+      ["/", "Home"],
       ["/files", "Files"],
       ["/photos", "Photos"],
       ["/search", "Search"],
@@ -77,8 +77,13 @@ test.describe("application shell", () => {
     ] as const) {
       await page.goto(path);
 
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
-      await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
+      // The shell is always usable: navigation never disappears because a
+      // request failed.
+      await expect(page.getByRole("link", { name: destination, exact: true })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
     }
   });
 });

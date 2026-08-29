@@ -53,7 +53,12 @@ async fn run() -> anyhow::Result<()> {
         "listening"
     );
 
-    let state = AppState::new(pool, storage_root, config.environment.is_production());
+    let state = AppState::with_origins(
+        pool,
+        storage_root,
+        config.environment.is_production(),
+        config.trusted_origins.clone(),
+    );
 
     axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())

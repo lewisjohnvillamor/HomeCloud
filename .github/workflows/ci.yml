@@ -113,3 +113,56 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 7
+
+  journeys:
+    name: Full-stack journeys
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: homecloud
+          POSTGRES_PASSWORD: homecloud
+          POSTGRES_DB: homecloud_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U homecloud"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      HOMECLOUD_E2E_DATABASE_URL: postgres://homecloud:homecloud@127.0.0.1:5432/homecloud_e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the API ahead of the journeys
+        run: cargo build --bin homecloud-api
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @homecloud/web exec playwright install --with-deps chromium
+
+      - name: Run the journeys
+        run: pnpm --filter @homecloud/web test:e2e:full
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: journey-report
+          path: apps/web/playwright-report/
+          retention-days: 7

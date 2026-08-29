@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchBootstrapStatus } from "@/lib/api/bootstrap";
+import { fetchBootstrapStatus } from "@/lib/api/endpoints";
 import { isRetryable, toProblem } from "@/lib/api/problem";
 
 function jsonResponse(body: unknown, init: ResponseInit & { requestId?: string } = {}) {

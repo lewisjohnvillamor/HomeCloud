@@ -1,16 +1,46 @@
-import type { Metadata } from "next";
-import { EmptyState } from "@/components/ui/states";
+"use client";
 
-export const metadata: Metadata = { title: "Files" };
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FileBrowser } from "@/components/files/file-browser";
+import { useActiveLibrary } from "@/components/session/session-provider";
+import { EmptyState, PendingState } from "@/components/ui/states";
+
+function Files() {
+  const library = useActiveLibrary();
+  const router = useRouter();
+  const params = useSearchParams();
+  const path = params.get("path") ?? "";
+
+  if (!library) {
+    return (
+      <EmptyState
+        title="No library yet"
+        description="This account is not a member of any library."
+      />
+    );
+  }
+
+  return (
+    <FileBrowser
+      library={library.id}
+      path={path}
+      onNavigate={(next) => {
+        // The folder lives in the URL so back, forward, and sharing a
+        // link all work the way they do everywhere else.
+        router.push(next ? `/files?path=${encodeURIComponent(next)}` : "/files");
+      }}
+    />
+  );
+}
 
 export default function FilesPage() {
   return (
     <>
       <h1>Files</h1>
-      <EmptyState
-        title="Nothing here yet"
-        description="Nothing is indexed yet. Connect a library folder and the catalog will list its contents here."
-      />
+      <Suspense fallback={<PendingState label="Loading files…" />}>
+        <Files />
+      </Suspense>
     </>
   );
 }

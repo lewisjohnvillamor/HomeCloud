@@ -15,6 +15,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use crate::error::ApiError;
 use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
+use crate::security::OriginPolicy;
 use crate::{auth, bootstrap, health, items, library, observability, security, transfers};
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -29,17 +30,33 @@ pub struct AppState {
 struct Inner {
     storage_root: PathBuf,
     secure_cookies: bool,
+    origin_policy: OriginPolicy,
     login_attempts: AttemptLimiter,
     scans: Arc<ScanRegistry>,
 }
 
 impl AppState {
-    pub fn new(db: PgPool, storage_root: PathBuf, secure_cookies: bool) -> Self {
+    pub fn new(db: PgPool, storage_root: PathBuf, production: bool) -> Self {
+        Self::with_origins(db, storage_root, production, Vec::new())
+    }
+
+    pub fn with_origins(
+        db: PgPool,
+        storage_root: PathBuf,
+        production: bool,
+        trusted_origins: Vec<String>,
+    ) -> Self {
         Self {
             db,
             inner: Arc::new(Inner {
                 storage_root,
-                secure_cookies,
+                secure_cookies: production,
+                origin_policy: OriginPolicy {
+                    trusted: trusted_origins,
+                    // Development proxies the web app from another port;
+                    // production must name its origin explicitly.
+                    allow_loopback: !production,
+                },
                 login_attempts: AttemptLimiter::new(),
                 scans: Arc::new(ScanRegistry::new()),
             }),
@@ -73,10 +90,16 @@ impl AppState {
     pub fn scans(&self) -> &Arc<ScanRegistry> {
         &self.inner.scans
     }
+
+    pub fn origin_policy(&self) -> &OriginPolicy {
+        &self.inner.origin_policy
+    }
 }
 
 /// Builds the application router.
 pub fn router(state: AppState) -> Router {
+    let security_state = state.clone();
+
     let metadata = Router::new()
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
@@ -127,7 +150,10 @@ pub fn router(state: AppState) -> Router {
 
     metadata
         .merge(transfers)
-        .layer(axum::middleware::from_fn(security::security_middleware))
+        .layer(axum::middleware::from_fn_with_state(
+            security_state,
+            security::security_middleware,
+        ))
         // Panics become a problem response first, then the correlation
         // layer wraps everything so even a panic carries a request id.
         .layer(CatchPanicLayer::custom(observability::panic_response))

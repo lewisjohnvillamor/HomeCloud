@@ -24,3 +24,6 @@ blob-report/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright full-stack run artefacts
+apps/web/.playwright-library/

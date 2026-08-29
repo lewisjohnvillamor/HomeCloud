@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { AuthGate } from "@/components/session/auth-gate";
+import { SessionProvider } from "@/components/session/session-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +22,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AppShell>{children}</AppShell>
+        <SessionProvider>
+          <AppShell>
+            {/* Presentation only: the server enforces access on every request. */}
+            <AuthGate>{children}</AuthGate>
+          </AppShell>
+        </SessionProvider>
       </body>
     </html>
   );

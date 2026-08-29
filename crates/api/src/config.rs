@@ -20,6 +20,7 @@ pub mod vars {
     pub const LISTEN_ADDR: &str = "HOMECLOUD_LISTEN_ADDR";
     pub const STORAGE_ROOT: &str = "HOMECLOUD_STORAGE_ROOT";
     pub const ENVIRONMENT: &str = "HOMECLOUD_ENV";
+    pub const TRUSTED_ORIGINS: &str = "HOMECLOUD_TRUSTED_ORIGINS";
 }
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8080";
@@ -98,6 +99,10 @@ pub struct ServerConfig {
     pub storage_root: PathBuf,
     pub database: DatabaseConfig,
     pub environment: Environment,
+    /// Origins allowed to make state-changing requests in addition to
+    /// the server's own. Needed when a reverse proxy rewrites `Host`,
+    /// which makes the origin and the host legitimately differ.
+    pub trusted_origins: Vec<String>,
 }
 
 /// Where configuration values come from. Tests supply a map instead of
@@ -172,9 +177,19 @@ impl ServerConfig {
             }
         };
 
+        let trusted_origins = optional(source, vars::TRUSTED_ORIGINS)
+            .map(|raw| {
+                raw.split(',')
+                    .map(|origin| origin.trim().trim_end_matches('/').to_owned())
+                    .filter(|origin| !origin.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Ok(Self {
             listen_addr,
             storage_root,
+            trusted_origins,
             database: DatabaseConfig {
                 url: Secret(database_url),
                 max_connections,

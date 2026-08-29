@@ -17,24 +17,34 @@ export type RequestOptions = {
   fetchImpl?: typeof fetch;
 };
 
-/**
- * Performs a JSON GET and narrows the response with `parse`.
- *
- * `parse` is supplied by the caller so an unexpected payload is caught at
- * the boundary instead of flowing into the UI as `undefined`.
- */
-export async function getJson<T>(
+/** Parses a value that the caller expects to be present but not typed. */
+export type Parser<T> = (value: unknown) => T | undefined;
+
+/** Accepts any JSON body; use only where the server owns the shape. */
+export const asUnknown: Parser<unknown> = (value) => value ?? null;
+
+async function request<T>(
+  method: string,
   path: string,
-  parse: (value: unknown) => T | undefined,
+  parse: Parser<T>,
+  init: { body?: BodyInit; contentType?: string } = {},
   options: RequestOptions = {},
 ): Promise<ApiResult<T>> {
   const doFetch = options.fetchImpl ?? fetch;
 
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (init.contentType) {
+    headers["content-type"] = init.contentType;
+  }
+
   let response: Response;
   try {
     response = await doFetch(`${API_BASE_URL}${path}`, {
-      method: "GET",
-      headers: { accept: "application/json" },
+      method,
+      headers,
+      body: init.body,
+      // The session cookie is `HttpOnly`; the browser attaches it, and
+      // page scripts never see it.
       credentials: "same-origin",
       signal: options.signal,
     });
@@ -78,4 +88,56 @@ export async function getJson<T>(
   }
 
   return { ok: true, data: parsed };
+}
+
+export function getJson<T>(
+  path: string,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request("GET", path, parse, {}, options);
+}
+
+export function postJson<T>(
+  path: string,
+  payload: unknown,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "POST",
+    path,
+    parse,
+    { body: JSON.stringify(payload ?? {}), contentType: "application/json" },
+    options,
+  );
+}
+
+export function deleteJson<T>(
+  path: string,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request("DELETE", path, parse, {}, options);
+}
+
+/** Sends a file body. The browser streams it; nothing is buffered here. */
+export function postFile<T>(
+  path: string,
+  file: Blob,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "POST",
+    path,
+    parse,
+    { body: file, contentType: file.type || "application/octet-stream" },
+    options,
+  );
+}
+
+/** URL a browser can point an `<img>`, `<video>`, or download link at. */
+export function contentUrl(itemId: string): string {
+  return `${API_BASE_URL}/api/v1/items/${encodeURIComponent(itemId)}/content`;
 }

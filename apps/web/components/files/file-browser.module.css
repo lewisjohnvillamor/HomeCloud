@@ -1,0 +1,160 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block-end: 1rem;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.breadcrumb {
+  margin-block-end: 0.75rem;
+}
+
+.breadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+}
+
+.breadcrumbSeparator {
+  color: var(--text-muted);
+}
+
+.crumbButton {
+  border: none;
+  background: none;
+  padding: 0.25rem;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.crumbButton:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.table caption {
+  text-align: start;
+  padding-block-end: 0.5rem;
+  color: var(--text-muted);
+}
+
+.table th {
+  text-align: start;
+  padding: 0.5rem;
+  border-block-end: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.table td {
+  padding: 0.375rem 0.5rem;
+  border-block-end: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.nameCell {
+  inline-size: 100%;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 2.25rem;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.name:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.kindIcon {
+  flex: none;
+  inline-size: 1.25rem;
+  text-align: center;
+}
+
+.numeric {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+/* Narrow screens: size and date are secondary to name and actions. */
+@media (max-width: 40rem) {
+  .hideNarrow {
+    display: none;
+  }
+}
+
+.status {
+  margin-block: 0.75rem;
+  color: var(--text-muted);
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.downloadLink {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.25rem;
+  padding: 0 0.625rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.downloadLink:hover {
+  background: var(--surface-hover);
+  text-decoration: underline;
+}
+
+.downloadLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

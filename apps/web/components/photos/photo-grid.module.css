@@ -1,0 +1,51 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--surface-hover);
+}
+
+.link {
+  display: block;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.image {
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+  /* Full-size originals are used until a derivative pipeline exists;
+     lazy loading keeps a large library from downloading all at once. */
+  background: var(--surface-hover);
+}
+
+.caption {
+  display: block;
+  margin-block-start: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note {
+  margin-block-end: 1rem;
+  color: var(--text-muted);
+}

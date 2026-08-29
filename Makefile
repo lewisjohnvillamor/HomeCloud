@@ -2,9 +2,12 @@
 # green `make check` locally means a green pipeline.
 
 SHELL := /bin/bash
+
+# Connection used only to create and drop the end-to-end test database.
+HOMECLOUD_E2E_ADMIN_URL ?= postgres://homecloud:homecloud@127.0.0.1:5432/postgres
 .DEFAULT_GOAL := help
 
-.PHONY: help setup db-up db-down db-reset api web dev check check-rust check-web e2e
+.PHONY: help setup db-up db-down db-reset api web dev check check-rust check-web e2e e2e-full
 
 help: ## List available targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -44,5 +47,12 @@ check-web: ## Lint, typecheck, and test the web app
 	pnpm --filter @homecloud/web typecheck
 	pnpm --filter @homecloud/web test
 
-e2e: ## Run the browser end-to-end tests
+e2e: ## Run the browser tests that need no server
 	pnpm --filter @homecloud/web test:e2e
+
+e2e-full: ## Run the full-stack journeys (API + PostgreSQL + web)
+	# A fresh database each run: these journeys start at first-run setup.
+	psql "$(HOMECLOUD_E2E_ADMIN_URL)" -c 'DROP DATABASE IF EXISTS homecloud_e2e'
+	psql "$(HOMECLOUD_E2E_ADMIN_URL)" -c 'CREATE DATABASE homecloud_e2e'
+	rm -rf apps/web/.playwright-library
+	pnpm --filter @homecloud/web test:e2e:full

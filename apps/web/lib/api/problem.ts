@@ -7,7 +7,11 @@
  */
 export const ERROR_CODES = [
   "bad_request",
+  "unauthenticated",
+  "forbidden",
   "not_found",
+  "conflict",
+  "too_many_requests",
   "payload_too_large",
   "dependency_unavailable",
   "internal",
