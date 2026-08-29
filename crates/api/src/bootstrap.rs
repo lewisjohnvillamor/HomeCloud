@@ -4,10 +4,16 @@
 //! and the database — not application code — is the authority on that,
 //! so two simultaneous requests cannot produce two owners.
 
+use axum::extract::State;
+use axum::Json;
 use homecloud_domain::identity::{LibraryId, UserId};
 use homecloud_domain::library::LibraryRole;
 use homecloud_domain::naming::LibraryName;
+use serde::Serialize;
 use sqlx::PgPool;
+
+use crate::app::AppState;
+use crate::error::ApiError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BootstrapError {
@@ -97,4 +103,30 @@ pub async fn create_owner(
         user: UserId::from_uuid(user),
         library: LibraryId::from_uuid(library),
     })
+}
+
+/// First-run status as the web client sees it.
+#[derive(Debug, Serialize)]
+pub struct BootstrapStatus {
+    /// True while the deployment still has no owner, which is what the
+    /// first-run screen keys off.
+    needs_owner: bool,
+}
+
+/// `GET /api/v1/bootstrap`
+pub async fn status(State(state): State<AppState>) -> Result<Json<BootstrapStatus>, ApiError> {
+    let state = self::state(state.db()).await.map_err(|error| match error {
+        BootstrapError::Database(error) => {
+            tracing::warn!(error = %error, "bootstrap status query failed");
+            ApiError::dependency_unavailable("database")
+        }
+        other => {
+            tracing::error!(error = %other, "unexpected bootstrap error");
+            ApiError::internal()
+        }
+    })?;
+
+    Ok(Json(BootstrapStatus {
+        needs_owner: state.needs_owner(),
+    }))
 }

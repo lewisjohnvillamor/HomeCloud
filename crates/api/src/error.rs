@@ -4,7 +4,7 @@
 //! shape, modelled on RFC 9457 "problem details". Internal detail —
 //! driver errors, paths, SQL, stack context — is logged, never returned.
 
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Serialize;
@@ -88,7 +88,14 @@ impl ApiError {
             request_id: request_id.map(str::to_owned),
         };
 
-        (self.status(), Json(body)).into_response()
+        let mut response = (self.status(), Json(body)).into_response();
+        // RFC 9457 media type, so a client can tell a problem document
+        // from a successful JSON payload without inspecting the body.
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/problem+json"),
+        );
+        response
     }
 }
 

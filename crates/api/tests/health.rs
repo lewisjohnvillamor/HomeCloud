@@ -109,3 +109,62 @@ async fn unknown_routes_return_the_problem_shape() {
 
     db.cleanup().await;
 }
+
+#[tokio::test]
+async fn problems_use_the_problem_json_media_type() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+
+    let response = router(AppState::new(db.pool.clone()))
+        .oneshot(
+            Request::builder()
+                .uri("/does-not-exist")
+                .body(Body::empty())
+                .expect("valid request"),
+        )
+        .await
+        .expect("router responds");
+
+    assert_eq!(
+        response
+            .headers()
+            .get(http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn bootstrap_status_reports_that_an_owner_is_needed() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+
+    let (status, body) = get(router(AppState::new(db.pool.clone())), "/api/v1/bootstrap").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["needs_owner"], true);
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn bootstrap_status_is_unavailable_without_a_database() {
+    let config =
+        homecloud_api::config::ServerConfig::from_source(&std::collections::HashMap::from([(
+            homecloud_api::config::vars::DATABASE_URL.to_owned(),
+            "postgres://homecloud@127.0.0.1:1/homecloud".to_owned(),
+        )]))
+        .expect("valid config");
+    let pool = homecloud_api::db::connect(&config.database)
+        .await
+        .expect("lazy pool");
+
+    let (status, body) = get(router(AppState::new(pool)), "/api/v1/bootstrap").await;
+
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["code"], "dependency_unavailable");
+}

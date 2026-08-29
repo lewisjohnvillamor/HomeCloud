@@ -8,6 +8,7 @@ use axum::Router;
 use sqlx::PgPool;
 use tower_http::catch_panic::CatchPanicLayer;
 
+use crate::bootstrap;
 use crate::error::ApiError;
 use crate::health;
 use crate::observability;
@@ -34,6 +35,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
+        .route("/api/v1/bootstrap", get(bootstrap::status))
         .fallback(not_found)
         // Panics are converted to a problem response first, then the
         // correlation layer wraps everything so even a panic response
