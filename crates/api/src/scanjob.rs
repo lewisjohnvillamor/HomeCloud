@@ -27,6 +27,10 @@ pub struct ScanStatusView {
 #[derive(Debug, Default, Clone)]
 struct ScanState {
     running: bool,
+    /// Set when a scan is asked for while one is already running. The
+    /// request is honoured after the current pass rather than dropped:
+    /// the caller usually just changed something on disk.
+    rescan_requested: bool,
     finished_at: Option<OffsetDateTime>,
     last_summary: Option<ScanSummary>,
     last_error: Option<String>,
@@ -79,6 +83,7 @@ impl ScanRegistry {
             let state = states.entry(library.as_uuid()).or_default();
 
             if state.running {
+                state.rescan_requested = true;
                 return state.view();
             }
 
@@ -88,24 +93,36 @@ impl ScanRegistry {
 
         let registry = Arc::clone(self);
         tokio::spawn(async move {
-            let outcome = scan::reconcile(&pool, library, &storage).await;
+            loop {
+                let outcome = scan::reconcile(&pool, library, &storage).await;
 
-            let mut states = registry.lock();
-            let state = states.entry(library.as_uuid()).or_default();
-            state.running = false;
-            state.finished_at = Some(OffsetDateTime::now_utc());
+                let mut states = registry.lock();
+                let state = states.entry(library.as_uuid()).or_default();
+                state.finished_at = Some(OffsetDateTime::now_utc());
 
-            match outcome {
-                Ok(summary) => {
-                    state.last_summary = Some(summary);
-                    state.last_error = None;
+                match outcome {
+                    Ok(summary) => {
+                        state.last_summary = Some(summary);
+                        state.last_error = None;
+                    }
+                    Err(error) => {
+                        tracing::error!(error = %error, "library scan failed");
+                        // Deliberately generic: the detail is in the
+                        // logs, not in a response body.
+                        state.last_error = Some("The scan could not finish.".to_owned());
+                    }
                 }
-                Err(error) => {
-                    tracing::error!(error = %error, "library scan failed");
-                    // Deliberately generic: the detail is in the logs,
-                    // not in a response body.
-                    state.last_error = Some("The scan could not finish.".to_owned());
+
+                if !state.rescan_requested {
+                    // `running` stays true until here, so a caller never
+                    // observes a gap between a finished pass and the
+                    // requested one starting.
+                    state.running = false;
+                    return;
                 }
+
+                state.rescan_requested = false;
+                drop(states);
             }
         });
 

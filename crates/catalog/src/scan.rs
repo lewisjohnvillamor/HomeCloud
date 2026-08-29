@@ -53,6 +53,9 @@ pub async fn reconcile(
     storage: &FilesystemStorage,
 ) -> Result<ScanSummary, CatalogError> {
     let started = Instant::now();
+    // Recorded before the walk begins: anything indexed after this point
+    // was created by someone else while the scan ran.
+    let started_at = OffsetDateTime::now_utc();
 
     let mut queue: Vec<(LibraryPath, Option<ItemId>, usize)> = vec![(LibraryPath::root(), None, 0)];
     let mut seen: Vec<String> = Vec::new();
@@ -124,7 +127,7 @@ pub async fn reconcile(
         }
     }
 
-    let missing = repository::mark_missing_except(pool, library, &seen).await?;
+    let missing = repository::mark_missing_except(pool, library, &seen, started_at).await?;
 
     let summary = ScanSummary {
         scanned: seen.len() as u64,

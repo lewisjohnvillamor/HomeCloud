@@ -258,17 +258,20 @@ impl FilesystemStorage {
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).await.map_err(map_io_error)?;
         }
-        if fs::symlink_metadata(&target).await.is_ok() {
-            let _ = fs::remove_file(&staged.temporary).await;
-            return Err(StorageError::AlreadyExists);
-        }
 
-        match fs::rename(&staged.temporary, &target).await {
+        // `hard_link` fails if the destination exists, and does so
+        // atomically. `rename` would silently replace a file that
+        // appeared between a check and the move, which is how two
+        // simultaneous uploads of the same name lose one of them.
+        let result = fs::hard_link(&staged.temporary, &target).await;
+        let _ = fs::remove_file(&staged.temporary).await;
+
+        match result {
             Ok(()) => Ok(()),
-            Err(error) => {
-                let _ = fs::remove_file(&staged.temporary).await;
-                Err(map_io_error(error))
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+                Err(StorageError::AlreadyExists)
             }
+            Err(error) => Err(map_io_error(error)),
         }
     }
 

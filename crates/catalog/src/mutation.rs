@@ -15,6 +15,10 @@ use crate::item::{guess_content_type, ItemKind};
 use crate::repository::{self, CatalogError};
 
 /// Records an entry that now exists on disk, returning its id.
+///
+/// Any ancestor folders that are not catalogued yet are recorded first,
+/// so a deeply created path never leaves an item pointing at a parent
+/// that does not exist.
 pub async fn record_entry(
     pool: &PgPool,
     library: LibraryId,
@@ -30,7 +34,7 @@ pub async fn record_entry(
         .unwrap_or_default()
         .to_owned();
 
-    let parent = parent_id(pool, library, path).await?;
+    let parent = ensure_ancestors(pool, library, path).await?;
     let content_type = match kind {
         ItemKind::File => guess_content_type(&name),
         ItemKind::Folder => None,
@@ -195,16 +199,44 @@ pub async fn trash_location(
     }
 }
 
-/// Resolves the parent item of a path, or `None` when it sits directly
-/// in the library root.
-async fn parent_id(
+/// Records every ancestor folder of `path` that is missing from the
+/// catalog, returning the id of its immediate parent (or `None` when the
+/// item sits directly in the library root).
+async fn ensure_ancestors(
     pool: &PgPool,
     library: LibraryId,
     path: &LibraryPath,
 ) -> Result<Option<ItemId>, CatalogError> {
-    let mut tx = pool.begin().await?;
-    let parent = parent_id_in(&mut tx, library, &path.to_string()).await?;
-    tx.commit().await?;
+    let full = path.to_string();
+    let Some((parent_path, _)) = full.rsplit_once('/') else {
+        return Ok(None);
+    };
+
+    let mut parent = None;
+    let mut so_far = String::new();
+
+    for segment in parent_path.split('/') {
+        if !so_far.is_empty() {
+            so_far.push('/');
+        }
+        so_far.push_str(segment);
+
+        let ancestor = LibraryPath::parse(&so_far)?;
+        parent = Some(
+            repository::upsert(
+                pool,
+                library,
+                parent,
+                &ancestor,
+                segment,
+                ItemKind::Folder,
+                0,
+                None,
+                None,
+            )
+            .await?,
+        );
+    }
 
     Ok(parent)
 }

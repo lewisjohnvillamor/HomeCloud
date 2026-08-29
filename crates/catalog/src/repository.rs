@@ -293,14 +293,19 @@ pub async fn upsert(
     Ok(ItemId::from_uuid(id))
 }
 
-/// Marks everything under `prefix` that a scan did not see as missing.
+/// Marks everything a scan did not see as missing.
 ///
 /// Missing is not deleted: the row, its id, and anything attached to it
 /// survive, because a disconnected drive must not destroy metadata.
+///
+/// `scan_started_at` excludes items recorded *during* the scan — an
+/// upload or a new folder created while the walk was in progress was
+/// never going to be seen by it, and must not be marked missing.
 pub async fn mark_missing_except(
     pool: &PgPool,
     library: LibraryId,
     seen: &[String],
+    scan_started_at: OffsetDateTime,
 ) -> Result<u64, CatalogError> {
     let result = sqlx::query(
         "UPDATE items
@@ -308,10 +313,12 @@ pub async fn mark_missing_except(
          WHERE library_id = $1
            AND trashed_at IS NULL
            AND missing_since IS NULL
+           AND indexed_at < $3
            AND NOT (relative_path = ANY($2))",
     )
     .bind(library.as_uuid())
     .bind(seen)
+    .bind(scan_started_at)
     .execute(pool)
     .await?;
 

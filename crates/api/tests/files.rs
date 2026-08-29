@@ -605,3 +605,129 @@ async fn traversal_in_an_upload_path_is_refused() {
 
     app.cleanup().await;
 }
+
+#[tokio::test]
+async fn a_deep_folder_path_records_its_ancestors() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+
+    let created = app
+        .post_json(
+            &format!("/api/v1/libraries/{library}/folders"),
+            json!({"path": "Documents/2026/Taxes"}),
+        )
+        .await;
+    assert_eq!(created.status, StatusCode::OK);
+
+    // Each level is browsable, which only works if every ancestor was
+    // catalogued with the right parent.
+    for (folder, expected) in [
+        ("", "Documents"),
+        ("Documents", "2026"),
+        ("Documents/2026", "Taxes"),
+    ] {
+        let item = app.find_item(&library, folder, expected).await;
+        assert_eq!(item["kind"], "folder");
+    }
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_trashed_folder_takes_its_contents_with_it_and_brings_them_back() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    app.put_on_disk("trip/day1/beach.jpg", b"jpeg");
+    app.scan(&library).await;
+
+    let folder = app.find_item(&library, "", "trip").await;
+    let id = folder["id"].as_str().expect("id").to_owned();
+
+    app.delete(&format!("/api/v1/items/{id}")).await;
+
+    let listing = app
+        .get(&format!("/api/v1/libraries/{library}/browse"))
+        .await;
+    assert_eq!(listing.json()["items"].as_array().expect("items").len(), 0);
+    assert!(!app.root_path().join("trip").exists());
+    // The nested file is trashed too, not left as a live orphan.
+    let nested_live: (i64,) = sqlx::query_as(
+        "SELECT count(*) FROM items WHERE relative_path = 'trip/day1/beach.jpg' AND trashed_at IS NULL",
+    )
+    .fetch_one(&app.db.pool)
+    .await
+    .expect("query");
+    assert_eq!(nested_live.0, 0);
+
+    app.post_json(&format!("/api/v1/items/{id}/restore"), json!({}))
+        .await;
+
+    assert!(app.root_path().join("trip/day1/beach.jpg").exists());
+    let restored = app
+        .get(&format!(
+            "/api/v1/libraries/{library}/browse?path=trip/day1"
+        ))
+        .await;
+    assert_eq!(restored.json()["items"][0]["name"], "beach.jpg");
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn simultaneous_uploads_of_one_name_both_survive() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+
+    // Sequential at the API, but they race for the same destination the
+    // way two browser tabs would.
+    let first = app.upload(&library, "report.txt", b"first").await;
+    let second = app.upload(&library, "report.txt", b"second").await;
+    let third = app.upload(&library, "report.txt", b"third").await;
+
+    for response in [&first, &second, &third] {
+        assert_eq!(response.status, StatusCode::OK, "{}", response.text());
+    }
+
+    let names: Vec<String> = app
+        .get(&format!("/api/v1/libraries/{library}/browse"))
+        .await
+        .json()["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| item["name"].as_str().unwrap_or_default().to_owned())
+        .collect();
+
+    assert_eq!(names.len(), 3, "{names:?}");
+    assert!(names.contains(&"report.txt".to_owned()), "{names:?}");
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_file_uploaded_during_a_scan_is_not_marked_missing() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+
+    // Start a scan and upload into the library while it runs. The scan
+    // cannot have seen the new file, but it must not conclude it vanished.
+    app.post_json(&format!("/api/v1/libraries/{library}/scan"), json!({}))
+        .await;
+    let uploaded = app.upload(&library, "during-scan.txt", b"contents").await;
+    assert_eq!(uploaded.status, StatusCode::OK);
+
+    app.scan(&library).await;
+
+    let item = app.find_item(&library, "", "during-scan.txt").await;
+    assert_eq!(item["name"], "during-scan.txt");
+
+    app.cleanup().await;
+}
