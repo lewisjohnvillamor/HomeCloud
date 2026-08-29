@@ -78,6 +78,18 @@ impl ApiError {
     pub fn status(&self) -> StatusCode {
         self.code.status()
     }
+
+    /// Renders the problem document. The request id is attached by
+    /// middleware, which is the only layer that knows it.
+    pub fn to_response(&self, request_id: Option<&str>) -> Response {
+        let body = ProblemBody {
+            code: self.code,
+            detail: self.detail.clone(),
+            request_id: request_id.map(str::to_owned),
+        };
+
+        (self.status(), Json(body)).into_response()
+    }
 }
 
 /// Wire format. `request_id` lets a user quote one identifier that a
@@ -92,13 +104,9 @@ struct ProblemBody {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status = self.status();
-        let body = ProblemBody {
-            code: self.code,
-            detail: self.detail,
-            request_id: None,
-        };
-
-        (status, Json(body)).into_response()
+        let mut response = self.to_response(None);
+        // Middleware re-renders the body once the request id is known.
+        response.extensions_mut().insert(self);
+        response
     }
 }

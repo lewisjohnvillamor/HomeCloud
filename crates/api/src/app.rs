@@ -6,9 +6,11 @@
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
+use tower_http::catch_panic::CatchPanicLayer;
 
 use crate::error::ApiError;
 use crate::health;
+use crate::observability;
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
 /// internally reference-counted.
@@ -33,6 +35,13 @@ pub fn router(state: AppState) -> Router {
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
         .fallback(not_found)
+        // Panics are converted to a problem response first, then the
+        // correlation layer wraps everything so even a panic response
+        // carries a request id.
+        .layer(CatchPanicLayer::custom(observability::panic_response))
+        .layer(axum::middleware::from_fn(
+            observability::request_id_middleware,
+        ))
         .with_state(state)
 }
 
