@@ -19,7 +19,7 @@ use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
     albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
-    security, shares, thumbnails, transfers, tv,
+    security, shares, thumbnails, transfers, tv, uploads,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -274,6 +274,15 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
         )
+        // Resumable uploads. The bytes themselves go through the
+        // transfer router below, which has the larger body limit.
+        .route("/api/v1/uploads", post(uploads::create))
+        .route(
+            "/api/v1/uploads/{id}",
+            get(uploads::status).delete(uploads::abort),
+        )
+        .route("/api/v1/uploads/{id}/complete", post(uploads::complete))
+        .route("/api/v1/libraries/{library}/uploads", get(uploads::list))
         // Curating a library: one person's favorites, and albums the
         // whole library shares.
         .route(
@@ -331,6 +340,13 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/libraries/{library}/upload",
             post(transfers::upload),
+        )
+        // One chunk of a resumable upload. Bounded much lower than a
+        // whole-file upload, because the point of a session is that no
+        // single request has to carry the file.
+        .route(
+            "/api/v1/uploads/{id}",
+            axum::routing::patch(uploads::append),
         )
         .layer(RequestBodyLimitLayer::new(
             transfers::MAX_UPLOAD_BYTES as usize,

@@ -1,8 +1,9 @@
 # Roadmap
 
 > **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
-> for the filesystem backend: the catalog reconciles against disk, and
-> transfers, folders, renames, moves, and trash/restore all work. Phase 3 has
+> for the filesystem backend apart from versions: the catalog reconciles
+> against disk, and transfers — including resumable uploads — folders, renames,
+> moves, and trash/restore all work. Phase 3 has
 > landed apart from upload request links: password-backed sessions, passkeys,
 > recovery codes, server-enforced library membership, invitations with
 > per-role powers, and revocable public share links that can carry a

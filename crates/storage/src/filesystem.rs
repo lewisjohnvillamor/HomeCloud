@@ -168,6 +168,13 @@ pub struct StagedUpload {
 }
 
 impl StagedUpload {
+    /// Caps how much more this handle will accept, for a resumable
+    /// upload whose total size was declared up front.
+    pub fn with_limit(mut self, limit: u64) -> Self {
+        self.limit = limit;
+        self
+    }
+
     pub async fn write_chunk(&mut self, chunk: &[u8]) -> Result<(), StorageError> {
         self.written = self.written.saturating_add(chunk.len() as u64);
         if self.written > self.limit {
@@ -179,6 +186,17 @@ impl StagedUpload {
 
     pub fn written(&self) -> u64 {
         self.written
+    }
+
+    /// Gets the bytes written so far onto the disk.
+    ///
+    /// A resumable upload's whole promise is that what arrived survives,
+    /// so a chunk is not acknowledged until it is durable: without this
+    /// the bytes sit in the file handle's buffer, invisible to the next
+    /// request and lost if the process stops.
+    pub async fn persist(&mut self) -> Result<(), StorageError> {
+        self.file.flush().await.map_err(map_io_error)?;
+        self.file.sync_all().await.map_err(map_io_error)
     }
 
     /// Abandons the upload and removes the temporary file.
@@ -237,6 +255,63 @@ impl FilesystemStorage {
             written: 0,
             limit,
         })
+    }
+
+    /// Opens a named staging file for a resumable upload, creating it if
+    /// this is the first chunk.
+    ///
+    /// Unlike `begin_upload`, the file outlives the request: a resumable
+    /// upload is many requests, and the point is that the bytes already
+    /// received survive a dropped connection. The name is chosen by the
+    /// caller, which holds it in the upload session.
+    pub async fn resume_upload(&self, name: &str) -> Result<StagedUpload, StorageError> {
+        // The name is ours, not a client's, but it still goes through a
+        // check: a staging file must land in the staging directory and
+        // nowhere else, whatever a future caller passes.
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+        {
+            return Err(StorageError::InvalidPath(crate::PathError::Traversal));
+        }
+
+        let staging = self.root.join(UPLOAD_DIRECTORY);
+        fs::create_dir_all(&staging).await.map_err(map_io_error)?;
+
+        let temporary = staging.join(name);
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&temporary)
+            .await
+            .map_err(map_io_error)?;
+        let written = file.metadata().await.map_err(map_io_error)?.len();
+
+        Ok(StagedUpload {
+            file,
+            temporary,
+            written,
+            limit: u64::MAX,
+        })
+    }
+
+    /// How many bytes a named staging file already holds, or zero when
+    /// nothing has arrived yet.
+    pub async fn staged_bytes(&self, name: &str) -> u64 {
+        let path = self.root.join(UPLOAD_DIRECTORY).join(name);
+
+        match fs::symlink_metadata(&path).await {
+            Ok(metadata) if metadata.is_file() => metadata.len(),
+            _ => 0,
+        }
+    }
+
+    /// Removes a named staging file. Abandoning an upload must not leave
+    /// its bytes on the disk.
+    pub async fn discard_staged(&self, name: &str) {
+        let path = self.root.join(UPLOAD_DIRECTORY).join(name);
+        let _ = fs::remove_file(&path).await;
     }
 
     /// Completes an upload by moving the staged file into place.

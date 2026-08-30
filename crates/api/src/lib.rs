@@ -30,6 +30,7 @@ pub mod shares;
 pub mod thumbnails;
 pub mod transfers;
 pub mod tv;
+pub mod uploads;
 pub mod view;
 
 /// Name reported by the API in logs and startup output.

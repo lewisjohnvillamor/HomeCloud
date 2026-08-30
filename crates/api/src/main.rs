@@ -51,8 +51,6 @@ async fn run() -> anyhow::Result<()> {
         tracing::warn!("video previews are disabled: ffmpeg was not found on PATH");
     }
 
-    spawn_session_purge(pool.clone());
-
     let listener = TcpListener::bind(config.listen_addr).await?;
     let bound = listener.local_addr()?;
 
@@ -64,7 +62,7 @@ async fn run() -> anyhow::Result<()> {
     );
 
     let state = AppState::new(
-        pool,
+        pool.clone(),
         homecloud_api::app::AppSettings {
             storage_root,
             production: config.environment.is_production(),
@@ -73,6 +71,10 @@ async fn run() -> anyhow::Result<()> {
         },
     );
 
+    // After the state exists: sweeping abandoned uploads needs storage,
+    // not just the database.
+    spawn_maintenance(pool, state.clone());
+
     axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await?;
@@ -80,11 +82,12 @@ async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Periodically removes expired session rows.
+/// Periodically removes what has expired: sessions, share links,
+/// pairing codes, and abandoned uploads.
 ///
 /// Correctness does not depend on this — every lookup checks expiry in
 /// the database — so a failure is logged and the loop continues.
-fn spawn_session_purge(pool: sqlx::PgPool) {
+fn spawn_maintenance(pool: sqlx::PgPool, state: AppState) {
     const INTERVAL: std::time::Duration = std::time::Duration::from_secs(6 * 60 * 60);
 
     tokio::spawn(async move {
@@ -108,6 +111,15 @@ fn spawn_session_purge(pool: sqlx::PgPool) {
                 Ok(0) => {}
                 Ok(expired) => tracing::info!(expired, "closed expired share links"),
                 Err(error) => tracing::warn!(error = %error, "share purge failed"),
+            }
+
+            // Abandoned uploads, and the bytes they were holding. This
+            // sweep touches the disk: an unfinished upload is not just a
+            // row.
+            match homecloud_api::uploads::purge_expired(&pool, &state).await {
+                Ok(0) => {}
+                Ok(removed) => tracing::info!(removed, "removed abandoned uploads"),
+                Err(error) => tracing::warn!(error = %error, "upload purge failed"),
             }
 
             // Pairing codes nobody used. Expiry is enforced on every

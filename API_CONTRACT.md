@@ -69,6 +69,12 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
 > GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
 > POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> POST   /api/v1/uploads                           (built) open a resumable upload session
+> GET    /api/v1/uploads/{id}                      (built) how many bytes arrived
+> PATCH  /api/v1/uploads/{id}?offset=              (built) append one chunk
+> POST   /api/v1/uploads/{id}/complete             (built) move the finished file into place
+> DELETE /api/v1/uploads/{id}                      (built) give up on an upload
+> GET    /api/v1/libraries/{id}/uploads            (built) this person's unfinished uploads
 > PUT    /api/v1/items/{id}/favorite               (built) star a picture — idempotent
 > DELETE /api/v1/items/{id}/favorite               (built) take the star back
 > GET    /api/v1/libraries/{id}/favorites          (built) this person's own favorites

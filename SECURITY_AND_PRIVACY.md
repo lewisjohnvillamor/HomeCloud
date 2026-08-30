@@ -338,7 +338,30 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Photo Metadata
+## 21. Resumable Uploads
+
+An upload that spans many requests is a small amount of state a client can lie
+about, so the rules are about not believing it:
+
+- the offset is read from the staging file's own length, never from what a
+  client sends. A client that claims to be further along is told the real
+  offset rather than allowed to write there, because appending at a wrong
+  offset is how a resumable upload silently corrupts a file;
+- a session belongs to the person who opened it. Another member of the same
+  library gets "not found": an upload in progress is not shared work, and its
+  staging file is not something anyone else should be able to append to;
+- the total size is declared up front and enforced, so a client that keeps
+  sending cannot fill the disk, and one chunk is bounded well below it;
+- an upload that is short of its declared size cannot be completed. A partial
+  file placed in a library as though it were finished is worse than asking for
+  the rest;
+- the destination name is chosen at completion, not when the session opened:
+  a long upload can outlive the name being free, and the same never-overwrite
+  rule applies as to any other upload;
+- staging files live inside the library root, are named by the server, and are
+  swept along with their sessions when one is abandoned.
+
+## 22. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -359,7 +382,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 22. Television Pairing
+## 23. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and
