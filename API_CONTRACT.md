@@ -72,6 +72,9 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > POST   /api/v1/items/{id}/copy                   (built) copy a file, keeping the original
 > GET    /api/v1/libraries/{id}/duplicates         (built) exact duplicates, biggest waste first
 > GET    /api/v1/libraries/{id}/places             (built) photos that recorded where they were taken
+> GET    /api/v1/libraries/{id}/memories/hidden    (built) memories this library dismissed
+> POST   /api/v1/libraries/{id}/memories/hidden    (built) dismiss a memory — never the photos
+> DELETE /api/v1/libraries/{id}/memories/hidden/{key}  (built) show a memory again
 > GET    /api/v1/libraries/{id}/ai                 (built) the private AI switch, and what the machine can do
 > PUT    /api/v1/libraries/{id}/ai                 (built) turn private AI on or off — owner only
 > PUT    /api/v1/items/{id}/content                (built) replace contents, keeping the old

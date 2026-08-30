@@ -461,6 +461,47 @@ export function removePasskey(
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
 }
 
+/** Hides a memory — not the photographs in it. */
+export function hideMemory(
+  library: string,
+  key: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/memories/hidden`,
+    { key },
+    asUnknown,
+    options,
+  );
+}
+
+export function unhideMemory(
+  library: string,
+  key: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/memories/hidden/${encodeURIComponent(key)}`,
+    asUnknown,
+    options,
+  );
+}
+
+/** Which memories this library has asked not to see. */
+export function fetchHiddenMemories(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<string[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/memories/hidden`,
+    (value) =>
+      Array.isArray(value) && value.every((entry) => typeof entry === "string")
+        ? (value as string[])
+        : undefined,
+    options,
+  );
+}
+
 /** The private AI switch. Readable by members, changed by the owner. */
 export function fetchAiSettings(
   library: string,

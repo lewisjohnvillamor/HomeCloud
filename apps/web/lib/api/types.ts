@@ -478,7 +478,13 @@ export function parseChallenge(value: unknown): Challenge | undefined {
 }
 
 /** A deterministic collection shown on the TV and the home screen. */
-export type MemoryGroup = { title: string; subtitle: string; items: Item[] };
+export type MemoryGroup = {
+  /** Stable across requests, so hiding one keeps it hidden. */
+  key: string;
+  title: string;
+  subtitle: string;
+  items: Item[];
+};
 
 export function parseMemories(value: unknown): MemoryGroup[] | undefined {
   if (!Array.isArray(value)) {
@@ -494,6 +500,7 @@ export function parseMemories(value: unknown): MemoryGroup[] | undefined {
     }
 
     groups.push({
+      key: typeof raw.key === "string" ? raw.key : "",
       title: raw.title,
       subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
       items,

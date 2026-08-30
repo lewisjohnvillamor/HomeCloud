@@ -134,6 +134,11 @@ A single-user deployment is usable end to end:
   leaves the machine, and turning it off deletes everything it wrote. A server
   without the recogniser installed says so rather than offering a switch that
   does nothing.
+- **Memories** — what you took on this day in earlier years, trips away from
+  home worked out from capture dates and coordinates, and what arrived
+  recently. Deterministic arithmetic, so it works with AI switched off. Any
+  memory can be dismissed, and dismissing one hides the memory rather than the
+  photographs.
 - **Places** — photos plotted by where the camera said they were taken. A
   coordinate plot rather than a street map, and deliberately so: asking a tile
   service for the squares around a coordinate tells that service where your
