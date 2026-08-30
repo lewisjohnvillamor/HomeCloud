@@ -945,6 +945,80 @@ test("a replaced file keeps what it was, and can be put back", async ({ browser 
   await owner.close();
 });
 
+test("the same file kept twice is reported as a duplicate", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // Content unique to this journey. The suite shares one library and
+  // reuses the same tiny PNG everywhere, so a photo would land in a
+  // group with every other copy of it and the count would be anyone's
+  // guess.
+  const receipt = "Invoice 88213 for one standby generator, delivered to the workshop.";
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([
+      tempFile("receipt-from-email.txt", receipt),
+      tempFile("receipt-scanned.txt", receipt),
+    ]);
+  await expect(ownerPage.getByRole("row").filter({ hasText: "receipt-scanned.txt" })).toBeVisible();
+
+  // Files are hashed in the background after a scan.
+  await ownerPage.goto("/more");
+  await scanLibrary(ownerPage);
+
+  const duplicates = ownerPage.getByRole("region", { name: "Duplicates" });
+  await expect(async () => {
+    await ownerPage.goto("/more");
+    await expect(duplicates).toContainText("receipt-scanned.txt", { timeout: 2_000 });
+  }).toPass({ timeout: 60_000, intervals: [2_000] });
+
+  await expect(duplicates).toContainText("receipt-from-email.txt");
+
+  // Removing one copy leaves the other, and the set stops being reported.
+  ownerPage.once("dialog", (dialog) => dialog.accept());
+  await duplicates
+    .getByRole("button", { name: "Move to trash receipt-scanned.txt" })
+    .click();
+
+  await expect(async () => {
+    await ownerPage.goto("/more");
+    await expect(duplicates).not.toContainText("receipt-scanned.txt", { timeout: 2_000 });
+  }).toPass({ timeout: 30_000, intervals: [2_000] });
+
+  await ownerPage.goto("/files");
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "receipt-from-email.txt" }),
+  ).toBeVisible();
+
+  await owner.close();
+});
+
+test("a file can be copied without losing the original", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("report.txt", "the contents"));
+  const row = ownerPage.getByRole("row").filter({ hasText: "report.txt" });
+  await expect(row).toBeVisible();
+
+  ownerPage.once("dialog", (dialog) => dialog.accept("report-backup.txt"));
+  await row.getByRole("button", { name: /Copy/ }).click();
+
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "report-backup.txt" }),
+  ).toBeVisible();
+  // The original is still there — a copy is not a move. Matched by the
+  // download link, whose accessible name names exactly one file.
+  await expect(
+    ownerPage.getByRole("link", { name: "Download report.txt", exact: true }),
+  ).toBeVisible();
+  await expect(
+    ownerPage.getByRole("link", { name: "Download report-backup.txt", exact: true }),
+  ).toBeVisible();
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

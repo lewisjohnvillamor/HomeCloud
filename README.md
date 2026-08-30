@@ -128,6 +128,11 @@ A single-user deployment is usable end to end:
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
+- **Duplicates** — files that are byte-for-byte the same, wherever they sit,
+  found by hashing every file in the background. Exact matches only: files that
+  merely look alike are a job for the AI half of the product, and calling
+  anything less than identical a duplicate would invite someone to delete a
+  photo they wanted. Nothing is removed for you.
 - **History** — replacing a file through HomeCloud keeps what it was, so you
   can read it back or put it back. A file changed with another program is not
   kept: it had already changed before any scan saw it, and claiming otherwise

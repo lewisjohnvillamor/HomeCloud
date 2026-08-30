@@ -223,6 +223,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/items/{item}/children", get(items::children))
         .route("/api/v1/items/{item}/move", post(items::move_item))
+        .route("/api/v1/items/{item}/copy", post(items::copy_item))
         .route("/api/v1/items/{item}/restore", post(items::restore_item))
         .route(
             "/api/v1/items/{item}/shares",
@@ -273,6 +274,11 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
+        )
+        // Exact duplicates, for reclaiming space.
+        .route(
+            "/api/v1/libraries/{library}/duplicates",
+            get(library::duplicates),
         )
         // What a file used to be. Replacing goes through the transfer
         // router below, which has the larger body limit.

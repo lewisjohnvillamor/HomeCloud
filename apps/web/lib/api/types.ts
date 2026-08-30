@@ -746,3 +746,34 @@ export function parseFileVersions(value: unknown): FileVersion[] | undefined {
 
   return versions;
 }
+
+/** A set of files that are byte-for-byte the same. */
+export type DuplicateGroup = {
+  sizeBytes: number;
+  /** What deleting every copy but one would free. */
+  reclaimableBytes: number;
+  items: Item[];
+};
+
+export function parseDuplicateGroups(value: unknown): DuplicateGroup[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const groups: DuplicateGroup[] = [];
+  for (const entry of value) {
+    const raw = record(entry);
+    const items = raw ? parseItems(raw.items) : undefined;
+    if (!raw || !items) {
+      return undefined;
+    }
+
+    groups.push({
+      sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
+      reclaimableBytes: typeof raw.reclaimable_bytes === "number" ? raw.reclaimable_bytes : 0,
+      items,
+    });
+  }
+
+  return groups;
+}

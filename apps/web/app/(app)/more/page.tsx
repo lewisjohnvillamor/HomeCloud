@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
+import { DuplicateSection } from "@/components/files/duplicate-section";
 import { RequestSection } from "@/components/share/request-section";
 import { TvSection } from "@/components/tv/tv-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
@@ -324,7 +325,22 @@ export default function MorePage() {
           ) : null}
         </section>
 
-        <section className={styles.section} aria-labelledby="trash-heading">
+        <section className={styles.section} aria-labelledby="duplicates-heading">
+        <h2 id="duplicates-heading" className={styles.heading}>
+          Duplicates
+        </h2>
+        <p className={styles.detail}>
+          Files that are byte-for-byte the same, wherever they sit. Nothing is removed for
+          you — the copies are listed and you decide.
+        </p>
+        {library ? (
+          <DuplicateSection library={library.id} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="trash-heading">
           <h2 id="trash-heading" className={styles.heading}>
             Trash
           </h2>

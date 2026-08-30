@@ -106,7 +106,13 @@ impl ScanRegistry {
                 // say when they were taken.
                 let index = if outcome.is_ok() {
                     crate::photometa::describe_library(&pool, library, &storage).await;
-                    Some(crate::indexing::index_library(&pool, library, &storage).await)
+                    // Text first, then hashes: search is what a person
+                    // reaches for immediately, duplicates can wait a
+                    // moment longer.
+                    let indexed = crate::indexing::index_library(&pool, library, &storage).await;
+                    crate::hashing::hash_library(&pool, library, &storage).await;
+
+                    Some(indexed)
                 } else {
                     None
                 };

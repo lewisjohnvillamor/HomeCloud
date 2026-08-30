@@ -16,6 +16,10 @@ use crate::view::{self, ItemView, SearchResultView};
 /// Largest page a client may ask for. Bounds the work one request can
 /// cause regardless of what the client sends.
 const MAX_PAGE_SIZE: i64 = 500;
+
+/// Duplicate groups returned at once. The list is for reclaiming space,
+/// and nobody works through more than this in one sitting.
+const MAX_DUPLICATE_GROUPS: i64 = 200;
 const DEFAULT_PAGE_SIZE: i64 = 200;
 
 #[derive(Debug, Serialize)]
@@ -267,6 +271,46 @@ pub async fn search(
                     homecloud_search::MatchKind::NameAndContent => "name_and_content",
                 },
                 snippet: hit.snippet.clone(),
+            })
+            .collect(),
+    ))
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct DuplicateGroupView {
+    /// Size of one copy. Multiply by the extras to see what removing
+    /// them reclaims.
+    pub size_bytes: i64,
+    /// What deleting every copy but one would free.
+    pub reclaimable_bytes: i64,
+    pub items: Vec<crate::view::ItemView>,
+}
+
+/// `GET /api/v1/libraries/{library}/duplicates`
+///
+/// Exact duplicates only: same bytes, same hash. Files that merely look
+/// alike are a job for the AI half of the product, and saying "duplicate"
+/// about anything less than identical would invite someone to delete
+/// something they wanted.
+pub async fn duplicates(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(library): Path<String>,
+) -> Result<Json<Vec<DuplicateGroupView>>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    let groups = homecloud_catalog::hashing::duplicates(state.db(), library, MAX_DUPLICATE_GROUPS)
+        .await
+        .map_err(catalog_error)?;
+
+    Ok(Json(
+        groups
+            .into_iter()
+            .map(|group| DuplicateGroupView {
+                size_bytes: group.size_bytes,
+                reclaimable_bytes: group.size_bytes * (group.items.len() as i64 - 1),
+                items: crate::view::items(&group.items),
             })
             .collect(),
     ))

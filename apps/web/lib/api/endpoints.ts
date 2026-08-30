@@ -36,6 +36,7 @@ import {
   parseMembers,
   parseAlbumContents,
   parseAlbums,
+  parseDuplicateGroups,
   parseFileVersions,
   parsePairing,
   parsePublicUploadRequest,
@@ -61,6 +62,7 @@ import {
   type SearchResult,
   type Album,
   type AlbumContents,
+  type DuplicateGroup,
   type FileVersion,
   type Pairing,
   type PairingStatus,
@@ -455,6 +457,32 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+/** Exact duplicates: same bytes, same hash. */
+export function fetchDuplicates(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<DuplicateGroup[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/duplicates`,
+    parseDuplicateGroups,
+    options,
+  );
+}
+
+/** Copies a file, leaving the original where it is. */
+export function copyItem(
+  item: string,
+  path: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/copy`,
+    { path },
+    parseItem,
+    options,
+  );
 }
 
 // --- What a file used to be ---

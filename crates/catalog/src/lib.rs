@@ -7,6 +7,7 @@
 // Application crates have no need for `unsafe`; an exception requires an ADR.
 #![forbid(unsafe_code)]
 
+pub mod hashing;
 pub mod item;
 pub mod mutation;
 pub mod repository;

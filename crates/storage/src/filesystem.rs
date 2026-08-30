@@ -521,6 +521,48 @@ impl FilesystemStorage {
         fs::read(&resolved).await.map_err(map_io_error)
     }
 
+    /// Copies a file, leaving the original where it is.
+    ///
+    /// Only files: copying a folder means copying a tree, which is a
+    /// long-running job with its own progress and cancellation, and
+    /// pretending it is one request would be a lie about how long it
+    /// takes.
+    pub async fn copy_file(
+        &self,
+        from: &LibraryPath,
+        to: &LibraryPath,
+    ) -> Result<u64, StorageError> {
+        let source = self.resolve(from).await?;
+
+        let metadata = fs::symlink_metadata(&source).await.map_err(map_io_error)?;
+        if !metadata.is_file() {
+            return Err(StorageError::NotADirectory);
+        }
+
+        // Through the staging directory and then linked into place, so a
+        // half-written copy is never visible at the destination and the
+        // final step refuses an existing file atomically.
+        let mut staged = self.begin_upload(u64::MAX).await?;
+
+        let mut reader = fs::File::open(&source).await.map_err(map_io_error)?;
+        let mut buffer = vec![0u8; 256 * 1024];
+
+        loop {
+            use tokio::io::AsyncReadExt;
+
+            let read = reader.read(&mut buffer).await.map_err(map_io_error)?;
+            if read == 0 {
+                break;
+            }
+            staged.write_chunk(&buffer[..read]).await?;
+        }
+
+        let written = staged.written();
+        self.finish_upload(staged, to).await?;
+
+        Ok(written)
+    }
+
     /// Moves a file's current contents into the version store, returning
     /// the name it was kept under.
     ///

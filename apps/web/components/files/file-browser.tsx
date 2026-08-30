@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
   browse as browseRequest,
   contentUrl,
+  copyItem,
   createFolder,
   moveItem,
   thumbnailUrl,
@@ -109,6 +110,19 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
     if (uploadInput.current) {
       uploadInput.current.value = "";
     }
+  }
+
+  async function onCopy(item: Item) {
+    const destination = window.prompt("Copy to which path?", `${item.path}`);
+    if (!destination?.trim() || destination.trim() === item.path) {
+      return;
+    }
+
+    await run(`Copying ${item.name}`, async () => {
+      const result = await copyItem(item.id, destination.trim());
+
+      return result.ok ? { ok: true } : { ok: false, problem: result.problem };
+    });
   }
 
   async function onNewFolder() {
@@ -369,6 +383,15 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           {item.name}
                         </span>
                       </Button>
+                      {item.kind === "file" ? (
+                        <Button variant="quiet" onClick={() => void onCopy(item)}>
+                          Copy
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
                       {item.kind === "file" ? (
                         <Button variant="quiet" onClick={() => setHistory(item)}>
                           History

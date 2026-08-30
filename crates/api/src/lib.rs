@@ -14,6 +14,7 @@ pub mod bootstrap;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod hashing;
 pub mod health;
 pub mod indexing;
 pub mod items;

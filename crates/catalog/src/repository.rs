@@ -300,6 +300,31 @@ pub async fn search(
 ///
 /// For search, where ranking happens in the query that produced the ids
 /// and must survive the fetch.
+/// Every live file in a library with a given content hash.
+///
+/// Ordered oldest first, so the copy that arrived first — usually the
+/// one someone means to keep — reads as the original.
+pub async fn items_with_hash(
+    pool: &PgPool,
+    library: LibraryId,
+    hash: &[u8],
+) -> Result<Vec<Item>, CatalogError> {
+    let rows = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items
+         WHERE library_id = $1
+           AND content_hash = $2
+           AND trashed_at IS NULL
+           AND missing_since IS NULL
+         ORDER BY indexed_at, relative_path"
+    ))
+    .bind(library.as_uuid())
+    .bind(hash)
+    .fetch_all(pool)
+    .await?;
+
+    items_from_rows(rows)
+}
+
 pub async fn items_by_ids(
     pool: &PgPool,
     library: LibraryId,
