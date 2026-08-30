@@ -29,9 +29,13 @@ import {
   parseInvitationPreview,
   parseInvitations,
   parseMembers,
+  parsePairing,
+  parsePairingStatus,
   parseSession,
   parseShare,
   parseShares,
+  parseTvDevice,
+  parseTvDevices,
   type Browse,
   type Item,
   type Library,
@@ -44,8 +48,11 @@ import {
   type RegisteredPasskey,
   type ScanStatus,
   type SearchResult,
+  type Pairing,
+  type PairingStatus,
   type Session,
   type Share,
+  type TvDevice,
 } from "./types";
 
 export type BootstrapStatus = { needsOwner: boolean };
@@ -505,6 +512,73 @@ export function recoverAccount(
     parseSession,
     options,
   );
+}
+
+// --- Television ---
+
+/** A screen with no keyboard asks to be paired. Takes no session. */
+export function startPairing(options?: RequestOptions): Promise<ApiResult<Pairing>> {
+  return postJson("/api/v1/tv/pairings", {}, parsePairing, options);
+}
+
+/** Has anyone approved this screen yet? Polled by the television. */
+export function pollPairing(
+  pollToken: string,
+  options?: RequestOptions,
+): Promise<ApiResult<PairingStatus>> {
+  return getJson(
+    `/api/v1/tv/pairings/${encodeURIComponent(pollToken)}`,
+    parsePairingStatus,
+    options,
+  );
+}
+
+/** The human step: someone signed in vouches for the code on the screen. */
+export function approvePairing(
+  code: string,
+  input: { library: string; name: string },
+  options?: RequestOptions,
+): Promise<ApiResult<TvDevice>> {
+  return postJson(
+    `/api/v1/tv/pairings/${encodeURIComponent(code)}/approve`,
+    { library_id: input.library, name: input.name },
+    parseTvDevice,
+    options,
+  );
+}
+
+export function fetchTvDevices(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<TvDevice[]>> {
+  return getJson(`/api/v1/libraries/${encodeURIComponent(library)}/tv`, parseTvDevices, options);
+}
+
+export function unpairTvDevice(
+  device: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/tv/devices/${encodeURIComponent(device)}`, asUnknown, options);
+}
+
+/** The wall a paired screen shows, through its own credential. */
+export function fetchTvMemories(
+  token: string,
+  options?: RequestOptions,
+): Promise<ApiResult<MemoryGroup[]>> {
+  return getJson(`/api/v1/tv/memories?token=${encodeURIComponent(token)}`, parseMemories, options);
+}
+
+/**
+ * As with share links, the credential travels as a query parameter: an
+ * `<img>` on the photo wall cannot send a header.
+ */
+export function tvThumbnailUrl(token: string, item: string): string {
+  return `/api/v1/tv/thumbnail?token=${encodeURIComponent(token)}&item=${encodeURIComponent(item)}`;
+}
+
+export function tvContentUrl(token: string, item: string): string {
+  return `/api/v1/tv/content?token=${encodeURIComponent(token)}&item=${encodeURIComponent(item)}`;
 }
 
 export { contentUrl, thumbnailUrl };

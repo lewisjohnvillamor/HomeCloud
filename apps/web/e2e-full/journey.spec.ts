@@ -603,6 +603,68 @@ test("a password-protected link discloses nothing until the password is given", 
   await owner.close();
 });
 
+test("a television with no keyboard is paired from a phone", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("paired.png", Buffer.from(PNG_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "paired.png" })).toBeVisible();
+
+  // The television: a browser with no session at all, which is what a
+  // set in a living room is.
+  const tv = await browser.newContext();
+  const tvPage = await tv.newPage();
+  await tvPage.goto("/tv");
+
+  // It asks to be connected rather than showing a password form it
+  // could never be used to fill in.
+  await expect(tvPage.getByRole("heading", { name: "Connect this screen" })).toBeVisible();
+  await expect(tvPage.getByLabel("Password")).toHaveCount(0);
+  const code = (await tvPage.getByLabel("Pairing code").innerText()).trim();
+  expect(code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+
+  // The phone approves it, exactly as scanning the square would arrive.
+  await ownerPage.goto(`/pair?code=${encodeURIComponent(code)}`);
+  await expect(ownerPage.getByRole("heading", { name: "Connect a television" })).toBeVisible();
+  await expect(ownerPage.getByLabel("Code on the screen")).toHaveValue(code);
+  await ownerPage.getByLabel("Name this screen").fill("Living room");
+  await ownerPage.getByRole("button", { name: "Connect this screen" }).click();
+  await expect(ownerPage.getByRole("heading", { name: "Connected" })).toBeVisible();
+
+  // The screen picks it up on its own and shows the photos.
+  await expect(tvPage.getByRole("heading", { level: 1, name: "Photos" })).toBeVisible({
+    timeout: 15_000,
+  });
+  const tile = tvPage.locator("[data-tile]").first();
+  await expect(tile).toBeVisible();
+  await expect
+    .poll(() => tile.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0);
+
+  // A reload keeps it paired: the credential is the screen's now.
+  await tvPage.reload();
+  await expect(tvPage.getByRole("heading", { level: 1, name: "Photos" })).toBeVisible();
+
+  // The owner can see the screen and switch it off.
+  await ownerPage.goto("/more");
+  const row = ownerPage.getByRole("listitem").filter({ hasText: "Living room" });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: /Disconnect/ }).click();
+  await expect(ownerPage.getByRole("listitem").filter({ hasText: "Living room" })).toHaveCount(0);
+
+  // And the disconnected screen goes back to asking to be connected,
+  // rather than showing an error to a room with no keyboard in it.
+  await tvPage.reload();
+  await expect(tvPage.getByRole("heading", { name: "Connect this screen" })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(tvPage.locator("[data-tile]")).toHaveCount(0);
+
+  await tv.close();
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

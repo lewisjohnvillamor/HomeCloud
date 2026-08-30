@@ -169,6 +169,18 @@ pub async fn memories(
     let library = parse_library(&library)?;
     authorize(&state, user, library).await?;
 
+    Ok(Json(memory_groups(&state, library).await?))
+}
+
+/// The memory groups themselves, without an opinion about who is asking.
+///
+/// A television reaches these through its own capability rather than a
+/// session, so the collection logic lives here and each caller proves
+/// its own right to the library first.
+pub async fn memory_groups(
+    state: &AppState,
+    library: LibraryId,
+) -> Result<Vec<MemoryGroup>, ApiError> {
     let today = time::OffsetDateTime::now_utc();
     let mut groups = Vec::new();
 
@@ -204,7 +216,7 @@ pub async fn memories(
         });
     }
 
-    Ok(Json(groups))
+    Ok(groups)
 }
 
 /// `GET /api/v1/libraries/{library}/search?q=...`

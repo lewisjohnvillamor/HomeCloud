@@ -248,6 +248,17 @@ async fn a_shared_folder_exposes_what_is_inside_it_and_no_more() {
     assert_eq!(nested.status, StatusCode::OK);
     // ...and the path shown is relative to the share, not the library.
     assert_eq!(nested.json()["relative_path"], "notes.txt");
+    // Including the item's own path: a recipient was given a folder, not
+    // its position in someone else's library.
+    assert_eq!(nested.json()["item"]["path"], "notes.txt");
+    assert_eq!(root.json()["item"]["path"], "");
+    let paths: Vec<String> = root.json()["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| item["path"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    assert_eq!(paths, vec!["day1", "notes.txt"]);
 
     // A sibling folder is not.
     let escape = app

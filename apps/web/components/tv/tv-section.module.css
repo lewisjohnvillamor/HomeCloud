@@ -1,0 +1,6 @@
+/* The shared row styling puts a name and its details side by side. A
+   screen has two facts worth reading — when it was connected and when it
+   was last used — so they get a line of their own. */
+.name {
+  display: block;
+}

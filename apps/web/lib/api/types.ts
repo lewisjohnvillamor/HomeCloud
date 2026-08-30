@@ -491,3 +491,78 @@ export function parseMemories(value: unknown): MemoryGroup[] | undefined {
 
   return groups;
 }
+
+/** A television paired with a library. */
+export type TvDevice = {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+};
+
+export function parseTvDevice(value: unknown): TvDevice | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.name !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    createdAt: text(raw.created_at) ?? "",
+    lastSeenAt: text(raw.last_seen_at),
+  };
+}
+
+export function parseTvDevices(value: unknown): TvDevice[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const devices: TvDevice[] = [];
+  for (const entry of value) {
+    const device = parseTvDevice(entry);
+    if (!device) {
+      return undefined;
+    }
+    devices.push(device);
+  }
+
+  return devices;
+}
+
+/** What a television is shown while it waits to be approved. */
+export type Pairing = { code: string; pollToken: string; expiresAt: string };
+
+export function parsePairing(value: unknown): Pairing | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.code !== "string" || typeof raw.poll_token !== "string") {
+    return undefined;
+  }
+
+  return {
+    code: raw.code,
+    pollToken: raw.poll_token,
+    expiresAt: text(raw.expires_at) ?? "",
+  };
+}
+
+/** The answer to "has anyone approved this screen yet?" */
+export type PairingStatus = {
+  status: "pending" | "approved";
+  token: string | null;
+  libraryName: string | null;
+};
+
+export function parsePairingStatus(value: unknown): PairingStatus | undefined {
+  const raw = record(value);
+  if (!raw || (raw.status !== "pending" && raw.status !== "approved")) {
+    return undefined;
+  }
+
+  return {
+    status: raw.status,
+    token: text(raw.token),
+    libraryName: text(raw.library_name),
+  };
+}

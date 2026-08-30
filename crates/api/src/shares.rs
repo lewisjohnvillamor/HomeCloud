@@ -482,6 +482,24 @@ pub async fn unlock(
     }))
 }
 
+/// Rewrites an item's path to be relative to the shared root.
+///
+/// Without this a link would hand over the folder's position in someone
+/// else's library — "Photos/2019/Wedding" — which the recipient was
+/// never given. What they get is the path they can see: the shared item
+/// itself is empty, and a child is named relative to it.
+fn relative_to(root: &Item, mut view: ItemView) -> ItemView {
+    let root_path = root.path.to_string();
+
+    view.path = view
+        .path
+        .strip_prefix(&root_path)
+        .map(|rest| rest.trim_start_matches('/').to_owned())
+        .unwrap_or_default();
+
+    view
+}
+
 /// Loads an item and proves it is the shared item or lives inside it.
 ///
 /// This is the containment rule for shares: a token for one folder can
@@ -571,8 +589,11 @@ pub async fn public_view(
         .unwrap_or_default();
 
     Ok(Json(PublicShareView {
-        item: ItemView::from(&item),
-        items: crate::view::items(&children),
+        item: relative_to(&root, ItemView::from(&item)),
+        items: crate::view::items(&children)
+            .into_iter()
+            .map(|child| relative_to(&root, child))
+            .collect(),
         relative_path,
     }))
 }

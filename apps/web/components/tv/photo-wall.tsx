@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { contentUrl, fetchMemories, thumbnailUrl } from "@/lib/api/endpoints";
+import {
+  contentUrl,
+  fetchMemories,
+  fetchTvMemories,
+  thumbnailUrl,
+  tvContentUrl,
+  tvThumbnailUrl,
+} from "@/lib/api/endpoints";
+import type { ApiResult } from "@/lib/api/client";
 import type { Item, MemoryGroup } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { moveSelection, remoteAction } from "./tv-remote";
@@ -14,17 +22,61 @@ const DEFAULT_COLUMNS = 5;
 const SLIDE_MS = 8000;
 
 /**
+ * Where a photo wall gets its pictures.
+ *
+ * A television reaches the library one of two ways — signed in like any
+ * other browser, or paired and holding a credential of its own — and the
+ * wall itself should not care which. Both are expressed as the same
+ * three questions.
+ */
+export type WallSource = {
+  memories: (signal: AbortSignal) => Promise<ApiResult<MemoryGroup[]>>;
+  thumbnail: (item: string) => string;
+  content: (item: string) => string;
+};
+
+/** A signed-in browser showing the TV view. */
+export function sessionSource(library: string): WallSource {
+  return {
+    memories: (signal) => fetchMemories(library, { signal }),
+    thumbnail: (item) => thumbnailUrl(item, "medium"),
+    content: (item) => contentUrl(item),
+  };
+}
+
+/**
+ * A screen someone paired, holding its own narrow credential.
+ *
+ * `onRevoked` fires when the server no longer recognises the token —
+ * someone disconnected this screen from their phone. A television has
+ * nobody standing in front of it to read an error, so the useful
+ * response is to go back to showing a pairing code.
+ */
+export function pairedSource(token: string, onRevoked?: () => void): WallSource {
+  return {
+    memories: async (signal) => {
+      const result = await fetchTvMemories(token, { signal });
+
+      if (!result.ok && result.problem.code === "unauthenticated") {
+        onRevoked?.();
+      }
+
+      return result;
+    },
+    thumbnail: (item) => tvThumbnailUrl(token, item),
+    content: (item) => tvContentUrl(token, item),
+  };
+}
+
+/**
  * The living-room view: a wall of photos, then a full-screen slideshow.
  *
  * Everything is driven from the four-direction remote model, and the
  * whole surface is one keyboard handler rather than a focus trap, so a
  * remote that sends only arrow keys still works.
  */
-export function PhotoWall({ library }: { library: string }) {
-  const load = useCallback(
-    (signal: AbortSignal) => fetchMemories(library, { signal }),
-    [library],
-  );
+export function PhotoWall({ source }: { source: WallSource }) {
+  const load = useCallback((signal: AbortSignal) => source.memories(signal), [source]);
   const { state } = useAsyncData<MemoryGroup[]>(load);
 
   const [selected, setSelected] = useState(0);
@@ -177,7 +229,7 @@ export function PhotoWall({ library }: { library: string }) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       className={styles.thumb}
-                      src={thumbnailUrl(photo.id, "medium")}
+                      src={source.thumbnail(photo.id)}
                       alt={photo.name}
                       loading="lazy"
                       decoding="async"
@@ -193,7 +245,7 @@ export function PhotoWall({ library }: { library: string }) {
       {current ? (
         <div className={styles.slideshow} role="dialog" aria-modal="true" aria-label="Slideshow">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={styles.slide} src={contentUrl(current.id)} alt={current.name} />
+          <img className={styles.slide} src={source.content(current.id)} alt={current.name} />
           <div className={styles.slideBar}>
             <p className={styles.slideName}>{current.name}</p>
             <p className={styles.slideHint}>

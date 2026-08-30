@@ -1,0 +1,52 @@
+/* Sized to be read from a sofa, not from a desk. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 80dvh;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.detail {
+  max-inline-size: 40ch;
+  margin: 0;
+  color: var(--tv-muted);
+  font-size: clamp(1.125rem, 1.6vw, 1.5rem);
+  text-wrap: balance;
+}
+
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+  justify-content: center;
+}
+
+.code {
+  margin: 0;
+  padding: clamp(1rem, 2vw, 1.75rem) clamp(1.5rem, 3vw, 2.5rem);
+  border: 1px solid var(--tv-focus);
+  border-radius: 1rem;
+  background: var(--tv-surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  letter-spacing: 0.12em;
+}
+
+.qr {
+  inline-size: clamp(9rem, 18vw, 16rem);
+  block-size: clamp(9rem, 18vw, 16rem);
+  border-radius: 1rem;
+  /* A quiet zone that survives the dark surface behind it. */
+  background: #ffffff;
+}

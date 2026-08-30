@@ -124,9 +124,14 @@ A single-user deployment is usable end to end:
   password is given.
 - **Living room** — `/tv` is a remote-first photo wall and slideshow: arrows to
   move, Enter to play or pause, Escape to go back. It shows deterministic
-  collections (on this day, recently added) that need no AI.
-- **More** — rescan the library, manage people, audit and revoke shared links,
-  restore from trash, replace your recovery code, sign out.
+  collections (on this day, recently added) that need no AI. A television with
+  no keyboard shows a short code and a QR square instead of a password form;
+  someone signed in approves it from their phone, and the screen gets a
+  credential that can show photos from one library and nothing else. Paired
+  screens are listed in More and can be disconnected there.
+- **More** — rescan the library, manage people, disconnect televisions, audit
+  and revoke shared links, restore from trash, replace your recovery code,
+  sign out.
 - **Passkeys** — register a device as a passkey and sign in with it instead of
   a password. Needs `HOMECLOUD_PUBLIC_ORIGIN` set, because WebAuthn binds a
   credential to a domain; without it the option is hidden rather than broken.
@@ -138,8 +143,8 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: TV pairing by QR code, video transcoding for playback, offline
-sync, and the local AI features. See `ROADMAP.md`.
+Not yet built: video transcoding for playback, offline sync, and the local AI
+features. See `ROADMAP.md`.
 
 ## Local Development
 

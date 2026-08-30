@@ -109,6 +109,14 @@ fn spawn_session_purge(pool: sqlx::PgPool) {
                 Ok(expired) => tracing::info!(expired, "closed expired share links"),
                 Err(error) => tracing::warn!(error = %error, "share purge failed"),
             }
+
+            // Pairing codes nobody used. Expiry is enforced on every
+            // lookup; this only stops the table growing forever.
+            match homecloud_api::tv::purge_expired(&pool).await {
+                Ok(0) => {}
+                Ok(expired) => tracing::info!(expired, "removed expired pairing codes"),
+                Err(error) => tracing::warn!(error = %error, "pairing purge failed"),
+            }
         }
     });
 }

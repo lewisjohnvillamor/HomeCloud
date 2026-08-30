@@ -337,3 +337,38 @@ process rather than a linked library:
 
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
+
+## 21. Television Pairing
+
+A television cannot be asked for a password: entering one with a
+four-direction remote is the kind of friction that makes people give up and
+put their photos somewhere else instead. So a screen gets a credential of its
+own, and the security work is in keeping that credential narrow.
+
+- **Two secrets, not one.** The code on screen is short, because it is read
+  across a room — but a short code is also a code anyone in the room, or in a
+  photograph of the room, can see. So the code only lets somebody *approve*
+  the screen; collecting the credential needs a second, full-entropy secret
+  the television generated and never displayed. Photographing the television
+  is not enough to become it.
+- **A person approves it.** Pairing always passes through someone who is
+  already signed in and who says which library the screen may show. Approval
+  attempts are throttled through the same limiter that guards sign-in.
+- **Handed over once.** The token is minted at collection, not at approval,
+  and the pairing is marked spent in the same statement that hands it over, so
+  a second collection — even with the right secret — gets nothing.
+- **Codes expire in ten minutes** and are swept afterwards. A code left on a
+  screen overnight is not an invitation.
+- **Narrower than a session.** A paired screen reads one library's memories
+  and can fetch an item only if it belongs in a photo timeline. A document in
+  the same library answers "not found", exactly as an item from another
+  library does: a screen in a shared room cannot be talked into displaying a
+  tax return.
+- **Visible and revocable.** Paired screens are listed to a library's members
+  with when each was connected and last used, and disconnecting one takes
+  effect on its next request. A disconnected screen goes back to showing a
+  pairing code rather than an error, because there is nobody standing in front
+  of it to read one.
+- The credential travels as `?token=`, for the same reason a share unlock key
+  does: an `<img>` on the photo wall cannot send a header. It is stored only
+  as a hash, and the browser keeps it in that device's own storage.

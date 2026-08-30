@@ -19,7 +19,7 @@ use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
     auth, bootstrap, health, items, library, members, observability, passkeys, recovery, security,
-    shares, thumbnails, transfers,
+    shares, thumbnails, transfers, tv,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -274,6 +274,22 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
         )
+        // Pairing a television. Starting and polling take no session:
+        // a screen that cannot sign in is the whole reason this exists.
+        // Approving one does, and is the deliberate human step.
+        .route("/api/v1/tv/pairings", post(tv::start))
+        .route("/api/v1/tv/pairings/{poll_token}", get(tv::poll))
+        .route("/api/v1/tv/pairings/{code}/approve", post(tv::approve))
+        .route("/api/v1/libraries/{library}/tv", get(tv::list))
+        .route(
+            "/api/v1/tv/devices/{device}",
+            axum::routing::delete(tv::revoke),
+        )
+        // What a paired screen may read: one library's memories, and
+        // only items that belong in a photo timeline.
+        .route("/api/v1/tv/memories", get(tv::memories))
+        .route("/api/v1/tv/thumbnail", get(tv::thumbnail))
+        .route("/api/v1/tv/content", get(tv::content))
         .route("/api/v1/items/{item}/content", get(transfers::download))
         .route("/api/v1/items/{item}/thumbnail", get(thumbnails::thumbnail))
         .fallback(not_found)

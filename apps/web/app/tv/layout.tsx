@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { AuthGate } from "@/components/session/auth-gate";
 import { SessionProvider } from "@/components/session/session-provider";
 import styles from "./tv-layout.module.css";
 
@@ -21,14 +20,16 @@ export const viewport: Viewport = {
  * The living-room layout: dark, borderless, and without the application
  * shell. A remote has four directions and two buttons, so the TV gets
  * its own interaction model rather than a stretched desktop UI.
+ *
+ * Deliberately no `AuthGate`: a television that is not signed in is not
+ * an error to be corrected with a password form it cannot type into. The
+ * page shows a pairing code instead.
  */
 export default function TvLayout({ children }: { children: ReactNode }) {
   return (
     <div className={styles.tv}>
       <SessionProvider>
-        <main className={styles.main}>
-          <AuthGate>{children}</AuthGate>
-        </main>
+        <main className={styles.main}>{children}</main>
       </SessionProvider>
     </div>
   );

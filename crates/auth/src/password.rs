@@ -104,26 +104,46 @@ const RECOVERY_GROUP_LEN: usize = 5;
 
 /// Generates a recovery code in `XXXXX-XXXXX-…` form.
 pub fn generate_recovery_code() -> Result<String, PasswordError> {
+    generate_code(RECOVERY_GROUPS, RECOVERY_GROUP_LEN)
+}
+
+/// Generates a grouped code from the look-alike-free alphabet.
+///
+/// Rejection sampling rather than `byte % len`: 31 does not divide 256,
+/// so the remainder would make the first few characters of the alphabet
+/// slightly likelier than the rest. It costs nothing to be exact.
+pub fn generate_code(groups: usize, group_len: usize) -> Result<String, PasswordError> {
     use rand::rngs::SysRng;
     use rand::TryRng;
 
-    let mut bytes = [0u8; RECOVERY_GROUPS * RECOVERY_GROUP_LEN];
-    SysRng
-        .try_fill_bytes(&mut bytes)
-        .map_err(|_| PasswordError::Hashing)?;
+    let alphabet_len = RECOVERY_ALPHABET.len();
+    // Largest multiple of the alphabet that fits in a byte; anything at
+    // or above it is drawn again.
+    let ceiling = (256 / alphabet_len) * alphabet_len;
 
-    let code: String = bytes
-        .chunks(RECOVERY_GROUP_LEN)
-        .map(|group| {
-            group
-                .iter()
-                .map(|byte| RECOVERY_ALPHABET[usize::from(*byte) % RECOVERY_ALPHABET.len()] as char)
-                .collect::<String>()
-        })
+    let mut characters = Vec::with_capacity(groups * group_len);
+    let mut buffer = [0u8; 64];
+
+    while characters.len() < groups * group_len {
+        SysRng
+            .try_fill_bytes(&mut buffer)
+            .map_err(|_| PasswordError::Hashing)?;
+
+        for byte in buffer {
+            if characters.len() == groups * group_len {
+                break;
+            }
+            if usize::from(byte) < ceiling {
+                characters.push(RECOVERY_ALPHABET[usize::from(byte) % alphabet_len] as char);
+            }
+        }
+    }
+
+    Ok(characters
+        .chunks(group_len)
+        .map(|group| group.iter().collect::<String>())
         .collect::<Vec<_>>()
-        .join("-");
-
-    Ok(code)
+        .join("-"))
 }
 
 /// Normalises a code a person typed: case and separators are noise.

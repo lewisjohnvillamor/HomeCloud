@@ -11,8 +11,8 @@
 > frames; transcoding for playback is still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside
 > file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
-> has the `/tv` interface, a remote-driven slideshow, and deterministic
-> memories; QR pairing and a TV-scoped token are not built.
+> has the `/tv` interface, a remote-driven slideshow, deterministic memories,
+> and QR pairing with a TV-scoped credential; photo-frame mode is still ahead.
 
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 

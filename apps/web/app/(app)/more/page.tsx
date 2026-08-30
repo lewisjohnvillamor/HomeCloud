@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
+import { TvSection } from "@/components/tv/tv-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
 import {
@@ -212,6 +213,17 @@ export default function MorePage() {
         </h2>
         {library ? (
           <PeopleSection library={library.id} isOwner={library.role === "owner"} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="tv-heading">
+        <h2 id="tv-heading" className={styles.heading}>
+          Televisions
+        </h2>
+        {library ? (
+          <TvSection library={library.id} />
         ) : (
           <p className={styles.detail}>This account is not a member of any library.</p>
         )}

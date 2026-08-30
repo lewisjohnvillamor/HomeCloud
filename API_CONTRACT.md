@@ -69,6 +69,14 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
 > GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
 > POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> POST   /api/v1/tv/pairings                       (built) a television asks to be paired — no session
+> GET    /api/v1/tv/pairings/{poll_token}          (built) has anyone approved it — no session
+> POST   /api/v1/tv/pairings/{code}/approve        (built) approve the code on a screen
+> GET    /api/v1/libraries/{id}/tv                 (built) televisions paired with a library
+> DELETE /api/v1/tv/devices/{id}                   (built) disconnect a television
+> GET    /api/v1/tv/memories?token=                (built) the wall a paired screen shows — no session
+> GET    /api/v1/tv/thumbnail?token=&item=         (built) a picture preview for a paired screen
+> GET    /api/v1/tv/content?token=&item=           (built) a full picture for a paired screen
 > ```
 >
 > Errors use the problem shape described in section 6, served as
