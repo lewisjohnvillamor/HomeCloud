@@ -1012,3 +1012,126 @@ async fn memories_need_a_session() {
 
     app.cleanup().await;
 }
+
+// --- Video posters ---
+
+/// Renders a short video with FFmpeg, or `None` when it is not installed.
+fn make_video(directory: &std::path::Path, name: &str) -> Option<Vec<u8>> {
+    let path = directory.join(name);
+
+    let status = std::process::Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=10:duration=1",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&path)
+        .status()
+        .ok()?;
+
+    if !status.success() {
+        eprintln!("skipping video test: ffmpeg is not usable here");
+        return None;
+    }
+
+    std::fs::read(&path).ok()
+}
+
+#[tokio::test]
+async fn a_video_gets_a_poster_frame_for_a_thumbnail() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let temp = tempfile::TempDir::new().expect("temp dir");
+    let Some(video) = make_video(temp.path(), "clip.mp4") else {
+        app.cleanup().await;
+        return;
+    };
+
+    let uploaded = app.upload(&library, "holiday.mp4", &video).await;
+    assert_eq!(uploaded.status, StatusCode::OK, "{}", uploaded.text());
+    assert_eq!(uploaded.json()["is_video"], true);
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let poster = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(poster.status, StatusCode::OK, "{}", poster.text());
+    assert_eq!(
+        poster
+            .headers
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("image/jpeg")
+    );
+    let decoded = image::load_from_memory(&poster.body).expect("a readable poster");
+    assert_eq!(decoded.width(), 320);
+
+    // Cached like any other derivative, so the second request costs
+    // nothing.
+    let again = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+    assert_eq!(again.body, poster.body);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn videos_appear_in_the_photo_timeline() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let temp = tempfile::TempDir::new().expect("temp dir");
+    let Some(video) = make_video(temp.path(), "clip.mp4") else {
+        app.cleanup().await;
+        return;
+    };
+
+    app.upload(&library, "holiday.mp4", &video).await;
+    app.upload(&library, "beach.png", &png_bytes(200, 150))
+        .await;
+    app.upload(&library, "notes.txt", b"not media").await;
+
+    let response = app
+        .get(&format!("/api/v1/libraries/{library}/photos"))
+        .await;
+
+    let mut names: Vec<String> = response
+        .json()
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| item["name"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, vec!["beach.png", "holiday.mp4"]);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_file_that_only_claims_to_be_a_video_is_refused_cleanly() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app
+        .upload(&library, "trojan.mp4", b"#!/bin/sh\nrm -rf /\n")
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    // A clear client error, and no host detail in the message.
+    assert_eq!(response.status, StatusCode::BAD_REQUEST);
+    assert!(!response.text().contains("/tmp"), "{}", response.text());
+    assert!(!response.text().contains("ffmpeg"), "{}", response.text());
+
+    app.cleanup().await;
+}

@@ -54,12 +54,24 @@ impl Item {
         self.kind == ItemKind::Folder
     }
 
-    /// Whether the item is an image, which is what the Photos view
-    /// selects on. Video arrives with its own derivative pipeline.
+    /// Whether the item is a still image.
     pub fn is_image(&self) -> bool {
         self.content_type
             .as_deref()
             .is_some_and(|value| value.starts_with("image/"))
+    }
+
+    /// Whether the item is a video. Videos appear in the Photos timeline
+    /// alongside stills, with a poster frame for a thumbnail.
+    pub fn is_video(&self) -> bool {
+        self.content_type
+            .as_deref()
+            .is_some_and(|value| value.starts_with("video/"))
+    }
+
+    /// Whether the item belongs in a visual timeline at all.
+    pub fn is_visual_media(&self) -> bool {
+        self.is_image() || self.is_video()
     }
 }
 

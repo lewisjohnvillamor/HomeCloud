@@ -9,8 +9,11 @@ description = "Image derivatives for HomeCloud. Pure CPU work, no I/O."
 
 [dev-dependencies]
 image = { workspace = true, features = ["rayon"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "time"] }
 
 [dependencies]
 image.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
 thiserror.workspace = true
 tracing.workspace = true

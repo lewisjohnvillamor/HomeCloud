@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -495,6 +496,51 @@ test("the television view is driven entirely by a remote", async ({ browser }) =
   await ownerPage.keyboard.press("Escape");
   await expect(slideshow).toHaveCount(0);
   await expect(ownerPage.getByRole("heading", { level: 1 })).toHaveText("Photos");
+
+  await owner.close();
+});
+
+test("a video shows a poster frame and joins the photo timeline", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // A real video, rendered by FFmpeg. Skipped where it is not installed,
+  // exactly as the server itself degrades.
+  const clip = tempFile("holiday.mp4", "");
+  const rendered = spawnSync("ffmpeg", [
+    "-nostdin",
+    "-loglevel",
+    "error",
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    "testsrc=size=320x240:rate=10:duration=1",
+    "-pix_fmt",
+    "yuv420p",
+    clip,
+  ]);
+  test.skip(rendered.status !== 0, "ffmpeg is not installed here");
+
+  await ownerPage.getByLabel("Choose files to upload").setInputFiles(clip);
+  await expect(ownerPage.getByRole("row").filter({ hasText: "holiday.mp4" })).toBeVisible();
+
+  // The file row shows the poster rather than a generic icon.
+  const poster = ownerPage
+    .getByRole("row")
+    .filter({ hasText: "holiday.mp4" })
+    .locator("img");
+  await expect(poster).toBeVisible();
+  await expect
+    .poll(() => poster.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0);
+
+  // And it sits in the timeline beside the photos, marked as a video.
+  await ownerPage.goto("/photos");
+  const tile = ownerPage.getByRole("img", { name: "holiday.mp4" });
+  await expect(tile).toBeVisible();
+  await expect
+    .poll(() => tile.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0);
 
   await owner.close();
 });

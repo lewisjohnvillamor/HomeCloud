@@ -41,10 +41,11 @@ function groupByMonth(photos: Item[]): Month[] {
 }
 
 /**
- * The photo timeline.
+ * The photo timeline, including videos.
  *
- * Tiles are generated thumbnails, not originals: a library of a few
- * thousand photos has to load on a phone over a home network.
+ * Tiles are generated thumbnails — a poster frame for a video — never
+ * originals: a library of a few thousand items has to load on a phone
+ * over a home network.
  */
 export function PhotoGrid({ library }: { library: string }) {
   const load = useCallback(
@@ -112,7 +113,14 @@ export function PhotoGrid({ library }: { library: string }) {
                     loading="lazy"
                     decoding="async"
                   />
-                  <span className={styles.caption}>{photo.name}</span>
+                  {photo.isVideo ? (
+                    <span className={styles.videoBadge} aria-hidden="true">
+                      ▶
+                    </span>
+                  ) : null}
+                  <span className={styles.caption}>
+                    {photo.isVideo ? `Video · ${photo.name}` : photo.name}
+                  </span>
                 </a>
               </li>
             ))}

@@ -11,6 +11,7 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::Response;
 use homecloud_catalog::repository;
 use homecloud_media::thumbnail::{is_thumbnailable, ThumbnailSize, DERIVATIVE_CONTENT_TYPE};
+use homecloud_media::video::{self, VideoError};
 use homecloud_media::{generate_thumbnail, MediaError, MAX_SOURCE_BYTES};
 use serde::Deserialize;
 
@@ -51,7 +52,9 @@ pub async fn thumbnail(
         .await
         .map_err(catalog_error)?;
 
-    if item.is_folder() || !is_thumbnailable(item.content_type.as_deref()) {
+    let previewable = is_thumbnailable(item.content_type.as_deref())
+        || video::is_video(item.content_type.as_deref());
+    if item.is_folder() || !previewable {
         return Err(ApiError::bad_request(
             "This item does not have a picture preview.",
         ));
@@ -94,18 +97,32 @@ pub async fn render(
         return Ok(image_response(cached));
     }
 
-    let source = storage
-        .read_bounded(&item.path, MAX_SOURCE_BYTES)
-        .await
-        .map_err(storage_error)?;
+    let generated = if video::is_video(item.content_type.as_deref()) {
+        // A video is read by FFmpeg from the file itself, so a large
+        // clip costs no memory here. The path goes through the same
+        // containment and symlink checks as any other read.
+        let path = storage
+            .resolve_existing(&item.path)
+            .await
+            .map_err(storage_error)?;
 
-    let generated = tokio::task::spawn_blocking(move || generate_thumbnail(&source, size))
-        .await
-        .map_err(|error| {
-            tracing::error!(error = %error, "thumbnail task failed");
-            ApiError::internal()
-        })?
-        .map_err(media_error)?;
+        video::poster_frame(&path, size.max_edge())
+            .await
+            .map_err(video_error)?
+    } else {
+        let source = storage
+            .read_bounded(&item.path, MAX_SOURCE_BYTES)
+            .await
+            .map_err(storage_error)?;
+
+        tokio::task::spawn_blocking(move || generate_thumbnail(&source, size))
+            .await
+            .map_err(|error| {
+                tracing::error!(error = %error, "thumbnail task failed");
+                ApiError::internal()
+            })?
+            .map_err(media_error)?
+    };
 
     // A cache write failure costs a regeneration next time, so it is
     // logged rather than failing the request.
@@ -140,6 +157,20 @@ fn image_response(bytes: Vec<u8>) -> Response {
     );
 
     response
+}
+
+/// A video that cannot produce a poster is a fact about the file or the
+/// deployment, not a server failure.
+fn video_error(error: VideoError) -> ApiError {
+    match error {
+        VideoError::Unavailable => ApiError::conflict(
+            "This server has no video support installed, so videos have no preview.",
+        ),
+        VideoError::Unreadable => ApiError::bad_request("This video could not be read."),
+        VideoError::TimedOut => {
+            ApiError::bad_request("This video took too long to read a frame from.")
+        }
+    }
 }
 
 /// A file that cannot be turned into a thumbnail is a fact about the

@@ -107,9 +107,11 @@ A single-user deployment is usable end to end:
 - **Files** — browse folders, upload (streamed, never overwriting), download
   (with byte ranges, so media seeks), create folders, rename, move, and delete
   to a trash folder that keeps your files on disk.
-- **Photos** — every indexed image, grouped by month, served as generated
-  thumbnails so a large library loads on a phone. Images also preview inline in
-  the file list.
+- **Photos** — images and videos, grouped by month, served as generated
+  thumbnails (a poster frame for a video) so a large library loads on a phone.
+  Both preview inline in the file list too. Video previews need FFmpeg on the
+  server; without it everything else still works and videos simply have no
+  preview.
 - **Search** — finds a file by its name *or* by the text inside it (plain text
   and PDF today), with a snippet showing the matching passage.
 - **People** — invite someone to the library with a one-time link; they create
@@ -131,14 +133,14 @@ A single-user deployment is usable end to end:
   containment, and no symlink following.
 
 Not yet built: account recovery, password-protected shares, TV pairing by QR
-code, video thumbnails and transcoding, offline sync, and the local AI
-features. See `ROADMAP.md`.
+code, video transcoding for playback, offline sync, and the local AI features.
+See `ROADMAP.md`.
 
 ## Local Development
 
 Prerequisites: Rust (version pinned by `rust-toolchain.toml`), Node.js 22+,
 pnpm 10+, and Docker (for PostgreSQL only — the API and web app run
-natively).
+natively). FFmpeg is optional and only used for video poster frames.
 
 ```bash
 make setup     # install web dependencies, create .env from .env.example

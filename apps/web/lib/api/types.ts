@@ -12,6 +12,7 @@ export type Item = {
   contentType: string | null;
   modifiedAt: string | null;
   isImage: boolean;
+  isVideo: boolean;
   trashed: boolean;
 };
 
@@ -79,6 +80,7 @@ export function parseItem(value: unknown): Item | undefined {
     contentType: text(raw.content_type),
     modifiedAt: text(raw.modified_at),
     isImage: raw.is_image === true,
+    isVideo: raw.is_video === true,
     trashed: raw.trashed === true,
   };
 }

@@ -275,6 +275,23 @@ impl FilesystemStorage {
         }
     }
 
+    /// The filesystem path of an existing entry, for the rare caller
+    /// that must hand a real path to something else — an external tool
+    /// reading a video, for instance.
+    ///
+    /// Goes through the same containment and symlink checks as every
+    /// other read, so a path handed out here is one this backend would
+    /// have opened itself.
+    pub async fn resolve_existing(&self, path: &LibraryPath) -> Result<PathBuf, StorageError> {
+        let resolved = self.resolve(path).await?;
+
+        fs::symlink_metadata(&resolved)
+            .await
+            .map_err(map_io_error)?;
+
+        Ok(resolved)
+    }
+
     /// Opens a file for reading, refusing to follow symlinks.
     pub async fn open_file(&self, path: &LibraryPath) -> Result<(fs::File, u64), StorageError> {
         let resolved = self.resolve(path).await?;

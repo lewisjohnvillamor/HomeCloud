@@ -43,6 +43,14 @@ async fn run() -> anyhow::Result<()> {
     let storage_root = tokio::fs::canonicalize(&config.storage_root).await?;
     tracing::info!(root = %storage_root.display(), "library root ready");
 
+    // Video previews are optional; an operator should learn they are off
+    // from a log line rather than from a gap in their Photos view.
+    if homecloud_media::video::is_available().await {
+        tracing::info!("video previews enabled");
+    } else {
+        tracing::warn!("video previews are disabled: ffmpeg was not found on PATH");
+    }
+
     spawn_session_purge(pool.clone());
 
     let listener = TcpListener::bind(config.listen_addr).await?;

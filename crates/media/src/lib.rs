@@ -10,7 +10,9 @@
 #![forbid(unsafe_code)]
 
 pub mod thumbnail;
+pub mod video;
 
 pub use thumbnail::{
     generate_thumbnail, MediaError, ThumbnailSize, MAX_SOURCE_BYTES, MAX_SOURCE_PIXELS,
 };
+pub use video::{is_video, poster_frame, VideoError};

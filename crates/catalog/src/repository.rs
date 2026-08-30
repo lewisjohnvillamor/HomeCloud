@@ -197,8 +197,11 @@ pub async fn children(
     items_from_rows(rows)
 }
 
-/// Images, newest first, for the Photos view.
-pub async fn images(
+/// Photos and videos, newest first, for the Photos view.
+///
+/// Video belongs in a photo timeline: a holiday is not sorted into
+/// stills and clips in anyone's memory of it.
+pub async fn visual_media(
     pool: &PgPool,
     library: LibraryId,
     limit: i64,
@@ -207,7 +210,7 @@ pub async fn images(
     let rows = sqlx::query(&format!(
         "SELECT {ITEM_COLUMNS} FROM items
          WHERE library_id = $1
-           AND content_type LIKE 'image/%'
+           AND (content_type LIKE 'image/%' OR content_type LIKE 'video/%')
            AND trashed_at IS NULL
            AND missing_since IS NULL
          ORDER BY modified_at DESC NULLS LAST, lower(name)

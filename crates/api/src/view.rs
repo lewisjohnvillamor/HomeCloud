@@ -16,8 +16,11 @@ pub struct ItemView {
     pub content_type: Option<String>,
     /// RFC 3339, or absent when the filesystem did not report one.
     pub modified_at: Option<String>,
-    /// Whether the Photos view should show this item.
+    /// Whether the Photos view should show this item as a still.
     pub is_image: bool,
+    /// Whether it is a video, which the UI marks and plays rather than
+    /// showing as a picture.
+    pub is_video: bool,
     pub trashed: bool,
 }
 
@@ -36,6 +39,7 @@ impl From<&Item> for ItemView {
                     .ok()
             }),
             is_image: item.is_image(),
+            is_video: item.is_video(),
             trashed: item.trashed_at.is_some(),
         }
     }

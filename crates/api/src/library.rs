@@ -135,7 +135,7 @@ pub async fn photos(
     let library = parse_library(&library)?;
     authorize(&state, user, library).await?;
 
-    let items = repository::images(state.db(), library, page.limit(), page.offset())
+    let items = repository::visual_media(state.db(), library, page.limit(), page.offset())
         .await
         .map_err(catalog_error)?;
 
@@ -193,7 +193,7 @@ pub async fn memories(
         });
     }
 
-    let recent = repository::images(state.db(), library, DEFAULT_PAGE_SIZE, 0)
+    let recent = repository::visual_media(state.db(), library, DEFAULT_PAGE_SIZE, 0)
         .await
         .map_err(catalog_error)?;
     if !recent.is_empty() {

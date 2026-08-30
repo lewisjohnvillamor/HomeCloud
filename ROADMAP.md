@@ -6,8 +6,8 @@
 > landed apart from account recovery and upload request links:
 > password-backed sessions, server-enforced library membership, invitations
 > with per-role powers, and revocable public share links. Phase 4 has the Photos
-> timeline over indexed images with generated thumbnails; video derivatives and
-> transcoding are still ahead. Phase 6 has its
+> timeline over images and videos, with generated thumbnails and FFmpeg poster
+> frames; transcoding for playback is still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside
 > file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
 > has the `/tv` interface, a remote-driven slideshow, and deterministic

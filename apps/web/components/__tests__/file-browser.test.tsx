@@ -25,6 +25,7 @@ function file(name: string, overrides: Partial<Item> = {}): Item {
     contentType: "text/plain",
     modifiedAt: "2026-03-04T10:00:00Z",
     isImage: false,
+    isVideo: false,
     trashed: false,
     ...overrides,
   };

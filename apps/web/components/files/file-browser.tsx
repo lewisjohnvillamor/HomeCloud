@@ -298,7 +298,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                       </button>
                     ) : (
                       <span className={styles.name}>
-                        {item.isImage ? (
+                        {item.isImage || item.isVideo ? (
                           // The optimizer cannot reach a private,
                           // session-protected origin.
                           // eslint-disable-next-line @next/next/no-img-element

@@ -270,3 +270,25 @@ Passkeys are a second credential against the same session model as a password:
   user's;
 - a passkey never replaces the password, so losing a device does not lock
   someone out of a server sitting in their own house.
+
+## 19. Video Poster Frames
+
+Video files are the least trustworthy input in a personal cloud — arbitrary
+containers and codecs from arbitrary sources — so FFmpeg runs as a child
+process rather than a linked library:
+
+- a child can be given a wall clock and killed; a linked decoder that hangs
+  takes the server with it. Extraction is bounded at 20 seconds and the process
+  dies with the request that started it;
+- arguments are passed as an argument vector, never a shell command line, so a
+  file named `clip; rm -rf ~ .mp4` is a file name and nothing else. There is a
+  test that proves it;
+- output is bounded, and only one frame of one video stream is requested, so an
+  attached cover image or a subtitle track cannot be selected instead;
+- FFmpeg's own error text goes to the log, never to a client: it contains host
+  paths;
+- FFmpeg is optional. Where it is absent the server says so once at startup,
+  videos report no preview, and nothing else changes.
+
+Transcoding for playback is not implemented. It is a long-running, per-viewer
+workload with a different resource model and needs its own review.
