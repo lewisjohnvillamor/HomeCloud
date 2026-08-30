@@ -22,6 +22,40 @@ const DEFAULT_COLUMNS = 5;
 const SLIDE_MS = 8000;
 
 /**
+ * How long each photo stays in photo-frame mode.
+ *
+ * Much slower than the slideshow, because nobody is watching this
+ * deliberately. A frame that changes every eight seconds is a screen
+ * demanding attention; one that changes every minute is a picture on a
+ * shelf that happens to be different when you look up.
+ */
+const FRAME_MS = 60_000;
+
+/**
+ * Idle time before the frame starts on its own.
+ *
+ * A photo frame you have to switch on every morning is not a photo
+ * frame. Five minutes is long enough that it never interrupts someone
+ * actually using the remote.
+ */
+const IDLE_MS = 5 * 60_000;
+
+/**
+ * How often the clock moves, and how far.
+ *
+ * A television left on a shelf for months will keep whatever is drawn in
+ * the same pixels. The clock drifts around the screen so nothing is
+ * burned into one place.
+ */
+const DRIFT_MS = 4 * 60_000;
+const DRIFT_POSITIONS = [
+  { insetBlockStart: "8%", insetInlineStart: "8%" },
+  { insetBlockStart: "8%", insetInlineEnd: "8%" },
+  { insetBlockEnd: "12%", insetInlineEnd: "8%" },
+  { insetBlockEnd: "12%", insetInlineStart: "8%" },
+] as const;
+
+/**
  * Where a photo wall gets its pictures.
  *
  * A television reaches the library one of two ways — signed in like any
@@ -82,7 +116,19 @@ export function PhotoWall({ source }: { source: WallSource }) {
   const [selected, setSelected] = useState(0);
   const [playing, setPlaying] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
+  // Photo-frame mode: ambient, slow, and no chrome at all.
+  const [framing, setFraming] = useState(false);
+  const [frame, setFrame] = useState(0);
+  const [drift, setDrift] = useState(0);
+  const [now, setNow] = useState<Date | null>(null);
   const wall = useRef<HTMLUListElement>(null);
+
+  // Entering the frame sets the clock with it, so the first minute is
+  // not blank and no effect has to write state as it runs.
+  const enterFrame = useCallback(() => {
+    setNow(new Date());
+    setFraming(true);
+  }, []);
   const columns = useGridColumns(wall);
 
   const groups = useMemo(() => (state.phase === "ready" ? state.data : []), [state]);
@@ -108,6 +154,13 @@ export function PhotoWall({ source }: { source: WallSource }) {
       }
 
       event.preventDefault();
+
+      // Any key leaves the frame. Somebody has picked up the remote,
+      // and whatever they want, it is not this.
+      if (framing) {
+        setFraming(false);
+        return;
+      }
 
       if (playing !== null) {
         switch (action) {
@@ -137,13 +190,69 @@ export function PhotoWall({ source }: { source: WallSource }) {
         return;
       }
 
+      if (action === "playPause" && photos.length > 0) {
+        enterFrame();
+        return;
+      }
+
       setSelected((current) => moveSelection(current, action, photos.length, columns));
     }
 
     window.addEventListener("keydown", onKeyDown);
 
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [columns, photos.length, playing, selected]);
+  }, [columns, enterFrame, framing, photos.length, playing, selected]);
+
+  // Start the frame after a long enough silence, and restart the clock
+  // whenever anything happens.
+  useEffect(() => {
+    if (framing || photos.length === 0) {
+      return;
+    }
+
+    let timer = window.setTimeout(enterFrame, IDLE_MS);
+
+    function restart() {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(enterFrame, IDLE_MS);
+    }
+
+    const events = ["keydown", "pointerdown", "pointermove"] as const;
+    for (const event of events) {
+      window.addEventListener(event, restart);
+    }
+
+    return () => {
+      window.clearTimeout(timer);
+      for (const event of events) {
+        window.removeEventListener(event, restart);
+      }
+    };
+  }, [enterFrame, framing, photos.length]);
+
+  // The frame's own slow advance, its clock, and the drift that keeps
+  // the clock from burning into one corner.
+  useEffect(() => {
+    if (!framing || photos.length === 0) {
+      return;
+    }
+
+    const advance = window.setInterval(
+      () => setFrame((current) => (current + 1) % photos.length),
+      FRAME_MS,
+    );
+    const clock = window.setInterval(() => setNow(new Date()), 30_000);
+    const drifting = window.setInterval(
+      () => setDrift((current) => (current + 1) % DRIFT_POSITIONS.length),
+      DRIFT_MS,
+    );
+
+    return () => {
+      window.clearInterval(advance);
+      window.clearInterval(clock);
+      window.clearInterval(drifting);
+    };
+  }, [framing, photos.length]);
 
   // Auto-advance, unless paused or the viewer asked for less motion.
   useEffect(() => {
@@ -193,12 +302,30 @@ export function PhotoWall({ source }: { source: WallSource }) {
   }
 
   const current = playing === null ? null : photos[playing];
+  const framed = framing ? photos[frame % photos.length] : null;
+
+  if (framed) {
+    return (
+      <div className={styles.frame} role="img" aria-label={`Photo frame: ${framed.name}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.frameImage} src={source.content(framed.id)} alt={framed.name} />
+
+        {/* Low contrast and drifting: a clock on a shelf, not a caption,
+            and never in the same pixels long enough to burn in. */}
+        <p className={styles.frameClock} style={DRIFT_POSITIONS[drift]}>
+          {now
+            ? now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+            : ""}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
       <h1 className={styles.title}>Photos</h1>
       <p className={styles.hint}>
-        Arrows to move · Enter to play · Escape to go back
+        Arrows to move · Enter to play · Play/pause for the photo frame · Escape to go back
       </p>
 
       {groups.map((group) => (

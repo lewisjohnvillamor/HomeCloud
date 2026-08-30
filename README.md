@@ -161,6 +161,11 @@ A single-user deployment is usable end to end:
   grants nothing else: no browsing, no uploads, no other item. A protected
   link discloses nothing at all — not even the file's name — until the
   password is given.
+- **Photo frame** — leave `/tv` on a screen and it becomes a photo frame: one
+  picture at a time, changing slowly, with a faint clock that drifts around so
+  nothing burns into an OLED panel. It starts itself after a few minutes of
+  quiet, because a photo frame you have to switch on every morning is not a
+  photo frame, and any key on the remote leaves it.
 - **Living room** — `/tv` is a remote-first photo wall and slideshow: arrows to
   move, Enter to play or pause, Escape to go back. It shows deterministic
   collections (on this day, recently added) that need no AI. A television with
@@ -182,7 +187,7 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: video transcoding for playback, photo-frame mode, offline sync,
+Not yet built: video transcoding for playback, offline sync,
 and the rest of the local AI features — semantic search, faces, and Ask Your
 Library. See `ROADMAP.md`.
 
