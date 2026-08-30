@@ -36,12 +36,15 @@ import {
   parseAlbumContents,
   parseAlbums,
   parsePairing,
+  parsePublicUploadRequest,
   parsePairingStatus,
   parseSession,
   parseShare,
   parseShares,
   parseTvDevice,
   parseTvDevices,
+  parseUploadRequest,
+  parseUploadRequests,
   type Browse,
   type Item,
   type Library,
@@ -60,7 +63,9 @@ import {
   type PairingStatus,
   type Session,
   type Share,
+  type PublicUploadRequest,
   type TvDevice,
+  type UploadRequest,
 } from "./types";
 
 export type BootstrapStatus = { needsOwner: boolean };
@@ -447,6 +452,67 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+// --- Upload request links ---
+
+/** The mirror image of a share: write into one folder, read nothing. */
+export function createUploadRequest(
+  item: string,
+  input: { title?: string; expiresInDays: number | null },
+  options?: RequestOptions,
+): Promise<ApiResult<UploadRequest>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/upload-requests`,
+    { title: input.title, expires_in_days: input.expiresInDays },
+    parseUploadRequest,
+    options,
+  );
+}
+
+export function fetchUploadRequests(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<UploadRequest[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/upload-requests`,
+    parseUploadRequests,
+    options,
+  );
+}
+
+export function revokeUploadRequest(
+  id: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/upload-requests/${encodeURIComponent(id)}`, asUnknown, options);
+}
+
+/** What the link is for. Takes no session. */
+export function fetchPublicUploadRequest(
+  token: string,
+  options?: RequestOptions,
+): Promise<ApiResult<PublicUploadRequest>> {
+  return getJson(
+    `/api/v1/public/upload-requests/${encodeURIComponent(token)}`,
+    parsePublicUploadRequest,
+    options,
+  );
+}
+
+/** Sends one file through a link. Takes no session. */
+export function sendToUploadRequest(
+  token: string,
+  name: string,
+  file: File,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postFile(
+    `/api/v1/public/upload-requests/${encodeURIComponent(token)}/files?name=${encodeURIComponent(name)}`,
+    file,
+    parseItem,
+    options,
+  );
 }
 
 // --- Resumable uploads ---

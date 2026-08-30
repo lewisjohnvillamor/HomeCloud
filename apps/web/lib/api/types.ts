@@ -627,3 +627,81 @@ export function parseAlbumContents(value: unknown): AlbumContents | undefined {
 
   return album && items ? { album, items } : undefined;
 }
+
+/** A link that lets someone send files into one folder. */
+export type UploadRequest = {
+  id: string;
+  itemId: string;
+  folderName: string;
+  title: string;
+  createdAt: string;
+  expiresAt: string | null;
+  maxFiles: number;
+  maxBytes: number;
+  receivedFiles: number;
+  receivedBytes: number;
+  /** Present only on the response that created the link. */
+  token: string | null;
+};
+
+export function parseUploadRequest(value: unknown): UploadRequest | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.title !== "string") {
+    return undefined;
+  }
+
+  const count = (field: unknown) => (typeof field === "number" ? field : 0);
+
+  return {
+    id: raw.id,
+    itemId: text(raw.item_id) ?? "",
+    folderName: text(raw.folder_name) ?? "",
+    title: raw.title,
+    createdAt: text(raw.created_at) ?? "",
+    expiresAt: text(raw.expires_at),
+    maxFiles: count(raw.max_files),
+    maxBytes: count(raw.max_bytes),
+    receivedFiles: count(raw.received_files),
+    receivedBytes: count(raw.received_bytes),
+    token: text(raw.token),
+  };
+}
+
+export function parseUploadRequests(value: unknown): UploadRequest[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const links: UploadRequest[] = [];
+  for (const entry of value) {
+    const link = parseUploadRequest(entry);
+    if (!link) {
+      return undefined;
+    }
+    links.push(link);
+  }
+
+  return links;
+}
+
+/** What someone holding an upload link is told. Never the contents. */
+export type PublicUploadRequest = {
+  title: string;
+  folderName: string;
+  filesLeft: number;
+  bytesLeft: number;
+};
+
+export function parsePublicUploadRequest(value: unknown): PublicUploadRequest | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.title !== "string") {
+    return undefined;
+  }
+
+  return {
+    title: raw.title,
+    folderName: text(raw.folder_name) ?? "",
+    filesLeft: typeof raw.files_left === "number" ? raw.files_left : 0,
+    bytesLeft: typeof raw.bytes_left === "number" ? raw.bytes_left : 0,
+  };
+}

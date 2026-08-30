@@ -69,6 +69,11 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
 > GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
 > POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> POST   /api/v1/items/{id}/upload-requests        (built) ask for files in a folder
+> GET    /api/v1/libraries/{id}/upload-requests    (built) live upload links, for auditing
+> DELETE /api/v1/upload-requests/{id}              (built) stop accepting files
+> GET    /api/v1/public/upload-requests/{token}    (built) what an upload link is for — no session
+> POST   /api/v1/public/upload-requests/{token}/files?name=  (built) send one file — no session
 > POST   /api/v1/uploads                           (built) open a resumable upload session
 > GET    /api/v1/uploads/{id}                      (built) how many bytes arrived
 > PATCH  /api/v1/uploads/{id}?offset=              (built) append one chunk

@@ -128,6 +128,10 @@ A single-user deployment is usable end to end:
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
+- **Asking for files** — the mirror image of a share: a link that lets someone
+  send files *into* one folder without an account, without seeing what is
+  already in it, and without reaching anything else. Each link carries its own
+  limits on how many files and how many bytes it will ever accept.
 - **Sharing** — create a read-only public link to one file or folder, with an
   optional expiry and an optional password, revocable at any moment. A link
   grants nothing else: no browsing, no uploads, no other item. A protected
@@ -141,8 +145,8 @@ A single-user deployment is usable end to end:
   credential that can show photos from one library and nothing else. Paired
   screens are listed in More and can be disconnected there.
 - **More** — rescan the library, manage people, disconnect televisions, audit
-  and revoke shared links, restore from trash, replace your recovery code,
-  sign out.
+  and revoke shared and upload links, restore from trash, replace your recovery
+  code, sign out.
 - **Passkeys** — register a device as a passkey and sign in with it instead of
   a password. Needs `HOMECLOUD_PUBLIC_ORIGIN` set, because WebAuthn binds a
   credential to a domain; without it the option is hidden rather than broken.
@@ -154,8 +158,8 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: upload request links, file versions, video transcoding for
-playback, offline sync, and the local AI features. See `ROADMAP.md`.
+Not yet built: file versions, video transcoding for playback, photo-frame mode,
+offline sync, and the local AI features. See `ROADMAP.md`.
 
 ## Local Development
 

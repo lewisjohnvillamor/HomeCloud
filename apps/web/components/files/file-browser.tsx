@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { RequestDialog } from "@/components/share/request-dialog";
 import { ShareDialog } from "@/components/share/share-dialog";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
@@ -37,6 +38,7 @@ export type FileBrowserProps = {
 export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sharing, setSharing] = useState<Item | null>(null);
+  const [requesting, setRequesting] = useState<Item | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -182,6 +184,10 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
 
   return (
     <div>
+      {requesting ? (
+        <RequestDialog item={requesting} onClose={() => setRequesting(null)} />
+      ) : null}
+
       {sharing ? (
         <ShareDialog item={sharing} onClose={() => setSharing(null)} />
       ) : null}
@@ -353,6 +359,15 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           {item.name}
                         </span>
                       </Button>
+                      {item.kind === "folder" ? (
+                        <Button variant="quiet" onClick={() => setRequesting(item)}>
+                          Ask for files
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
                       <Button
                         variant="quiet"
                         onClick={() => void onRename(item)}

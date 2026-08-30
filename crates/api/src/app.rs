@@ -19,7 +19,7 @@ use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
     albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
-    security, shares, thumbnails, transfers, tv, uploads,
+    requests, security, shares, thumbnails, transfers, tv, uploads,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -274,6 +274,24 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
         )
+        // Upload request links: the mirror image of a share. Someone
+        // with the link can write into one folder and read nothing.
+        .route(
+            "/api/v1/items/{item}/upload-requests",
+            post(requests::create),
+        )
+        .route(
+            "/api/v1/libraries/{library}/upload-requests",
+            get(requests::list),
+        )
+        .route(
+            "/api/v1/upload-requests/{id}",
+            axum::routing::delete(requests::revoke),
+        )
+        .route(
+            "/api/v1/public/upload-requests/{token}",
+            get(requests::public_view),
+        )
         // Resumable uploads. The bytes themselves go through the
         // transfer router below, which has the larger body limit.
         .route("/api/v1/uploads", post(uploads::create))
@@ -347,6 +365,12 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/uploads/{id}",
             axum::routing::patch(uploads::append),
+        )
+        // A file arriving through an upload request link. No session,
+        // and the link's own limits bound what it can cost.
+        .route(
+            "/api/v1/public/upload-requests/{token}/files",
+            post(requests::send),
         )
         .layer(RequestBodyLimitLayer::new(
             transfers::MAX_UPLOAD_BYTES as usize,

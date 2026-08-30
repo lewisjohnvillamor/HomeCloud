@@ -338,7 +338,33 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Resumable Uploads
+## 21. Upload Request Links
+
+The only capability in the product that lets an unauthenticated stranger
+*write*, so it is the most tightly bounded thing here:
+
+- a link names one folder and grants nothing else. It cannot read — not the
+  folder's contents, not its path, not any other item — because the whole point
+  is sending without seeing;
+- the sender's file name is treated as a name and never as a path. Separators,
+  parent references, and control characters are stripped rather than rejected,
+  so a stranger sending a holiday photo does not have to debug a file name,
+  and what cannot be salvaged is refused. `../../etc/passwd` becomes `passwd`
+  in the link's own folder;
+- every link carries its own ceiling on how many files and how many bytes it
+  will ever accept, checked before the bytes are taken and again, conditionally,
+  when they are counted — so two people sending at once cannot push a link past
+  its limits. A file that arrives after the limit is reached is not kept;
+- the never-overwrite rule applies as everywhere else: two people sending
+  `IMG_0001.jpg` both keep their file;
+- unknown, expired, and revoked links are answered identically, so a visitor
+  cannot learn that one once existed, and revocation takes effect on the next
+  request;
+- links are listed to a library's members with what each has already received,
+  because a link that lets someone write is a thing an owner should be able to
+  see and switch off.
+
+## 22. Resumable Uploads
 
 An upload that spans many requests is a small amount of state a client can lie
 about, so the rules are about not believing it:
@@ -361,7 +387,7 @@ about, so the rules are about not believing it:
 - staging files live inside the library root, are named by the server, and are
   swept along with their sessions when one is abandoned.
 
-## 22. Photo Metadata
+## 23. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -382,7 +408,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 23. Television Pairing
+## 24. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and

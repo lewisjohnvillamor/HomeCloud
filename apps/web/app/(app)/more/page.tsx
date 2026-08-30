@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
+import { RequestSection } from "@/components/share/request-section";
 import { TvSection } from "@/components/tv/tv-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
@@ -213,6 +214,21 @@ export default function MorePage() {
         </h2>
         {library ? (
           <PeopleSection library={library.id} isOwner={library.role === "owner"} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="upload-links-heading">
+        <h2 id="upload-links-heading" className={styles.heading}>
+          Upload links
+        </h2>
+        <p className={styles.detail}>
+          Anyone holding one of these can send files into the folder it names, without an
+          account. They cannot see what is in it, or reach anything else.
+        </p>
+        {library ? (
+          <RequestSection library={library.id} />
         ) : (
           <p className={styles.detail}>This account is not a member of any library.</p>
         )}
