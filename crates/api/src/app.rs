@@ -280,6 +280,15 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/libraries/{library}/ai",
             get(ai::read).put(ai::update),
         )
+        // Memories a person would rather not be shown.
+        .route(
+            "/api/v1/libraries/{library}/memories/hidden",
+            get(library::hidden_memories).post(library::hide_memory),
+        )
+        .route(
+            "/api/v1/libraries/{library}/memories/hidden/{key}",
+            axum::routing::delete(library::unhide_memory),
+        )
         // Where photos were taken.
         .route("/api/v1/libraries/{library}/places", get(library::places))
         // Exact duplicates, for reclaiming space.

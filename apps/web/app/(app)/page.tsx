@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
+import { MemoriesSection } from "@/components/memories/memories-section";
 import { EmptyState } from "@/components/ui/states";
 import { browse, fetchPhotos } from "@/lib/api/endpoints";
 import styles from "./home.module.css";
@@ -52,6 +53,13 @@ export default function HomePage() {
             <strong>{library.name}</strong> is stored on this server. Nothing here is
             uploaded anywhere else.
           </p>
+
+          <section className={styles.memories} aria-labelledby="memories-heading">
+            <h2 id="memories-heading" className={styles.sectionHeading}>
+              Memories
+            </h2>
+            <MemoriesSection library={library.id} />
+          </section>
 
           <ul className={styles.cards}>
             <li className={styles.card}>

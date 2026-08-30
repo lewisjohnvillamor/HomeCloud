@@ -12,6 +12,7 @@ pub mod item;
 pub mod mutation;
 pub mod repository;
 pub mod scan;
+pub mod trips;
 
 pub use item::{Item, ItemKind};
 pub use repository::{CatalogError, LibrarySummary};

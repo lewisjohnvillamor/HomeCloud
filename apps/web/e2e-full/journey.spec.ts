@@ -1097,6 +1097,43 @@ test("private AI is off until it is switched on, and can be switched back", asyn
   await owner.close();
 });
 
+test("a memory can be dismissed and brought back", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("memory.png", Buffer.from(PNG_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "memory.png" })).toBeVisible();
+
+  await ownerPage.goto("/");
+  const memories = ownerPage.getByRole("region", { name: "Memories" });
+  await expect(memories).toBeVisible();
+
+  const recent = memories.getByRole("region", { name: /Recently added/ });
+  await expect(recent).toBeVisible();
+
+  await recent.getByRole("button", { name: /Hide/ }).click();
+  await expect(memories.getByRole("region", { name: /Recently added/ })).toHaveCount(0);
+
+  // Hiding hid the memory, not the photographs.
+  await ownerPage.goto("/photos");
+  await expect(ownerPage.getByRole("img", { name: "memory.png" })).toBeVisible();
+
+  // And the decision is findable again, or "hide" would be
+  // indistinguishable from "delete" to whoever did it.
+  await ownerPage.goto("/more");
+  const hidden = ownerPage.getByRole("region", { name: "Hidden memories" });
+  await expect(hidden).toContainText("Recently added");
+  await hidden.getByRole("button", { name: /Show again/ }).click();
+
+  await ownerPage.goto("/");
+  await expect(
+    ownerPage.getByRole("region", { name: /Recently added/ }),
+  ).toBeVisible();
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

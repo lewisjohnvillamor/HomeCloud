@@ -18,8 +18,9 @@
 > scan and searched alongside file names, and OCR reads the words in pictures
 > when a library owner turns it on. Embeddings, faces, and Ask Your Library are
 > still ahead. Phase 5
-> has the `/tv` interface, a remote-driven slideshow, deterministic memories,
-> and QR pairing with a TV-scoped credential; photo-frame mode is still ahead.
+> has the `/tv` interface, a remote-driven slideshow, deterministic memories
+> including trips clustered by date and location, hide controls, and QR pairing
+> with a TV-scoped credential; photo-frame mode is still ahead.
 
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 

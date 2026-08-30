@@ -9,6 +9,7 @@ import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
 import { AiSection } from "@/components/ai/ai-section";
+import { HiddenMemoriesSection } from "@/components/memories/hidden-memories-section";
 import { DuplicateSection } from "@/components/files/duplicate-section";
 import { RequestSection } from "@/components/share/request-section";
 import { TvSection } from "@/components/tv/tv-section";
@@ -328,7 +329,22 @@ export default function MorePage() {
           ) : null}
         </section>
 
-        <section className={styles.section} aria-labelledby="ai-heading">
+        <section className={styles.section} aria-labelledby="hidden-memories-heading">
+        <h2 id="hidden-memories-heading" className={styles.heading}>
+          Hidden memories
+        </h2>
+        <p className={styles.detail}>
+          Memories you dismissed on the home screen. Hiding one never hid the photographs —
+          they stayed exactly where they were.
+        </p>
+        {library ? (
+          <HiddenMemoriesSection library={library.id} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="ai-heading">
         <h2 id="ai-heading" className={styles.heading}>
           Private AI
         </h2>

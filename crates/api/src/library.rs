@@ -20,6 +20,17 @@ const MAX_PAGE_SIZE: i64 = 500;
 /// Duplicate groups returned at once. The list is for reclaiming space,
 /// and nobody works through more than this in one sitting.
 const MAX_DUPLICATE_GROUPS: i64 = 200;
+
+/// Located photographs considered when looking for trips. Bounded so a
+/// huge library does not turn the home screen into a long query.
+const MAX_TRIP_SOURCE_ITEMS: i64 = 5_000;
+
+/// Trips offered at once. More than a few and it stops being a memory
+/// and becomes a list.
+const MAX_TRIPS: usize = 4;
+
+/// Longest memory key accepted, so one cannot become a payload.
+const MAX_MEMORY_KEY: usize = 128;
 const DEFAULT_PAGE_SIZE: i64 = 200;
 
 #[derive(Debug, Serialize)]
@@ -154,6 +165,8 @@ pub struct SearchQuery {
 
 #[derive(Debug, Serialize)]
 pub struct MemoryGroup {
+    /// Stable across requests, so hiding one keeps it hidden.
+    pub key: String,
     pub title: String,
     pub subtitle: String,
     pub items: Vec<ItemView>,
@@ -187,6 +200,7 @@ pub async fn memory_groups(
 ) -> Result<Vec<MemoryGroup>, ApiError> {
     let today = time::OffsetDateTime::now_utc();
     let mut groups = Vec::new();
+    let hidden = hidden_keys(state, library).await;
 
     let on_this_day = repository::on_this_day(state.db(), library, today, DEFAULT_PAGE_SIZE)
         .await
@@ -203,9 +217,30 @@ pub async fn memory_groups(
         };
 
         groups.push(MemoryGroup {
+            key: format!("on-this-day-{:02}-{:02}", today.month() as u8, today.day()),
             title: "On this day".to_owned(),
             subtitle: years.join(" · "),
             items: view::items(&on_this_day),
+        });
+    }
+
+    // Trips: runs of photographs taken away from home, close together in
+    // time and place. Deterministic arithmetic over dates and
+    // coordinates, so this works with AI switched off — which the
+    // memories engine is required to.
+    let located = repository::located_media(state.db(), library, MAX_TRIP_SOURCE_ITEMS, 0)
+        .await
+        .map_err(catalog_error)?;
+
+    for trip in homecloud_catalog::trips::find(&located)
+        .into_iter()
+        .take(MAX_TRIPS)
+    {
+        groups.push(MemoryGroup {
+            key: trip.key.clone(),
+            title: "A trip".to_owned(),
+            subtitle: trip_subtitle(&trip),
+            items: view::items(&trip.items),
         });
     }
 
@@ -214,13 +249,134 @@ pub async fn memory_groups(
         .map_err(catalog_error)?;
     if !recent.is_empty() {
         groups.push(MemoryGroup {
+            key: "recently-added".to_owned(),
             title: "Recently added".to_owned(),
             subtitle: format!("{} photos", recent.len()),
             items: view::items(&recent),
         });
     }
 
+    // Filtered at the end so hiding one memory never changes which
+    // others are produced.
+    groups.retain(|group| !hidden.contains(&group.key));
+
     Ok(groups)
+}
+
+/// When a trip was, in words: "3–9 June 2026", or one date if it was a day.
+fn trip_subtitle(trip: &homecloud_catalog::trips::Trip) -> String {
+    let started = trip.started.date();
+    let ended = trip.ended.date();
+
+    if started == ended {
+        format!("{} {}", started.day(), started.month())
+    } else if started.month() == ended.month() && started.year() == ended.year() {
+        format!(
+            "{}–{} {} {}",
+            started.day(),
+            ended.day(),
+            started.month(),
+            started.year()
+        )
+    } else {
+        format!(
+            "{} {} – {} {} {}",
+            started.day(),
+            started.month(),
+            ended.day(),
+            ended.month(),
+            ended.year()
+        )
+    }
+}
+
+/// Memories this library has asked not to see.
+async fn hidden_keys(state: &AppState, library: LibraryId) -> std::collections::HashSet<String> {
+    sqlx::query_scalar::<_, String>("SELECT memory_key FROM hidden_memories WHERE library_id = $1")
+        .bind(library.as_uuid())
+        .fetch_all(state.db())
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .collect()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HideMemoryRequest {
+    pub key: String,
+}
+
+/// `POST /api/v1/libraries/{library}/memories/hidden`
+///
+/// Hides a memory, not the photographs in it. Nothing here touches an
+/// item: the pictures stay exactly where they were, and unhiding brings
+/// the memory straight back.
+pub async fn hide_memory(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(library): Path<String>,
+    Json(request): Json<HideMemoryRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    let key = request.key.trim();
+    if key.is_empty() || key.chars().count() > MAX_MEMORY_KEY {
+        return Err(ApiError::bad_request("That is not a memory."));
+    }
+
+    sqlx::query(
+        "INSERT INTO hidden_memories (library_id, memory_key, hidden_by)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+    )
+    .bind(library.as_uuid())
+    .bind(key)
+    .bind(user.as_uuid())
+    .execute(state.db())
+    .await
+    .map_err(|error| {
+        tracing::error!(error = %error, "could not hide a memory");
+        ApiError::internal()
+    })?;
+
+    Ok(Json(serde_json::json!({ "hidden": true })))
+}
+
+/// `DELETE /api/v1/libraries/{library}/memories/hidden/{key}`
+pub async fn unhide_memory(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path((library, key)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    sqlx::query("DELETE FROM hidden_memories WHERE library_id = $1 AND memory_key = $2")
+        .bind(library.as_uuid())
+        .bind(key)
+        .execute(state.db())
+        .await
+        .map_err(|error| {
+            tracing::error!(error = %error, "could not unhide a memory");
+            ApiError::internal()
+        })?;
+
+    Ok(Json(serde_json::json!({ "hidden": false })))
+}
+
+/// `GET /api/v1/libraries/{library}/memories/hidden`
+pub async fn hidden_memories(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(library): Path<String>,
+) -> Result<Json<Vec<String>>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    let mut keys: Vec<String> = hidden_keys(&state, library).await.into_iter().collect();
+    keys.sort();
+
+    Ok(Json(keys))
 }
 
 /// `GET /api/v1/libraries/{library}/search?q=...`
