@@ -156,6 +156,11 @@ test("a deleted file goes to the trash and can be restored", async () => {
   await expect(trashed).toBeVisible();
   await trashed.getByRole("button", { name: /Restore/ }).click();
 
+  // Wait for the restore to actually land before navigating: leaving the
+  // page mid-request cancels it, which is a race this test used to win
+  // on a fast machine and lose on a slow one.
+  await expect(page.getByRole("listitem").filter({ hasText: "notes.txt" })).toHaveCount(0);
+
   await page.goto("/files");
   await expect(page.getByRole("row").filter({ hasText: "notes.txt" })).toBeVisible();
 });
