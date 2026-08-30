@@ -1,0 +1,18 @@
+[package]
+name = "homecloud-ai"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Local-first AI providers for HomeCloud. Every one is optional."
+
+[dependencies]
+thiserror.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+image.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

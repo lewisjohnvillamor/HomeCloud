@@ -782,3 +782,32 @@ export function parseDuplicateGroups(value: unknown): DuplicateGroup[] | undefin
 
   return groups;
 }
+
+/** The private AI switch, and what the machine can actually do. */
+export type AiSettings = {
+  profile: "off" | "text" | "photos" | "people";
+  /** Whether this server can read text out of pictures at all. */
+  ocrAvailable: boolean;
+  /** The most this deployment can honour, whatever was asked for. */
+  supportedProfile: "off" | "text" | "photos" | "people";
+  /** Pictures waiting to be read, so enabling is not a silent commitment. */
+  pendingItems: number;
+};
+
+function parseProfile(value: unknown): AiSettings["profile"] {
+  return value === "text" || value === "photos" || value === "people" ? value : "off";
+}
+
+export function parseAiSettings(value: unknown): AiSettings | undefined {
+  const raw = record(value);
+  if (!raw) {
+    return undefined;
+  }
+
+  return {
+    profile: parseProfile(raw.profile),
+    ocrAvailable: raw.ocr_available === true,
+    supportedProfile: parseProfile(raw.supported_profile),
+    pendingItems: typeof raw.pending_items === "number" ? raw.pending_items : 0,
+  };
+}

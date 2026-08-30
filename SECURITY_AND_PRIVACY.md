@@ -338,7 +338,29 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Photo Locations
+## 21. Private AI
+
+Off by default, and off unless a library owner turns it on:
+
+- the setting is per library and owner-only. Enabling it commits somebody
+  else's machine to work, and for face grouping later it decides whether
+  pictures of people are grouped at all — neither is a member's call;
+- what was asked for and what the machine can do are reported separately, so a
+  deployment without the recogniser says so instead of accepting a setting and
+  silently doing nothing;
+- nothing leaves the machine. The recogniser is a local tool found on `PATH`;
+  there is no account, no key, and no request to anywhere;
+- turning it off deletes everything it wrote, in the same request. All of it is
+  derived — dropping it costs a rescan and nothing else — and leaving it behind
+  after someone said no would be the wrong answer to the only question they
+  asked;
+- AI-derived text is marked as such, so it can be removed on its own without
+  touching text read straight out of a file;
+- recognition is bounded per pass and runs last in the scan pipeline, after
+  reconciliation, extraction and hashing, so it can never starve an upload or a
+  preview.
+
+## 22. Photo Locations
 
 Where a photo was taken is, for most people's libraries, where they live. It
 is treated accordingly:
@@ -356,7 +378,7 @@ is treated accordingly:
   anything. Requesting map squares around a coordinate tells that service
   where the photos are, which defeats the point of self-hosting.
 
-## 22. Version History
+## 23. Version History
 
 What a file used to be is data a person may be relying on, so the version store
 is treated as data rather than as cache:
@@ -381,7 +403,7 @@ time a scan notices, and a history that quietly missed those changes would be
 worse than one that never claimed to have them. The interface says so where
 someone would otherwise assume.
 
-## 23. Upload Request Links
+## 24. Upload Request Links
 
 The only capability in the product that lets an unauthenticated stranger
 *write*, so it is the most tightly bounded thing here:
@@ -407,7 +429,7 @@ The only capability in the product that lets an unauthenticated stranger
   because a link that lets someone write is a thing an owner should be able to
   see and switch off.
 
-## 24. Resumable Uploads
+## 25. Resumable Uploads
 
 An upload that spans many requests is a small amount of state a client can lie
 about, so the rules are about not believing it:
@@ -430,7 +452,7 @@ about, so the rules are about not believing it:
 - staging files live inside the library root, are named by the server, and are
   swept along with their sessions when one is abandoned.
 
-## 25. Photo Metadata
+## 26. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -451,7 +473,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 26. Television Pairing
+## 27. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and

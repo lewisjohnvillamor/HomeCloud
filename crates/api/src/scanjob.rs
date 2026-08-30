@@ -112,6 +112,15 @@ impl ScanRegistry {
                     let indexed = crate::indexing::index_library(&pool, library, &storage).await;
                     crate::hashing::hash_library(&pool, library, &storage).await;
 
+                    // Last, and only if the owner asked for it: reading
+                    // text out of pictures is the most expensive thing
+                    // here, and everything above must finish first.
+                    if let Ok(profile) = crate::ai::profile_of(&pool, library).await {
+                        if profile.includes_ocr() {
+                            crate::ocr::read_library(&pool, library, &storage).await;
+                        }
+                    }
+
                     Some(indexed)
                 } else {
                     None

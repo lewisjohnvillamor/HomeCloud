@@ -12,6 +12,7 @@ name = "homecloud-api"
 path = "src/main.rs"
 
 [dependencies]
+homecloud-ai.workspace = true
 homecloud-auth.workspace = true
 homecloud-catalog.workspace = true
 homecloud-domain.workspace = true

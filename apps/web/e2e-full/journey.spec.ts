@@ -1053,6 +1053,50 @@ test("a photo that recorded where it was taken appears on the map", async ({ bro
   await owner.close();
 });
 
+test("private AI is off until it is switched on, and can be switched back", async ({
+  browser,
+}) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage.goto("/more");
+  const ai = ownerPage.getByRole("region", { name: "Private AI" });
+  await expect(ai).toBeVisible();
+
+  // Off is the default, and the page says what each choice costs rather
+  // than offering a switch labelled only "AI".
+  const off = ai.getByRole("button", { name: /^Off/ });
+  await expect(off).toHaveAttribute("aria-pressed", "true");
+  await expect(ai).toContainText("Nothing runs");
+
+  const readText = ai.getByRole("button", { name: /Read text in pictures/ });
+
+  // A server without the recogniser says so instead of offering a
+  // setting that would do nothing.
+  if (await readText.isDisabled()) {
+    await expect(ai).toContainText("recogniser is not installed");
+    await owner.close();
+    return;
+  }
+
+  await readText.click();
+  await expect(readText).toHaveAttribute("aria-pressed", "true");
+
+  // The choice survives a reload — it is the library's setting, not a
+  // thing the page remembers.
+  await ownerPage.reload();
+  await expect(
+    ai.getByRole("button", { name: /Read text in pictures/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await ai.getByRole("button", { name: /^Off/ }).click();
+  await expect(ai.getByRole("button", { name: /^Off/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

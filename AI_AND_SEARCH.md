@@ -141,13 +141,34 @@ The non-AI half of search is built and is the foundation the rest attaches to:
   so a scan never reopens a hopeless file, and an unreadable PDF cannot take
   the indexing task down with it.
 
+**OCR is built.** Text recognition is the first provider behind the abstraction
+this document describes, and it sets the pattern the rest follow:
+
+- off by default, and off unless a library owner turns it on. The setting is
+  per library, owner-only, and stored in `ai_settings`;
+- what the owner asked for and what the machine can do are separate answers.
+  A deployment without the recogniser reports the capability as absent instead
+  of accepting a setting and quietly doing nothing;
+- bounded per pass, and last in the scan pipeline, so recognition can never
+  starve an upload or a preview;
+- writing into the same `item_text` row a document extractor would, marked
+  `source = 'ocr'` so search stays one query while AI-derived text can be
+  deleted on its own;
+- turning it off deletes what it wrote. All of it is derived: dropping it costs
+  a rescan and nothing else.
+
+Tesseract rather than a vision-language model, found on `PATH` at runtime as
+FFmpeg already is. The job is narrow, a general model is gigabytes and wants a
+GPU, and this is tens of megabytes on any processor. The rule the rest of this
+phase follows: reach for a small specialised model per job, and only reach for
+something bigger when no small tool does the job well.
+
 Still to come, in the order they make sense:
 
-1. **OCR** for scanned documents and photographed text, writing into the same
-   `item_text` row so search does not need to know where the text came from.
-2. **Embeddings** for semantic search, in a sibling table keyed by item, with
-   the provider abstraction this document describes.
-3. **Ask Your Library**, which orchestrates the two above plus catalog metadata.
+1. **Embeddings** for semantic search, in a sibling table keyed by item. The
+   first place ONNX earns its place, since there is no good command-line tool.
+2. **Faces**, behind the explicit opt-in §5 requires.
+3. **Ask Your Library**, which orchestrates the above plus catalog metadata.
 
 Each step is optional at runtime: with no model configured, search continues to
 work exactly as it does today.

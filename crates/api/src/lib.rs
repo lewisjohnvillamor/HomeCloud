@@ -7,6 +7,7 @@
 // Application crates have no need for `unsafe`; an exception requires an ADR.
 #![forbid(unsafe_code)]
 
+pub mod ai;
 pub mod albums;
 pub mod app;
 pub mod auth;
@@ -21,6 +22,7 @@ pub mod items;
 pub mod library;
 pub mod members;
 pub mod observability;
+pub mod ocr;
 pub mod passkeys;
 pub mod photometa;
 pub mod ratelimit;
