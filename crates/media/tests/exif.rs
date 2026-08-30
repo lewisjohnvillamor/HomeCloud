@@ -268,3 +268,155 @@ fn a_photo_held_normally_is_left_alone() {
         rendered.height()
     );
 }
+
+/// Builds a JPEG whose header records where it was taken.
+fn jpeg_with_location(
+    latitude: [(u32, u32); 3],
+    latitude_ref: &str,
+    longitude: [(u32, u32); 3],
+    longitude_ref: &str,
+) -> Vec<u8> {
+    use std::io::Write;
+
+    // GPS lives in its own IFD, pointed at from IFD0.
+    let mut gps_heap: Vec<u8> = Vec::new();
+    let gps_entries = 4u16;
+    let gps_size = 2 + gps_entries as usize * 12 + 4;
+
+    const HEADER: usize = 8;
+    let ifd0_size = 2 + 12 + 4;
+    let gps_at = HEADER + ifd0_size;
+    let gps_heap_at = gps_at + gps_size;
+
+    let mut gps = Vec::new();
+    gps.write_all(&gps_entries.to_le_bytes()).unwrap();
+
+    // GPSLatitudeRef / GPSLongitudeRef are one-character ASCII.
+    let ascii_ref = |tag: u16, text: &str, gps: &mut Vec<u8>| {
+        let value = format!("{text}\0");
+        gps.write_all(&tag.to_le_bytes()).unwrap();
+        gps.write_all(&2u16.to_le_bytes()).unwrap();
+        gps.write_all(&(value.len() as u32).to_le_bytes()).unwrap();
+        let mut padded = value.into_bytes();
+        padded.resize(4, 0);
+        gps.write_all(&padded).unwrap();
+    };
+
+    let rational = |tag: u16, parts: [(u32, u32); 3], gps: &mut Vec<u8>, heap: &mut Vec<u8>| {
+        gps.write_all(&tag.to_le_bytes()).unwrap();
+        gps.write_all(&5u16.to_le_bytes()).unwrap();
+        gps.write_all(&3u32.to_le_bytes()).unwrap();
+        gps.write_all(&((gps_heap_at + heap.len()) as u32).to_le_bytes())
+            .unwrap();
+        for (numerator, denominator) in parts {
+            heap.write_all(&numerator.to_le_bytes()).unwrap();
+            heap.write_all(&denominator.to_le_bytes()).unwrap();
+        }
+    };
+
+    ascii_ref(0x0001, latitude_ref, &mut gps);
+    rational(0x0002, latitude, &mut gps, &mut gps_heap);
+    ascii_ref(0x0003, longitude_ref, &mut gps);
+    rational(0x0004, longitude, &mut gps, &mut gps_heap);
+    gps.write_all(&0u32.to_le_bytes()).unwrap();
+
+    let mut ifd0 = Vec::new();
+    ifd0.write_all(&1u16.to_le_bytes()).unwrap();
+    // GPSInfoIFDPointer.
+    ifd0.write_all(&0x8825u16.to_le_bytes()).unwrap();
+    ifd0.write_all(&4u16.to_le_bytes()).unwrap();
+    ifd0.write_all(&1u32.to_le_bytes()).unwrap();
+    ifd0.write_all(&(gps_at as u32).to_le_bytes()).unwrap();
+    ifd0.write_all(&0u32.to_le_bytes()).unwrap();
+
+    let mut tiff = Vec::new();
+    tiff.write_all(b"II").unwrap();
+    tiff.write_all(&42u16.to_le_bytes()).unwrap();
+    tiff.write_all(&(HEADER as u32).to_le_bytes()).unwrap();
+    tiff.write_all(&ifd0).unwrap();
+    tiff.write_all(&gps).unwrap();
+    tiff.write_all(&gps_heap).unwrap();
+
+    let mut app1 = Vec::new();
+    app1.write_all(b"Exif\0\0").unwrap();
+    app1.write_all(&tiff).unwrap();
+
+    let mut jpeg = Vec::new();
+    jpeg.write_all(&[0xFF, 0xD8, 0xFF, 0xE1]).unwrap();
+    jpeg.write_all(&((app1.len() + 2) as u16).to_be_bytes())
+        .unwrap();
+    jpeg.write_all(&app1).unwrap();
+    jpeg.write_all(&[0xFF, 0xD9]).unwrap();
+
+    jpeg
+}
+
+#[test]
+fn a_photo_says_where_it_was_taken() {
+    // 51°28'40.8"N, 0°0'2.4"W — Greenwich.
+    let photo = jpeg_with_location(
+        [(51, 1), (28, 1), (408, 10)],
+        "N",
+        [(0, 1), (0, 1), (24, 10)],
+        "W",
+    );
+
+    let metadata = homecloud_media::exif::read(&photo);
+
+    let latitude = metadata.latitude.expect("a latitude");
+    let longitude = metadata.longitude.expect("a longitude");
+    assert!((latitude - 51.478).abs() < 0.001, "{latitude}");
+    assert!((longitude - -0.000_666).abs() < 0.001, "{longitude}");
+}
+
+#[test]
+fn a_southern_and_western_photo_is_negative() {
+    // 33°51'S, 151°12'E — Sydney.
+    let photo = jpeg_with_location(
+        [(33, 1), (51, 1), (0, 1)],
+        "S",
+        [(151, 1), (12, 1), (0, 1)],
+        "E",
+    );
+
+    let metadata = homecloud_media::exif::read(&photo);
+
+    assert!(metadata.latitude.expect("a latitude") < 0.0);
+    assert!(metadata.longitude.expect("a longitude") > 0.0);
+}
+
+#[test]
+fn a_camera_with_no_fix_is_not_placed_at_null_island() {
+    // Zeroes are what a camera writes when it never got a fix. Trusting
+    // them puts every such photo in the Gulf of Guinea.
+    let photo = jpeg_with_location([(0, 1), (0, 1), (0, 1)], "N", [(0, 1), (0, 1), (0, 1)], "E");
+
+    let metadata = homecloud_media::exif::read(&photo);
+
+    assert_eq!(metadata.latitude, None);
+    assert_eq!(metadata.longitude, None);
+}
+
+#[test]
+fn a_photo_with_only_half_a_coordinate_has_no_location() {
+    // Half a coordinate is not a place.
+    let mut photo = jpeg_with_location(
+        [(51, 1), (28, 1), (0, 1)],
+        "N",
+        [(0, 1), (0, 1), (0, 1)],
+        "W",
+    );
+    // Break the longitude tag so only latitude survives.
+    if let Some(index) = photo
+        .windows(2)
+        .position(|pair| pair == 0x0004u16.to_le_bytes())
+    {
+        photo[index] = 0xEE;
+        photo[index + 1] = 0xEE;
+    }
+
+    let metadata = homecloud_media::exif::read(&photo);
+
+    assert_eq!(metadata.longitude, None);
+    assert_eq!(metadata.latitude, None);
+}

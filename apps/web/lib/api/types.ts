@@ -17,6 +17,9 @@ export type Item = {
   camera: string | null;
   isImage: boolean;
   isVideo: boolean;
+  /** Where the picture was taken. Never present on a shared link. */
+  latitude: number | null;
+  longitude: number | null;
   trashed: boolean;
 };
 
@@ -91,6 +94,8 @@ export function parseItem(value: unknown): Item | undefined {
     modifiedAt: text(raw.modified_at),
     takenAt: text(raw.taken_at),
     camera: text(raw.camera),
+    latitude: typeof raw.latitude === "number" ? raw.latitude : null,
+    longitude: typeof raw.longitude === "number" ? raw.longitude : null,
     isImage: raw.is_image === true,
     isVideo: raw.is_video === true,
     trashed: raw.trashed === true,

@@ -286,6 +286,27 @@ pub struct DuplicateGroupView {
     pub items: Vec<crate::view::ItemView>,
 }
 
+/// `GET /api/v1/libraries/{library}/places`
+///
+/// Photos that recorded where they were taken. Members only, and never
+/// through a share link: for most libraries this is where somebody
+/// lives.
+pub async fn places(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(library): Path<String>,
+    Query(page): Query<PageQuery>,
+) -> Result<Json<Vec<ItemView>>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    let items = repository::located_media(state.db(), library, page.limit(), page.offset())
+        .await
+        .map_err(catalog_error)?;
+
+    Ok(Json(view::items(&items)))
+}
+
 /// `GET /api/v1/libraries/{library}/duplicates`
 ///
 /// Exact duplicates only: same bytes, same hash. Files that merely look

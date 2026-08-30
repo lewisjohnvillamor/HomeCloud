@@ -589,10 +589,10 @@ pub async fn public_view(
         .unwrap_or_default();
 
     Ok(Json(PublicShareView {
-        item: relative_to(&root, ItemView::from(&item)),
+        item: relative_to(&root, ItemView::from(&item).without_location()),
         items: crate::view::items(&children)
             .into_iter()
-            .map(|child| relative_to(&root, child))
+            .map(|child| relative_to(&root, child.without_location()))
             .collect(),
         relative_path,
     }))

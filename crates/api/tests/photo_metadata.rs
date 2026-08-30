@@ -5,6 +5,80 @@ mod support;
 use axum::http::StatusCode;
 use support::TestApp;
 
+/// A JPEG whose header says it was taken at Greenwich.
+///
+/// Built by the same byte-by-byte rules as the other fixtures here, so
+/// what is being parsed stays visible.
+fn jpeg_with_location() -> Vec<u8> {
+    use std::io::Write;
+
+    const HEADER: usize = 8;
+    let ifd0_size = 2 + 12 + 4;
+    let gps_at = HEADER + ifd0_size;
+    let gps_size = 2 + 4 * 12 + 4;
+    let gps_heap_at = gps_at + gps_size;
+
+    let mut heap: Vec<u8> = Vec::new();
+    let mut gps = Vec::new();
+    gps.write_all(&4u16.to_le_bytes()).unwrap();
+
+    let reference = |tag: u16, text: &str, gps: &mut Vec<u8>| {
+        gps.write_all(&tag.to_le_bytes()).unwrap();
+        gps.write_all(&2u16.to_le_bytes()).unwrap();
+        gps.write_all(&2u32.to_le_bytes()).unwrap();
+        let mut padded = format!("{text}\0").into_bytes();
+        padded.resize(4, 0);
+        gps.write_all(&padded).unwrap();
+    };
+
+    let rational = |tag: u16, parts: [(u32, u32); 3], gps: &mut Vec<u8>, heap: &mut Vec<u8>| {
+        gps.write_all(&tag.to_le_bytes()).unwrap();
+        gps.write_all(&5u16.to_le_bytes()).unwrap();
+        gps.write_all(&3u32.to_le_bytes()).unwrap();
+        gps.write_all(&((gps_heap_at + heap.len()) as u32).to_le_bytes())
+            .unwrap();
+        for (numerator, denominator) in parts {
+            heap.write_all(&numerator.to_le_bytes()).unwrap();
+            heap.write_all(&denominator.to_le_bytes()).unwrap();
+        }
+    };
+
+    reference(0x0001, "N", &mut gps);
+    rational(0x0002, [(51, 1), (28, 1), (0, 1)], &mut gps, &mut heap);
+    reference(0x0003, "W", &mut gps);
+    rational(0x0004, [(0, 1), (5, 1), (0, 1)], &mut gps, &mut heap);
+    gps.write_all(&0u32.to_le_bytes()).unwrap();
+
+    let mut ifd0 = Vec::new();
+    ifd0.write_all(&1u16.to_le_bytes()).unwrap();
+    ifd0.write_all(&0x8825u16.to_le_bytes()).unwrap();
+    ifd0.write_all(&4u16.to_le_bytes()).unwrap();
+    ifd0.write_all(&1u32.to_le_bytes()).unwrap();
+    ifd0.write_all(&(gps_at as u32).to_le_bytes()).unwrap();
+    ifd0.write_all(&0u32.to_le_bytes()).unwrap();
+
+    let mut tiff = Vec::new();
+    tiff.write_all(b"II").unwrap();
+    tiff.write_all(&42u16.to_le_bytes()).unwrap();
+    tiff.write_all(&(HEADER as u32).to_le_bytes()).unwrap();
+    tiff.write_all(&ifd0).unwrap();
+    tiff.write_all(&gps).unwrap();
+    tiff.write_all(&heap).unwrap();
+
+    let mut app1 = Vec::new();
+    app1.write_all(b"Exif\0\0").unwrap();
+    app1.write_all(&tiff).unwrap();
+
+    let mut jpeg = Vec::new();
+    jpeg.write_all(&[0xFF, 0xD8, 0xFF, 0xE1]).unwrap();
+    jpeg.write_all(&((app1.len() + 2) as u16).to_be_bytes())
+        .unwrap();
+    jpeg.write_all(&app1).unwrap();
+    jpeg.write_all(&[0xFF, 0xD9]).unwrap();
+
+    jpeg
+}
+
 /// A JPEG carrying a real EXIF header with the given capture time.
 ///
 /// Assembled here rather than committed as a fixture so what is being
@@ -253,4 +327,50 @@ async fn memories_use_the_day_the_picture_was_taken() {
         .expect("an 'on this day' group");
 
     assert_eq!(on_this_day["items"][0]["name"], "anniversary.jpg");
+}
+
+#[tokio::test]
+async fn where_a_photo_was_taken_is_never_in_a_share() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    app.sign_up_owner().await;
+    let library = app.library_id().await;
+
+    // 51°28'N, 0°0'W — a photo that says where it was taken.
+    let located = jpeg_with_location();
+    let uploaded = app.upload(&library, "home.jpg", &located).await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    app.scan(&library).await;
+
+    // A member of the library can see the place.
+    let seen = app.get(&format!("/api/v1/items/{id}")).await;
+    assert!(
+        seen.json()["latitude"].is_number(),
+        "a member should see the location: {}",
+        seen.text()
+    );
+
+    let shared = app
+        .post_json(&format!("/api/v1/items/{id}/shares"), serde_json::json!({}))
+        .await;
+    let token = shared.json()["token"].as_str().expect("token").to_owned();
+
+    app.forget_session();
+    let public = app.get(&format!("/api/v1/public/{token}")).await;
+
+    assert_eq!(public.status, StatusCode::OK, "{}", public.text());
+    // For most libraries this is where somebody lives. A link handed to
+    // a stranger must not carry it.
+    assert!(
+        public.json()["item"].get("latitude").is_none(),
+        "a share leaked a location: {}",
+        public.text()
+    );
+    assert!(
+        public.json()["item"].get("longitude").is_none(),
+        "a share leaked a location: {}",
+        public.text()
+    );
 }

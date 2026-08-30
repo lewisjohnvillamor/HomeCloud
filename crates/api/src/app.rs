@@ -275,6 +275,8 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
         )
+        // Where photos were taken.
+        .route("/api/v1/libraries/{library}/places", get(library::places))
         // Exact duplicates, for reclaiming space.
         .route(
             "/api/v1/libraries/{library}/duplicates",

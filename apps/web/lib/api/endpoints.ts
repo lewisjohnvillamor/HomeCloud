@@ -459,6 +459,18 @@ export function removePasskey(
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
 }
 
+/** Photos that recorded where they were taken. Members only. */
+export function fetchPlaces(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/places`,
+    parseItems,
+    options,
+  );
+}
+
 /** Exact duplicates: same bytes, same hash. */
 export function fetchDuplicates(
   library: string,

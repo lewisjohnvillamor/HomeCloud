@@ -27,6 +27,13 @@ let recoveryCode = "";
  * Fujifilm X100V. Assembled by the same rules as the Rust tests, so the
  * journey exercises real metadata rather than a stubbed field.
  */
+/**
+ * A JPEG whose header says it was taken at Greenwich — 51°28'N, 0°5'W.
+ * Built by the same rules as the Rust fixtures.
+ */
+const JPEG_AT_GREENWICH_BASE64 = 
+  "/9j/4QCIRXhpZgAASUkqAAgAAAABACWIBAABAAAAGgAAAAAAAAAEAAEAAgACAAAATgAAAAIABQADAAAAUAAAAAMAAgACAAAAVwAAAAQABQADAAAAaAAAAAAAAAAzAAAAAQAAABwAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAUAAAABAAAAAAAAAAEAAAD/2Q==";
+
 const JPEG_TAKEN_2019_BASE64 =
   "/9j/4QBvRXhpZgAASUkqAAgAAAADAA8BAgAJAAAAMgAAABABAgAGAAAAOwAAAGmHBAABAAAAQQAAAAAAAABGdWppZmlsbQBYMTAwVgABAAOQAgAUAAAAUwAAAAAAAAAyMDE5OjA3OjA0IDEyOjMwOjQ1AP/Z";
 
@@ -1015,6 +1022,33 @@ test("a file can be copied without losing the original", async ({ browser }) => 
   await expect(
     ownerPage.getByRole("link", { name: "Download report-backup.txt", exact: true }),
   ).toBeVisible();
+
+  await owner.close();
+});
+
+test("a photo that recorded where it was taken appears on the map", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("greenwich.jpg", Buffer.from(JPEG_AT_GREENWICH_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "greenwich.jpg" })).toBeVisible();
+
+  await ownerPage.goto("/photos");
+  await ownerPage.getByRole("tab", { name: "Places" }).click();
+
+  const plot = ownerPage.getByRole("group", { name: "Photo locations" });
+  await expect(plot).toBeVisible();
+
+  // The pin names the photo and roughly where it was.
+  const pin = plot.getByRole("button", { name: /greenwich\.jpg at 51\./ });
+  await expect(pin).toBeVisible();
+
+  await pin.click();
+  // The chosen photo, with the place it was taken.
+  const chosen = ownerPage.getByRole("link", { name: /greenwich\.jpg/ });
+  await expect(chosen).toBeVisible();
+  await expect(chosen).toContainText(/51\.4[0-9]*, -0\./);
 
   await owner.close();
 });

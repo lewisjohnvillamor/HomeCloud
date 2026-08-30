@@ -128,6 +128,10 @@ A single-user deployment is usable end to end:
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
+- **Places** — photos plotted by where the camera said they were taken. A
+  coordinate plot rather than a street map, and deliberately so: asking a tile
+  service for the squares around a coordinate tells that service where your
+  photos are. A shared link never carries a location.
 - **Duplicates** — files that are byte-for-byte the same, wherever they sit,
   found by hashing every file in the background. Exact matches only: files that
   merely look alike are a job for the AI half of the product, and calling

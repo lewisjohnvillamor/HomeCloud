@@ -21,9 +21,10 @@ import type { Album, AlbumContents, Item } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { PhotoGrid } from "./photo-grid";
 import { PhotoTile } from "./photo-tile";
+import { PlacesView } from "./places-view";
 import styles from "./photo-grid.module.css";
 
-type View = "timeline" | "albums" | "favorites";
+type View = "timeline" | "albums" | "favorites" | "places";
 
 /**
  * Photos, in the three ways people actually look at them: everything in
@@ -76,7 +77,7 @@ export function PhotosView({ library }: { library: string }) {
   return (
     <>
       <div className={styles.views} role="tablist" aria-label="Photo views">
-        {(["timeline", "albums", "favorites"] as const).map((candidate) => (
+        {(["timeline", "albums", "favorites", "places"] as const).map((candidate) => (
           <Button
             key={candidate}
             role="tab"
@@ -84,7 +85,13 @@ export function PhotosView({ library }: { library: string }) {
             variant={view === candidate ? "primary" : "quiet"}
             onClick={() => setView(candidate)}
           >
-            {candidate === "timeline" ? "Timeline" : candidate === "albums" ? "Albums" : "Favorites"}
+            {candidate === "timeline"
+              ? "Timeline"
+              : candidate === "albums"
+                ? "Albums"
+                : candidate === "favorites"
+                  ? "Favorites"
+                  : "Places"}
           </Button>
         ))}
       </div>
@@ -98,6 +105,8 @@ export function PhotosView({ library }: { library: string }) {
       ) : null}
 
       {view === "albums" ? <AlbumsView library={library} onOpen={setOpenAlbum} /> : null}
+
+      {view === "places" ? <PlacesView library={library} /> : null}
 
       {view === "favorites" ? (
         <FavoritesView

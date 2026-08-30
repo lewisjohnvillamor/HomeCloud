@@ -34,7 +34,7 @@ impl ItemKind {
 /// `path` is where the item currently lives; `id` is what it *is*. Move
 /// or rename an item and the path changes while the id does not, which
 /// is what lets links, shares, and offline state survive reorganisation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Item {
     pub id: ItemId,
     pub library: LibraryId,
@@ -50,6 +50,9 @@ pub struct Item {
     pub taken_at: Option<OffsetDateTime>,
     /// The camera, as one line: "Fujifilm X100V".
     pub camera: Option<String>,
+    /// Where the picture was taken, when the camera recorded it.
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub trashed_at: Option<OffsetDateTime>,
     pub missing_since: Option<OffsetDateTime>,
 }
