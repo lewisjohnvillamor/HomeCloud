@@ -101,8 +101,8 @@ export default function SendPage({ params }: { params: Promise<{ token: string }
           description="It has received everything it was set up to accept. Ask whoever sent it for a new one."
         />
       ) : (
-        <>
-          <p className={styles.meta}>
+        <div className={styles.panel}>
+          <p className={styles.allowance}>
             Room for {request.filesLeft} more {request.filesLeft === 1 ? "file" : "files"}, up
             to {formatBytes(request.bytesLeft)}.
           </p>
@@ -125,7 +125,7 @@ export default function SendPage({ params }: { params: Promise<{ token: string }
               {busy ? `Sending ${busy}…` : "Choose files to send"}
             </Button>
           </label>
-        </>
+        </div>
       )}
 
       {problem ? (
@@ -138,6 +138,20 @@ export default function SendPage({ params }: { params: Promise<{ token: string }
           <ul className={styles.list}>
             {sent.map((name) => (
               <li key={name} className={styles.row}>
+                <svg
+                  className={styles.tick}
+                  width="1em"
+                  height="1em"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m4 12.5 5 5L20 6.5" />
+                </svg>
                 {name}
               </li>
             ))}

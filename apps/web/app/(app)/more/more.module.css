@@ -1,26 +1,44 @@
-.section {
-  margin-block-end: 2rem;
-  padding-block-end: 1.5rem;
-  border-block-end: 1px solid var(--border);
+/* Settings are eight unrelated subjects. As one column of text divided by
+   hairlines they read as a wall; as panels on a grid the eye can skim the
+   headings and stop at the one it wants. */
+.grid {
+  /* Columns rather than a grid: these panels are wildly different
+     heights, and a grid aligns every row to its tallest member, which
+     left holes down the page. Columns pack them. */
+  columns: 19rem;
+  column-gap: var(--space-4);
+  margin-block-start: var(--space-5);
 }
 
-.section:last-of-type {
-  border-block-end: none;
+.section {
+  /* A panel must not be split across a column break. */
+  break-inside: avoid;
+  margin-block-end: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
 .heading {
-  margin-block: 0 0.5rem;
-  font-size: 1.0625rem;
+  margin-block: 0 var(--space-3);
+  font-size: var(--text-lg);
+  letter-spacing: -0.01em;
 }
 
 .detail {
-  margin-block: 0 0.75rem;
+  margin-block: 0 var(--space-4);
   color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.detail:last-child {
+  margin-block-end: 0;
 }
 
 .code {
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
+  padding: 0.125rem var(--space-1);
+  border-radius: var(--radius-sm);
   background: var(--surface-hover);
   font-size: 0.9em;
   overflow-wrap: anywhere;
@@ -29,13 +47,13 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-3);
 }
 
 .trashList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -44,13 +62,15 @@
 .trashItem {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-3);
   align-items: center;
   justify-content: space-between;
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-2) var(--space-4);
+  /* Inside a panel these are nested, so they take the page ground rather
+     than another layer of the same surface. */
   border: 1px solid var(--border);
-  border-radius: 0.625rem;
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: var(--background);
 }
 
 .trashName {
@@ -68,17 +88,20 @@
 }
 
 .subheading {
-  margin-block: 1.5rem 0.5rem;
-  font-size: 0.9375rem;
+  margin-block: var(--space-6) var(--space-3);
+  font-size: var(--text-md);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
 }
 
 .tvLink {
   display: inline-flex;
   align-items: center;
-  min-block-size: 2.75rem;
-  padding: 0 1rem;
+  min-block-size: var(--control-height);
+  padding: 0 var(--space-5);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   color: var(--text);
   font-weight: 500;
   text-decoration: none;
