@@ -69,6 +69,10 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
 > GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
 > POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> PUT    /api/v1/items/{id}/content                (built) replace contents, keeping the old
+> GET    /api/v1/items/{id}/versions               (built) what this file used to be
+> GET    /api/v1/items/{id}/versions/{v}/content   (built) download an earlier version
+> POST   /api/v1/items/{id}/versions/{v}/restore   (built) put an earlier version back
 > POST   /api/v1/items/{id}/upload-requests        (built) ask for files in a folder
 > GET    /api/v1/libraries/{id}/upload-requests    (built) live upload links, for auditing
 > DELETE /api/v1/upload-requests/{id}              (built) stop accepting files

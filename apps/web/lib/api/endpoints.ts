@@ -13,6 +13,7 @@ import {
   patchJson,
   postFile,
   postJson,
+  putFile,
   putJson,
   type ApiResult,
   type RequestOptions,
@@ -35,6 +36,7 @@ import {
   parseMembers,
   parseAlbumContents,
   parseAlbums,
+  parseFileVersions,
   parsePairing,
   parsePublicUploadRequest,
   parsePairingStatus,
@@ -59,6 +61,7 @@ import {
   type SearchResult,
   type Album,
   type AlbumContents,
+  type FileVersion,
   type Pairing,
   type PairingStatus,
   type Session,
@@ -452,6 +455,45 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+// --- What a file used to be ---
+
+export function fetchVersions(
+  item: string,
+  options?: RequestOptions,
+): Promise<ApiResult<FileVersion[]>> {
+  return getJson(
+    `/api/v1/items/${encodeURIComponent(item)}/versions`,
+    parseFileVersions,
+    options,
+  );
+}
+
+/** Replaces a file's contents, keeping the old ones as a version. */
+export function replaceContent(
+  item: string,
+  file: File,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return putFile(`/api/v1/items/${encodeURIComponent(item)}/content`, file, parseItem, options);
+}
+
+export function versionContentUrl(item: string, version: string): string {
+  return `/api/v1/items/${encodeURIComponent(item)}/versions/${encodeURIComponent(version)}/content`;
+}
+
+export function restoreVersion(
+  item: string,
+  version: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/versions/${encodeURIComponent(version)}/restore`,
+    {},
+    parseItem,
+    options,
+  );
 }
 
 // --- Upload request links ---

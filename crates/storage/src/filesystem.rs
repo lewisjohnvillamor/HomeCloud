@@ -14,7 +14,7 @@ use tokio::io::AsyncWriteExt;
 use crate::path::LibraryPath;
 use crate::{
     Entry, EntryKind, MutableStorage, ReadOnlyStorage, StorageError, DERIVATIVES_DIRECTORY,
-    TRASH_DIRECTORY, UPLOAD_DIRECTORY,
+    TRASH_DIRECTORY, UPLOAD_DIRECTORY, VERSIONS_DIRECTORY,
 };
 
 #[derive(Debug, Clone)]
@@ -519,6 +519,91 @@ impl FilesystemStorage {
         }
 
         fs::read(&resolved).await.map_err(map_io_error)
+    }
+
+    /// Moves a file's current contents into the version store, returning
+    /// the name it was kept under.
+    ///
+    /// A move, not a copy: the bytes are the same bytes, so replacing a
+    /// file costs no extra space and cannot half-succeed on a full disk.
+    pub async fn keep_version(&self, path: &LibraryPath) -> Result<String, StorageError> {
+        let source = self.resolve(path).await?;
+
+        let store = self.root.join(VERSIONS_DIRECTORY);
+        fs::create_dir_all(&store).await.map_err(map_io_error)?;
+
+        let name = format!("version-{}", uuid_like());
+        fs::rename(&source, store.join(&name))
+            .await
+            .map_err(map_io_error)?;
+
+        Ok(name)
+    }
+
+    /// Opens a kept version for reading.
+    pub async fn open_version(&self, name: &str) -> Result<(fs::File, u64), StorageError> {
+        let path = self.version_path(name)?;
+
+        let metadata = fs::symlink_metadata(&path).await.map_err(map_io_error)?;
+        if !metadata.is_file() {
+            return Err(StorageError::NotFound);
+        }
+
+        let file = fs::File::open(&path).await.map_err(map_io_error)?;
+
+        Ok((file, metadata.len()))
+    }
+
+    /// Puts a kept version back at a path, which must be free.
+    pub async fn restore_version(
+        &self,
+        name: &str,
+        destination: &LibraryPath,
+    ) -> Result<(), StorageError> {
+        let source = self.version_path(name)?;
+        let target = self.resolve_for_write(destination).await?;
+
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).await.map_err(map_io_error)?;
+        }
+
+        // As with finishing an upload: `hard_link` refuses an existing
+        // destination atomically, where `rename` would replace it.
+        let result = fs::hard_link(&source, &target).await;
+
+        match result {
+            Ok(()) => {
+                let _ = fs::remove_file(&source).await;
+                Ok(())
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+                Err(StorageError::AlreadyExists)
+            }
+            Err(error) => Err(map_io_error(error)),
+        }
+    }
+
+    /// Removes a kept version permanently.
+    pub async fn discard_version(&self, name: &str) {
+        if let Ok(path) = self.version_path(name) {
+            let _ = fs::remove_file(&path).await;
+        }
+    }
+
+    /// The path of a kept version.
+    ///
+    /// The name is the server's own, but it is checked anyway: a stored
+    /// name must resolve inside the version store and nowhere else.
+    fn version_path(&self, name: &str) -> Result<PathBuf, StorageError> {
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+        {
+            return Err(StorageError::InvalidPath(crate::PathError::Traversal));
+        }
+
+        Ok(self.root.join(VERSIONS_DIRECTORY).join(name))
     }
 
     /// Reads at most the first `max_bytes` of a file.

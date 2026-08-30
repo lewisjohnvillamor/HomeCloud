@@ -19,7 +19,7 @@ use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
     albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
-    requests, security, shares, thumbnails, transfers, tv, uploads,
+    requests, security, shares, thumbnails, transfers, tv, uploads, versions,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -274,6 +274,17 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
         )
+        // What a file used to be. Replacing goes through the transfer
+        // router below, which has the larger body limit.
+        .route("/api/v1/items/{item}/versions", get(versions::list))
+        .route(
+            "/api/v1/items/{item}/versions/{version}/content",
+            get(versions::download),
+        )
+        .route(
+            "/api/v1/items/{item}/versions/{version}/restore",
+            post(versions::restore),
+        )
         // Upload request links: the mirror image of a share. Someone
         // with the link can write into one folder and read nothing.
         .route(
@@ -365,6 +376,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/uploads/{id}",
             axum::routing::patch(uploads::append),
+        )
+        .route(
+            "/api/v1/items/{item}/content",
+            axum::routing::put(versions::replace),
         )
         // A file arriving through an upload request link. No session,
         // and the link's own limits bound what it can cost.

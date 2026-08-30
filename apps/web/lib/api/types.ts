@@ -705,3 +705,44 @@ export function parsePublicUploadRequest(value: unknown): PublicUploadRequest | 
     bytesLeft: typeof raw.bytes_left === "number" ? raw.bytes_left : 0,
   };
 }
+
+/** What a file used to be. */
+export type FileVersion = {
+  id: string;
+  sizeBytes: number;
+  contentType: string | null;
+  contentModifiedAt: string | null;
+  replacedAt: string;
+};
+
+export function parseFileVersion(value: unknown): FileVersion | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
+    contentType: text(raw.content_type),
+    contentModifiedAt: text(raw.content_modified_at),
+    replacedAt: text(raw.replaced_at) ?? "",
+  };
+}
+
+export function parseFileVersions(value: unknown): FileVersion[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const versions: FileVersion[] = [];
+  for (const entry of value) {
+    const version = parseFileVersion(entry);
+    if (!version) {
+      return undefined;
+    }
+    versions.push(version);
+  }
+
+  return versions;
+}

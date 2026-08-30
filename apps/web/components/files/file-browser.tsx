@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { VersionDialog } from "@/components/files/version-dialog";
 import { RequestDialog } from "@/components/share/request-dialog";
 import { ShareDialog } from "@/components/share/share-dialog";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
@@ -39,6 +40,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sharing, setSharing] = useState<Item | null>(null);
   const [requesting, setRequesting] = useState<Item | null>(null);
+  const [history, setHistory] = useState<Item | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -184,6 +186,14 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
 
   return (
     <div>
+      {history ? (
+        <VersionDialog
+          item={history}
+          onClose={() => setHistory(null)}
+          onChanged={() => void reload()}
+        />
+      ) : null}
+
       {requesting ? (
         <RequestDialog item={requesting} onClose={() => setRequesting(null)} />
       ) : null}
@@ -359,6 +369,15 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           {item.name}
                         </span>
                       </Button>
+                      {item.kind === "file" ? (
+                        <Button variant="quiet" onClick={() => setHistory(item)}>
+                          History
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
                       {item.kind === "folder" ? (
                         <Button variant="quiet" onClick={() => setRequesting(item)}>
                           Ask for files

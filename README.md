@@ -128,6 +128,10 @@ A single-user deployment is usable end to end:
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
+- **History** — replacing a file through HomeCloud keeps what it was, so you
+  can read it back or put it back. A file changed with another program is not
+  kept: it had already changed before any scan saw it, and claiming otherwise
+  would be a promise the product cannot keep.
 - **Asking for files** — the mirror image of a share: a link that lets someone
   send files *into* one folder without an account, without seeing what is
   already in it, and without reaching anything else. Each link carries its own
@@ -158,8 +162,8 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: file versions, video transcoding for playback, photo-frame mode,
-offline sync, and the local AI features. See `ROADMAP.md`.
+Not yet built: video transcoding for playback, photo-frame mode, offline sync,
+and the local AI features. See `ROADMAP.md`.
 
 ## Local Development
 

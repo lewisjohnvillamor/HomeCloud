@@ -906,6 +906,45 @@ test("someone with no account can send files into one folder", async ({ browser 
   await owner.close();
 });
 
+test("a replaced file keeps what it was, and can be put back", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("draft.txt", "the first draft"));
+  const row = ownerPage.getByRole("row").filter({ hasText: "draft.txt" });
+  await expect(row).toBeVisible();
+
+  await row.getByRole("button", { name: /History/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /History/ });
+  await expect(dialog).toContainText("no earlier contents kept");
+
+  await dialog
+    .getByLabel("Replace draft.txt")
+    .setInputFiles(tempFile("draft.txt", "a much worse second draft"));
+
+  // The old contents are kept, and downloadable.
+  await expect(dialog.getByRole("link", { name: "Download" })).toBeVisible();
+  const download = await Promise.all([
+    ownerPage.waitForEvent("download"),
+    dialog.getByRole("link", { name: "Download" }).click(),
+  ]);
+  const { readFileSync } = await import("node:fs");
+  expect(readFileSync(await download[0].path()).toString()).toBe("the first draft");
+
+  // Putting it back makes it current again.
+  await dialog.getByRole("button", { name: "Restore" }).click();
+  await dialog.getByRole("button", { name: "Close" }).click();
+
+  const current = await Promise.all([
+    ownerPage.waitForEvent("download"),
+    row.getByRole("link", { name: /Download/ }).click(),
+  ]);
+  expect(readFileSync(await current[0].path()).toString()).toBe("the first draft");
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

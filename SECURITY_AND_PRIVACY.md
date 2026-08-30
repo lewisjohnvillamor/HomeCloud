@@ -338,7 +338,32 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Upload Request Links
+## 21. Version History
+
+What a file used to be is data a person may be relying on, so the version store
+is treated as data rather than as cache:
+
+- it lives in a managed directory inside the library root, which scans walk
+  straight past, so an old version can never turn up in someone's file list or
+  be mistaken for library content;
+- versions are **moved**, never copied. Replacing a file costs no extra space
+  and cannot half-succeed on a full disk, and if the replacement fails the
+  original is put straight back rather than leaving a gap where a file was;
+- a restore keeps what was current as a version of its own, so restoring is
+  never a way to lose the file you had;
+- a version belongs to its file. Asking for one through a different item is a
+  "not found", not a shortcut, and the stored name is checked to resolve inside
+  the version store even though the server chose it;
+- history is bounded per file, oldest first, so a file edited every minute
+  cannot fill a disk with its own past.
+
+The limit worth stating plainly: HomeCloud can only keep a version of a change
+it made itself. A file edited with another program has already changed by the
+time a scan notices, and a history that quietly missed those changes would be
+worse than one that never claimed to have them. The interface says so where
+someone would otherwise assume.
+
+## 22. Upload Request Links
 
 The only capability in the product that lets an unauthenticated stranger
 *write*, so it is the most tightly bounded thing here:
@@ -364,7 +389,7 @@ The only capability in the product that lets an unauthenticated stranger
   because a link that lets someone write is a thing an owner should be able to
   see and switch off.
 
-## 22. Resumable Uploads
+## 23. Resumable Uploads
 
 An upload that spans many requests is a small amount of state a client can lie
 about, so the rules are about not believing it:
@@ -387,7 +412,7 @@ about, so the rules are about not believing it:
 - staging files live inside the library root, are named by the server, and are
   swept along with their sessions when one is abandoned.
 
-## 23. Photo Metadata
+## 24. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -408,7 +433,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 24. Television Pairing
+## 25. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and
