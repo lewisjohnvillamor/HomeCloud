@@ -116,14 +116,24 @@ impl Drop for TestDatabase {
             };
 
             runtime.block_on(async move {
-                if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
-                    let _ = admin
-                        .execute(
-                            format!(r#"DROP DATABASE IF EXISTS "{name}" WITH (FORCE)"#).as_str(),
-                        )
-                        .await;
-                    let _ = admin.close().await;
-                }
+                // Bounded, because this is joined: a cleanup that hung
+                // would hang the whole test process with it, and a
+                // database left behind is much the better failure. It
+                // also cannot connect when the server is the thing that
+                // died, which is exactly when this runs.
+                let removal = async {
+                    if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
+                        let _ = admin
+                            .execute(
+                                format!(r#"DROP DATABASE IF EXISTS "{name}" WITH (FORCE)"#)
+                                    .as_str(),
+                            )
+                            .await;
+                        let _ = admin.close().await;
+                    }
+                };
+
+                let _ = tokio::time::timeout(std::time::Duration::from_secs(10), removal).await;
             });
         });
 
