@@ -17,7 +17,7 @@ import {
 } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
 import type { Item, ScanStatus, Share } from "@/lib/api/types";
-import { formatBytes } from "@/lib/format";
+import { formatBytes, formatDate } from "@/lib/format";
 import styles from "./more.module.css";
 
 /** How often a running scan is re-checked. Slow enough to stay quiet. */
@@ -213,7 +213,10 @@ export default function MorePage() {
                   <span className={styles.trashName}>{share.itemName}</span>
                   <span className={styles.detail}>
                     {" "}
-                    {share.expiresAt ? "expires soon" : "no expiry"} · opened{" "}
+                    {share.expiresAt
+                      ? `expires ${formatDate(share.expiresAt)}`
+                      : "no expiry"}{" "}
+                    · opened{" "}
                     {share.accessCount} time{share.accessCount === 1 ? "" : "s"}
                   </span>
                 </span>
