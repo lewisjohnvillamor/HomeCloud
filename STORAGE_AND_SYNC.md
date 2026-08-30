@@ -92,6 +92,34 @@ The user can rebuild them from originals. A backup strategy may exclude derivati
 - Normalize for comparison without silently renaming original Unicode filenames.
 - Handle case sensitivity differences across filesystems.
 
+## 7a. One Root, Several Disks
+
+A library root is one path, but it need not be one filesystem. Mounting an
+external drive at `library/photos` while the rest of the root sits on the
+system disk is an ordinary way to run this, and it breaks the two syscalls
+the storage layer relies on: `rename` and `hard_link` both refuse to cross a
+filesystem boundary.
+
+Both fall back to a copy, and the fallback keeps the guarantee the syscall
+was chosen for:
+
+- **Linking** (finishing an upload, restoring a version) falls back when the
+  destination is on another filesystem, and also when the filesystem has no
+  hard links at all — exFAT and FAT32, which is how most external drives are
+  sold. Those report the attempt as `EPERM`, indistinguishable from a genuine
+  refusal, so both fall back; a copy that truly is not permitted fails the
+  same way and reports the same error.
+- **Renaming** (moving, trashing, keeping a version) falls back only on a
+  genuine cross-device error. Renaming works on every filesystem, so any other
+  failure is real, and copying instead would turn a refusal into a duplicate.
+
+The copy opens its destination with `O_EXCL`, so it still refuses an existing
+name in one atomic step — the property that stops two simultaneous uploads of
+one name losing each other. A copy that fails partway removes what it wrote,
+because a truncated file looks like a real one to every later scan. Nothing is
+removed from the source until its copy is complete, so an interrupted move
+leaves the original where it was rather than somewhere between two disks.
+
 ## 8. Watchers and Reconciliation
 
 Watchers reduce latency but are not authoritative.

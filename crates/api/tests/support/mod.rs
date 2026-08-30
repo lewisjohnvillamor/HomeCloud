@@ -21,6 +21,7 @@ pub struct TestDatabase {
     pub pool: PgPool,
     admin_url: String,
     name: String,
+    removed: bool,
 }
 
 impl TestDatabase {
@@ -62,6 +63,7 @@ impl TestDatabase {
             pool,
             admin_url,
             name,
+            removed: false,
         })
     }
 
@@ -69,8 +71,9 @@ impl TestDatabase {
         database_url_for(&self.admin_url, &self.name)
     }
 
-    /// Drops the database. Called explicitly because `Drop` cannot await.
-    pub async fn cleanup(self) {
+    /// Drops the database. Called explicitly at the end of a test that
+    /// passes; [`Drop`] covers the one that does not.
+    pub async fn cleanup(mut self) {
         self.pool.close().await;
 
         if let Ok(mut admin) = PgConnection::connect(&self.admin_url).await {
@@ -81,6 +84,50 @@ impl TestDatabase {
                 .await;
             let _ = admin.close().await;
         }
+
+        self.removed = true;
+    }
+}
+
+impl Drop for TestDatabase {
+    /// A failing test fails by panicking, which skips the `cleanup` call
+    /// at the end of its body and leaves the database behind. One is
+    /// nothing. A day of them filled the disk and took the PostgreSQL
+    /// server down with it, which then failed every later run for a
+    /// reason that had nothing to do with the code under test.
+    ///
+    /// `Drop` cannot await, so the removal runs on a thread of its own
+    /// and is waited for: the test process may exit immediately after,
+    /// and a detached thread would not survive it.
+    fn drop(&mut self) {
+        if self.removed {
+            return;
+        }
+
+        let admin_url = self.admin_url.clone();
+        let name = self.name.clone();
+
+        let removal = std::thread::spawn(move || {
+            let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+
+            runtime.block_on(async move {
+                if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
+                    let _ = admin
+                        .execute(
+                            format!(r#"DROP DATABASE IF EXISTS "{name}" WITH (FORCE)"#).as_str(),
+                        )
+                        .await;
+                    let _ = admin.close().await;
+                }
+            });
+        });
+
+        let _ = removal.join();
     }
 }
 
