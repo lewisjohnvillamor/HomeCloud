@@ -22,6 +22,14 @@ const OWNER = { name: "Ada", password: "correct horse battery staple" };
  */
 let recoveryCode = "";
 
+/**
+ * A JPEG whose EXIF header says it was taken on 4 July 2019 by a
+ * Fujifilm X100V. Assembled by the same rules as the Rust tests, so the
+ * journey exercises real metadata rather than a stubbed field.
+ */
+const JPEG_TAKEN_2019_BASE64 =
+  "/9j/4QBvRXhpZgAASUkqAAgAAAADAA8BAgAJAAAAMgAAABABAgAGAAAAOwAAAGmHBAABAAAAQQAAAAAAAABGdWppZmlsbQBYMTAwVgABAAOQAgAUAAAAUwAAAAAAAAAyMDE5OjA3OjA0IDEyOjMwOjQ1AP/Z";
+
 /** A tiny but genuinely valid PNG, so the Photos view has real content. */
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -662,6 +670,30 @@ test("a television with no keyboard is paired from a phone", async ({ browser })
   await expect(tvPage.locator("[data-tile]")).toHaveCount(0);
 
   await tv.close();
+  await owner.close();
+});
+
+test("a photo is filed under the month it was taken, not the day it was copied", async ({
+  browser,
+}) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // A JPEG carrying a real EXIF capture date. The file itself is being
+  // written now, which is exactly the case that makes file times useless.
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("wedding.jpg", Buffer.from(JPEG_TAKEN_2019_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "wedding.jpg" })).toBeVisible();
+
+  await ownerPage.goto("/photos");
+  const heading = ownerPage.getByRole("heading", { level: 2, name: /July 2019/ });
+  await expect(heading).toBeVisible();
+
+  // And the camera is there for anyone who looks.
+  await expect(
+    ownerPage.getByRole("link", { name: "wedding.jpg" }).first(),
+  ).toHaveAttribute("title", /Fujifilm X100V/);
+
   await owner.close();
 });
 

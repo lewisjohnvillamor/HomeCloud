@@ -20,6 +20,7 @@ pub mod library;
 pub mod members;
 pub mod observability;
 pub mod passkeys;
+pub mod photometa;
 pub mod ratelimit;
 pub mod recovery;
 pub mod scanjob;

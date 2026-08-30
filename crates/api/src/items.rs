@@ -222,9 +222,16 @@ pub async fn record_uploaded_file(
     .await
     .map_err(catalog_error)?;
 
-    repository::item_at_path(state.db(), library, path)
+    let item = repository::item_at_path(state.db(), library, path)
         .await
-        .map_err(catalog_error)
+        .map_err(catalog_error)?;
+
+    // A photo uploaded from a phone should land in the timeline under
+    // the day it was taken, not today. Waiting for the next scan would
+    // put it in the wrong month until then.
+    let item = crate::photometa::describe_one(state.db(), &storage, item).await;
+
+    Ok(item)
 }
 
 /// Loads an item the caller is allowed to see.

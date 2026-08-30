@@ -39,7 +39,7 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/session                           (built) who is signed in
 > GET    /api/v1/libraries                         (built) libraries this account can see
 > GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb
-> GET    /api/v1/libraries/{id}/photos             (built) images, newest first
+> GET    /api/v1/libraries/{id}/photos             (built) images and videos, by capture date
 > GET    /api/v1/libraries/{id}/memories           (built) on this day, recently added
 > GET    /api/v1/libraries/{id}/search?q=          (built) name and document-text search
 > GET    /api/v1/libraries/{id}/trash              (built) trashed items

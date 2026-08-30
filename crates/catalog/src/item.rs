@@ -45,11 +45,22 @@ pub struct Item {
     pub size_bytes: i64,
     pub content_type: Option<String>,
     pub modified_at: Option<OffsetDateTime>,
+    /// When the picture was taken, as the camera recorded it. Absent for
+    /// anything that is not a photo, and for photos that never said.
+    pub taken_at: Option<OffsetDateTime>,
+    /// The camera, as one line: "Fujifilm X100V".
+    pub camera: Option<String>,
     pub trashed_at: Option<OffsetDateTime>,
     pub missing_since: Option<OffsetDateTime>,
 }
 
 impl Item {
+    /// The date this item belongs under in a timeline: what the camera
+    /// said, or failing that when the file was last written.
+    pub fn happened_at(&self) -> Option<OffsetDateTime> {
+        self.taken_at.or(self.modified_at)
+    }
+
     pub fn is_folder(&self) -> bool {
         self.kind == ItemKind::Folder
     }

@@ -11,6 +11,10 @@ export type Item = {
   sizeBytes: number;
   contentType: string | null;
   modifiedAt: string | null;
+  /** When the picture was taken, as the camera recorded it. */
+  takenAt: string | null;
+  /** The camera, as one line: "Fujifilm X100V". */
+  camera: string | null;
   isImage: boolean;
   isVideo: boolean;
   trashed: boolean;
@@ -85,6 +89,8 @@ export function parseItem(value: unknown): Item | undefined {
     sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
     contentType: text(raw.content_type),
     modifiedAt: text(raw.modified_at),
+    takenAt: text(raw.taken_at),
+    camera: text(raw.camera),
     isImage: raw.is_image === true,
     isVideo: raw.is_video === true,
     trashed: raw.trashed === true,

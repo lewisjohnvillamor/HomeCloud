@@ -14,6 +14,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", 
 
 [dependencies]
 image.workspace = true
+kamadak-exif.workspace = true
+time.workspace = true
 tokio = { workspace = true, features = ["process", "time"] }
 thiserror.workspace = true
 tracing.workspace = true

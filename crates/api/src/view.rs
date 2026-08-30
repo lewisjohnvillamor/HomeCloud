@@ -16,6 +16,11 @@ pub struct ItemView {
     pub content_type: Option<String>,
     /// RFC 3339, or absent when the filesystem did not report one.
     pub modified_at: Option<String>,
+    /// When the picture was taken, as the camera recorded it. Absent for
+    /// anything that is not a photo, and for photos that never said.
+    pub taken_at: Option<String>,
+    /// The camera, as one line: "Fujifilm X100V".
+    pub camera: Option<String>,
     /// Whether the Photos view should show this item as a still.
     pub is_image: bool,
     /// Whether it is a video, which the UI marks and plays rather than
@@ -33,16 +38,20 @@ impl From<&Item> for ItemView {
             kind: item.kind.as_str(),
             size_bytes: item.size_bytes,
             content_type: item.content_type.clone(),
-            modified_at: item.modified_at.and_then(|value| {
-                value
-                    .format(&time::format_description::well_known::Rfc3339)
-                    .ok()
-            }),
+            modified_at: item.modified_at.and_then(rfc3339),
+            taken_at: item.taken_at.and_then(rfc3339),
+            camera: item.camera.clone(),
             is_image: item.is_image(),
             is_video: item.is_video(),
             trashed: item.trashed_at.is_some(),
         }
     }
+}
+
+fn rfc3339(value: time::OffsetDateTime) -> Option<String> {
+    value
+        .format(&time::format_description::well_known::Rfc3339)
+        .ok()
 }
 
 pub fn items(items: &[Item]) -> Vec<ItemView> {

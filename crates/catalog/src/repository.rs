@@ -23,7 +23,8 @@ pub enum CatalogError {
 }
 
 const ITEM_COLUMNS: &str = "id, library_id, parent_id, relative_path, name, kind, size_bytes, \
-                            content_type, modified_at, trashed_at, missing_since";
+                            content_type, modified_at, taken_at, camera, trashed_at, \
+                            missing_since";
 
 fn item_from_row(row: &PgRow) -> Result<Item, CatalogError> {
     let path: String = row.try_get("relative_path")?;
@@ -41,6 +42,8 @@ fn item_from_row(row: &PgRow) -> Result<Item, CatalogError> {
         size_bytes: row.try_get("size_bytes")?,
         content_type: row.try_get("content_type")?,
         modified_at: row.try_get("modified_at")?,
+        taken_at: row.try_get("taken_at")?,
+        camera: row.try_get("camera")?,
         trashed_at: row.try_get("trashed_at")?,
         missing_since: row.try_get("missing_since")?,
     })
@@ -213,7 +216,7 @@ pub async fn visual_media(
            AND (content_type LIKE 'image/%' OR content_type LIKE 'video/%')
            AND trashed_at IS NULL
            AND missing_since IS NULL
-         ORDER BY modified_at DESC NULLS LAST, lower(name)
+         ORDER BY COALESCE(taken_at, modified_at) DESC NULLS LAST, lower(name)
          LIMIT $2 OFFSET $3"
     ))
     .bind(library.as_uuid())
@@ -242,11 +245,12 @@ pub async fn on_this_day(
            AND content_type LIKE 'image/%'
            AND trashed_at IS NULL
            AND missing_since IS NULL
-           AND modified_at IS NOT NULL
-           AND extract(month FROM modified_at) = $2
-           AND extract(day FROM modified_at) = $3
-           AND date_trunc('day', modified_at) < date_trunc('day', $4::timestamptz)
-         ORDER BY modified_at DESC
+           AND COALESCE(taken_at, modified_at) IS NOT NULL
+           AND extract(month FROM COALESCE(taken_at, modified_at)) = $2
+           AND extract(day FROM COALESCE(taken_at, modified_at)) = $3
+           AND date_trunc('day', COALESCE(taken_at, modified_at))
+               < date_trunc('day', $4::timestamptz)
+         ORDER BY COALESCE(taken_at, modified_at) DESC
          LIMIT $5"
     ))
     .bind(library.as_uuid())

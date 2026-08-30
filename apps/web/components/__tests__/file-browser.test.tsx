@@ -24,6 +24,8 @@ function file(name: string, overrides: Partial<Item> = {}): Item {
     sizeBytes: 1234,
     contentType: "text/plain",
     modifiedAt: "2026-03-04T10:00:00Z",
+    takenAt: null,
+    camera: null,
     isImage: false,
     isVideo: false,
     trashed: false,

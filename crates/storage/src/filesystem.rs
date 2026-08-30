@@ -446,6 +446,37 @@ impl FilesystemStorage {
         fs::read(&resolved).await.map_err(map_io_error)
     }
 
+    /// Reads at most the first `max_bytes` of a file.
+    ///
+    /// Unlike `read_bounded`, a file larger than the bound is not an
+    /// error: the caller wants a header, and a 60 MB raw photo keeps its
+    /// date in the first few kilobytes.
+    pub async fn read_bounded_prefix(
+        &self,
+        path: &LibraryPath,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, StorageError> {
+        use tokio::io::AsyncReadExt;
+
+        let resolved = self.resolve(path).await?;
+
+        let metadata = fs::symlink_metadata(&resolved)
+            .await
+            .map_err(map_io_error)?;
+        if metadata.is_dir() {
+            return Err(StorageError::NotADirectory);
+        }
+
+        let file = fs::File::open(&resolved).await.map_err(map_io_error)?;
+        let mut prefix = Vec::new();
+        file.take(max_bytes)
+            .read_to_end(&mut prefix)
+            .await
+            .map_err(map_io_error)?;
+
+        Ok(prefix)
+    }
+
     /// Reads a cached derivative, or `None` when it has not been made
     /// yet. A cache miss is normal, never an error.
     pub async fn read_derivative(&self, key: &str) -> Option<Vec<u8>> {

@@ -107,8 +107,11 @@ A single-user deployment is usable end to end:
 - **Files** — browse folders, upload (streamed, never overwriting), download
   (with byte ranges, so media seeks), create folders, rename, move, and delete
   to a trash folder that keeps your files on disk.
-- **Photos** — images and videos, grouped by month, served as generated
-  thumbnails (a poster frame for a video) so a large library loads on a phone.
+- **Photos** — images and videos, grouped by the month the picture was *taken*
+  — read from the camera's own metadata, because copying a folder to a new disk
+  rewrites every file date — served as generated thumbnails (a poster frame for
+  a video) so a large library loads on a phone. Thumbnails respect the way the
+  camera was held, so a portrait photo is not a sideways tile.
   Both preview inline in the file list too. Video previews need FFmpeg on the
   server; without it everything else still works and videos simply have no
   preview.

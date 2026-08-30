@@ -20,6 +20,8 @@ function media(name: string, overrides: Partial<Item> = {}): Item {
     sizeBytes: 1000,
     contentType: "image/png",
     modifiedAt: "2026-03-04T10:00:00Z",
+    takenAt: null,
+    camera: null,
     isImage: true,
     isVideo: false,
     trashed: false,
@@ -70,6 +72,36 @@ describe("PhotoGrid", () => {
     // Newest month first.
     expect(headings[0]).toHaveTextContent("April 2026");
     expect(headings[1]).toHaveTextContent("March 2026");
+  });
+
+  it("puts a photo under the month the camera says, not the month the file was copied", async () => {
+    endpoints.fetchPhotos.mockResolvedValue({
+      ok: true,
+      data: [
+        // Copied to a new disk today; taken years ago.
+        media("wedding.jpg", {
+          modifiedAt: "2026-03-04T10:00:00Z",
+          takenAt: "2019-07-04T12:30:00Z",
+        }),
+      ],
+    });
+
+    render(<PhotoGrid library="lib-1" />);
+
+    const headings = await screen.findAllByRole("heading", { level: 2 });
+    expect(headings[0]).toHaveTextContent("July 2019");
+  });
+
+  it("falls back to the file date for a photo that never said", async () => {
+    endpoints.fetchPhotos.mockResolvedValue({
+      ok: true,
+      data: [media("scan.png", { modifiedAt: "2026-03-04T10:00:00Z", takenAt: null })],
+    });
+
+    render(<PhotoGrid library="lib-1" />);
+
+    const headings = await screen.findAllByRole("heading", { level: 2 });
+    expect(headings[0]).toHaveTextContent("March 2026");
   });
 
   it("says plainly when there is nothing to show", async () => {

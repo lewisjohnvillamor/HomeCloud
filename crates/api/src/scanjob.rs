@@ -102,8 +102,10 @@ impl ScanRegistry {
                 let outcome = scan::reconcile(&pool, library, &storage).await;
 
                 // Reconciliation decides what exists; indexing then reads
-                // the documents that are new or changed.
+                // the documents that are new or changed, and the photos
+                // say when they were taken.
                 let index = if outcome.is_ok() {
+                    crate::photometa::describe_library(&pool, library, &storage).await;
                     Some(crate::indexing::index_library(&pool, library, &storage).await)
                 } else {
                     None

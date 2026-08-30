@@ -4,6 +4,7 @@ use std::io::Cursor;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
+use image::metadata::Orientation;
 use image::{ImageFormat, ImageReader, Limits};
 
 /// Largest source file accepted. A file bigger than this is almost
@@ -137,7 +138,17 @@ pub fn generate_thumbnail(source: &[u8], size: ThumbnailSize) -> Result<Vec<u8>,
     limits.max_alloc = Some(MAX_DECODE_ALLOCATION);
     reader.limits(limits);
 
-    let image = reader.decode().map_err(classify)?;
+    let mut image = reader.decode().map_err(classify)?;
+
+    // A phone held sideways writes the picture the way the sensor saw it
+    // and records how it was held. Without this a portrait photo is a
+    // landscape thumbnail lying on its side.
+    if let Some(orientation) = crate::exif::read(source)
+        .orientation
+        .and_then(|value| Orientation::from_exif(value.min(255) as u8))
+    {
+        image.apply_orientation(orientation);
+    }
 
     // `thumbnail` is a cheap box filter; `resize` with Lanczos is what
     // makes a downscaled photo still look like the photo.

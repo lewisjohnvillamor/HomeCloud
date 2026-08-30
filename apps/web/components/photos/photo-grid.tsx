@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { contentUrl, fetchPhotos, thumbnailUrl } from "@/lib/api/endpoints";
 import type { Item } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
+import { formatDate } from "@/lib/format";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import styles from "./photo-grid.module.css";
 
@@ -33,12 +34,34 @@ type Month = { key: string; label: string; photos: Item[] };
  * Groups by month, newest first, with anything undated collected at the
  * end rather than guessed at. This is what makes a photo library read as
  * a timeline instead of an undifferentiated wall.
+ *
+ * The camera's date wins over the file's: copying a folder of holiday
+ * photos to a new disk rewrites every file time, and a timeline that
+ * puts a decade of pictures under this month is no timeline at all.
  */
+/**
+ * What a photo says about itself, for the tile's hover text: the day it
+ * was taken and what took it, when the camera recorded either.
+ */
+function details(photo: Item): string {
+  const parts = [photo.name];
+
+  if (photo.takenAt) {
+    parts.push(formatDate(photo.takenAt));
+  }
+  if (photo.camera) {
+    parts.push(photo.camera);
+  }
+
+  return parts.join(" · ");
+}
+
 function groupByMonth(photos: Item[]): Month[] {
   const months = new Map<string, Month>();
 
   for (const photo of photos) {
-    const date = photo.modifiedAt ? new Date(photo.modifiedAt) : null;
+    const taken = photo.takenAt ?? photo.modifiedAt;
+    const date = taken ? new Date(taken) : null;
     const valid = date && !Number.isNaN(date.getTime());
 
     const key = valid ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` : "undated";
@@ -119,6 +142,7 @@ export function PhotoGrid({ library }: { library: string }) {
                   href={contentUrl(photo.id)}
                   target="_blank"
                   rel="noreferrer"
+                  title={details(photo)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- the
                       optimizer cannot reach a private, session-protected origin. */}

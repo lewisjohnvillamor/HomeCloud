@@ -8,7 +8,8 @@
 > per-role powers, and revocable public share links that can carry a
 > password of their own. Phase 4 has the Photos
 > timeline over images and videos, with generated thumbnails and FFmpeg poster
-> frames; transcoding for playback is still ahead. Phase 6 has its
+> frames, and capture dates and cameras read from EXIF; transcoding for
+> playback, favorites, albums, and map metadata are still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside
 > file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
 > has the `/tv` interface, a remote-driven slideshow, deterministic memories,

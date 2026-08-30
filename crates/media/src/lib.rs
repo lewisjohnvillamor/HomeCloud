@@ -9,9 +9,11 @@
 // Application crates have no need for `unsafe`; an exception requires an ADR.
 #![forbid(unsafe_code)]
 
+pub mod exif;
 pub mod thumbnail;
 pub mod video;
 
+pub use exif::{read as read_photo_metadata, PhotoMetadata};
 pub use thumbnail::{
     generate_thumbnail, MediaError, ThumbnailSize, MAX_SOURCE_BYTES, MAX_SOURCE_PIXELS,
 };

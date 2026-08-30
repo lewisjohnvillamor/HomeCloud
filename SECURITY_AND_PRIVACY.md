@@ -338,7 +338,28 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Television Pairing
+## 21. Photo Metadata
+
+A photo's own header is the least trustworthy part of a photo library —
+arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
+is bounded in every direction:
+
+- only the first few megabytes are read, never the whole file. A 60 MB raw
+  photo keeps its date in the first few kilobytes;
+- the parser is pure Rust with no `unsafe` in this workspace, and parsing runs
+  off the request executor;
+- every failure — not an image, no header, a truncated block, a date that is
+  not a date — means the same thing: this photo has nothing to say. None of
+  them is an error, because all of them are ordinary things to find;
+- a date before 1900 is discarded as a camera clock that was never set, and an
+  orientation outside the eight defined values is ignored rather than trusted;
+- the camera name is truncated, and stripped of anything that is not printable
+  ASCII, so a crafted file cannot store an essay or a control sequence in the
+  catalog;
+- a file that says nothing is recorded as having been read, so a library is not
+  re-opened in full on every scan.
+
+## 22. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and
