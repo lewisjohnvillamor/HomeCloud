@@ -8,6 +8,7 @@ import {
   contentUrl,
   createFolder,
   moveItem,
+  thumbnailUrl,
   trashItem,
   uploadFile,
 } from "@/lib/api/endpoints";
@@ -291,9 +292,22 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                       </button>
                     ) : (
                       <span className={styles.name}>
-                        <span className={styles.kindIcon} aria-hidden="true">
-                          📄
-                        </span>
+                        {item.isImage ? (
+                          // The optimizer cannot reach a private,
+                          // session-protected origin.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className={styles.preview}
+                            src={thumbnailUrl(item.id, "small")}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <span className={styles.kindIcon} aria-hidden="true">
+                            📄
+                          </span>
+                        )}
                         {item.name}
                       </span>
                     )}

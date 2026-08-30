@@ -5,6 +5,7 @@
 
 import {
   contentUrl,
+  thumbnailUrl,
   deleteJson,
   getJson,
   postFile,
@@ -179,4 +180,4 @@ export function restoreItem(item: string, options?: RequestOptions): Promise<Api
   return postJson(`/api/v1/items/${encodeURIComponent(item)}/restore`, {}, parseItem, options);
 }
 
-export { contentUrl };
+export { contentUrl, thumbnailUrl };

@@ -107,15 +107,16 @@ A single-user deployment is usable end to end:
 - **Files** — browse folders, upload (streamed, never overwriting), download
   (with byte ranges, so media seeks), create folders, rename, move, and delete
   to a trash folder that keeps your files on disk.
-- **Photos** — every indexed image, newest first. Full-size originals for now;
-  thumbnails arrive with the derivative pipeline.
+- **Photos** — every indexed image, grouped by month, served as generated
+  thumbnails so a large library loads on a phone. Images also preview inline in
+  the file list.
 - **Search** — name search across the library.
 - **More** — rescan the library, restore from trash, sign out.
 - **Security** — Argon2id passwords, `HttpOnly` session cookies, throttled
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: passkeys, sharing, multi-user invitations, thumbnails and
+Not yet built: passkeys, sharing, multi-user invitations, video thumbnails and
 transcoding, offline sync, the TV interface, and the local AI features. See
 `ROADMAP.md`.
 
@@ -134,6 +135,12 @@ make dev       # run the API and the web app together
 Ports: web app on <http://127.0.0.1:3000>, API on <http://127.0.0.1:8080>,
 PostgreSQL on `127.0.0.1:5432` (loopback only). The web dev server proxies
 `/api` and `/health` to the API, so the browser always talks to one origin.
+
+`HOMECLOUD_API_ORIGIN` is read when the web app builds, not when it starts:
+`next build` compiles the proxy rules into the build output. A deployment
+behind a real reverse proxy does not need it — both apps are served from one
+origin — but a build made for one API port cannot be pointed at another
+without rebuilding.
 
 Verify the stack:
 

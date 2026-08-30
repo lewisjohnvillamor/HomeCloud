@@ -16,7 +16,9 @@ use crate::error::ApiError;
 use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
-use crate::{auth, bootstrap, health, items, library, observability, security, transfers};
+use crate::{
+    auth, bootstrap, health, items, library, observability, security, thumbnails, transfers,
+};
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
 /// internally reference-counted and the rest is shared behind an `Arc`.
@@ -129,6 +131,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/items/{item}/move", post(items::move_item))
         .route("/api/v1/items/{item}/restore", post(items::restore_item))
         .route("/api/v1/items/{item}/content", get(transfers::download))
+        .route("/api/v1/items/{item}/thumbnail", get(thumbnails::thumbnail))
         .fallback(not_found)
         // Metadata bodies are small; anything larger is a mistake or an
         // attack, and is rejected before a handler sees it.

@@ -40,6 +40,7 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/items/{id}                        (built) item metadata
 > GET    /api/v1/items/{id}/children               (built) folder contents by id
 > GET    /api/v1/items/{id}/content                (built) download, supports one byte range
+> GET    /api/v1/items/{id}/thumbnail?size=       (built) generated preview: small|medium|large
 > POST   /api/v1/items/{id}/move                   (built) rename or move
 > DELETE /api/v1/items/{id}                        (built) move to trash
 > POST   /api/v1/items/{id}/restore                (built) restore from trash

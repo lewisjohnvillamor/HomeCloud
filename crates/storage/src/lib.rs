@@ -23,6 +23,12 @@ pub const TRASH_DIRECTORY: &str = ".homecloud-trash";
 /// final rename is atomic, and skipped by scans.
 pub const UPLOAD_DIRECTORY: &str = ".homecloud-incoming";
 
+/// Directory holding generated derivatives such as thumbnails.
+///
+/// Disposable by design: deleting it costs a regeneration and nothing
+/// else, so it never becomes data a user could lose.
+pub const DERIVATIVES_DIRECTORY: &str = ".homecloud-derivatives";
+
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("the path is not valid: {0}")]

@@ -318,4 +318,8 @@ fn breadcrumb_for(path: &LibraryPath) -> Vec<Breadcrumb> {
 
 /// Re-exported so route handlers elsewhere can reuse the same scan
 /// directory names the catalog skips.
-pub const RESERVED_DIRECTORIES: [&str; 2] = [scan::TRASH_DIRECTORY, scan::UPLOAD_DIRECTORY];
+pub const RESERVED_DIRECTORIES: [&str; 3] = [
+    scan::TRASH_DIRECTORY,
+    scan::UPLOAD_DIRECTORY,
+    scan::DERIVATIVES_DIRECTORY,
+];

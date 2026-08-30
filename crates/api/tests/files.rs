@@ -731,3 +731,203 @@ async fn a_file_uploaded_during_a_scan_is_not_marked_missing() {
 
     app.cleanup().await;
 }
+
+// --- Thumbnails ---
+
+/// A small but genuinely valid PNG, so the decoder has real work to do.
+fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+    use std::io::Cursor;
+
+    let mut buffer = image::RgbImage::new(width, height);
+    for (x, y, pixel) in buffer.enumerate_pixels_mut() {
+        *pixel = image::Rgb([(x % 256) as u8, (y % 256) as u8, 90]);
+    }
+
+    let mut output = Vec::new();
+    image::DynamicImage::ImageRgb8(buffer)
+        .write_to(&mut Cursor::new(&mut output), image::ImageFormat::Png)
+        .expect("encode test image");
+
+    output
+}
+
+#[tokio::test]
+async fn a_photo_has_a_thumbnail_that_is_smaller_than_the_original() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let original = png_bytes(1200, 900);
+    let uploaded = app.upload(&library, "beach.png", &original).await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(response.status, StatusCode::OK);
+    assert_eq!(
+        response
+            .headers
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("image/jpeg")
+    );
+    assert!(
+        response.body.len() < original.len(),
+        "thumbnail {} bytes vs original {} bytes",
+        response.body.len(),
+        original.len()
+    );
+
+    let decoded = image::load_from_memory(&response.body).expect("a readable image");
+    assert_eq!(decoded.width(), 320);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn each_thumbnail_size_is_served() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app
+        .upload(&library, "beach.png", &png_bytes(2000, 2000))
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    for (size, edge) in [("small", 320), ("medium", 640), ("large", 1280)] {
+        let response = app
+            .get(&format!("/api/v1/items/{id}/thumbnail?size={size}"))
+            .await;
+
+        assert_eq!(response.status, StatusCode::OK, "{size}");
+        let decoded = image::load_from_memory(&response.body).expect("a readable image");
+        assert_eq!(decoded.width(), edge, "{size}");
+    }
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn thumbnails_are_cached_and_kept_out_of_the_library_listing() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app
+        .upload(&library, "beach.png", &png_bytes(800, 600))
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let first = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+    let second = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(
+        first.body, second.body,
+        "the cached copy should be identical"
+    );
+    assert!(
+        app.root_path().join(".homecloud-derivatives").exists(),
+        "the derivative cache should live inside the library root"
+    );
+
+    // Cacheable by the browser, but never in a shared cache.
+    let cache_control = second
+        .headers
+        .get(axum::http::header::CACHE_CONTROL)
+        .and_then(|value| value.to_str().ok())
+        .expect("a cache policy is set");
+    assert!(cache_control.contains("private"), "{cache_control}");
+    assert!(!cache_control.contains("no-store"), "{cache_control}");
+
+    // A scan must not index the cache as if it were the user's content.
+    app.scan(&library).await;
+    let listing = app
+        .get(&format!("/api/v1/libraries/{library}/browse"))
+        .await;
+    let names: Vec<String> = listing.json()["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| item["name"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    assert_eq!(names, vec!["beach.png"]);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_file_that_is_not_a_picture_has_no_thumbnail() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app.upload(&library, "notes.txt", b"hello").await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(response.status, StatusCode::BAD_REQUEST);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_file_that_only_claims_to_be_a_picture_is_refused_cleanly() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    // A shell script named `.png`: the catalog believes the extension,
+    // the decoder does not.
+    let uploaded = app
+        .upload(&library, "trojan.png", b"#!/bin/sh\nrm -rf /\n")
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(response.status, StatusCode::BAD_REQUEST);
+    assert_eq!(response.json()["code"], "bad_request");
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_thumbnail_needs_a_session_and_membership() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app
+        .upload(&library, "beach.png", &png_bytes(400, 300))
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    app.forget_session();
+    let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
+
+    assert_eq!(response.status, StatusCode::UNAUTHORIZED);
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn an_unknown_thumbnail_size_is_refused() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    let uploaded = app
+        .upload(&library, "beach.png", &png_bytes(400, 300))
+        .await;
+    let id = uploaded.json()["id"].as_str().expect("id").to_owned();
+
+    let response = app
+        .get(&format!("/api/v1/items/{id}/thumbnail?size=enormous"))
+        .await;
+
+    assert_eq!(response.status, StatusCode::BAD_REQUEST);
+
+    app.cleanup().await;
+}

@@ -1,18 +1,50 @@
 "use client";
 
-import { useCallback } from "react";
-import { contentUrl, fetchPhotos } from "@/lib/api/endpoints";
+import { useCallback, useMemo } from "react";
+import { contentUrl, fetchPhotos, thumbnailUrl } from "@/lib/api/endpoints";
 import type { Item } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import styles from "./photo-grid.module.css";
 
+/** Photos grouped under the month they were taken. */
+type Month = { key: string; label: string; photos: Item[] };
+
+/**
+ * Groups by month, newest first, with anything undated collected at the
+ * end rather than guessed at. This is what makes a photo library read as
+ * a timeline instead of an undifferentiated wall.
+ */
+function groupByMonth(photos: Item[]): Month[] {
+  const months = new Map<string, Month>();
+
+  for (const photo of photos) {
+    const date = photo.modifiedAt ? new Date(photo.modifiedAt) : null;
+    const valid = date && !Number.isNaN(date.getTime());
+
+    const key = valid ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` : "undated";
+    const label = valid
+      ? date.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+      : "No date";
+
+    const month = months.get(key) ?? { key, label, photos: [] };
+    month.photos.push(photo);
+    months.set(key, month);
+  }
+
+  return [...months.values()].sort((a, b) => {
+    if (a.key === "undated") return 1;
+    if (b.key === "undated") return -1;
+
+    return b.key.localeCompare(a.key);
+  });
+}
+
 /**
  * The photo timeline.
  *
- * Full-size originals are shown, downscaled by the browser: thumbnails
- * need a derivative pipeline with its own resource limits, and inventing
- * one here would be worse than waiting for it.
+ * Tiles are generated thumbnails, not originals: a library of a few
+ * thousand photos has to load on a phone over a home network.
  */
 export function PhotoGrid({ library }: { library: string }) {
   const load = useCallback(
@@ -20,6 +52,9 @@ export function PhotoGrid({ library }: { library: string }) {
     [library],
   );
   const { state, reload } = useAsyncData<Item[]>(load);
+
+  const photos = useMemo(() => (state.phase === "ready" ? state.data : []), [state]);
+  const months = useMemo(() => groupByMonth(photos), [photos]);
 
   if (state.phase === "loading") {
     return <PendingState label="Loading photos…" />;
@@ -36,8 +71,6 @@ export function PhotoGrid({ library }: { library: string }) {
     );
   }
 
-  const photos = state.data;
-
   if (photos.length === 0) {
     return (
       <EmptyState
@@ -52,28 +85,40 @@ export function PhotoGrid({ library }: { library: string }) {
       <p className={styles.note}>
         {photos.length} photo{photos.length === 1 ? "" : "s"}
       </p>
-      <ul className={styles.grid}>
-        {photos.map((photo) => (
-          <li key={photo.id}>
-            <div className={styles.tile}>
-              <a className={styles.link} href={contentUrl(photo.id)} target="_blank" rel="noreferrer">
-                {/* eslint-disable-next-line @next/next/no-img-element -- the
-                    optimizer cannot reach a private, session-protected origin. */}
-                <img
-                  className={styles.image}
-                  src={contentUrl(photo.id)}
-                  alt={photo.name}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </a>
-            </div>
-            <span className={styles.caption} title={photo.path}>
-              {photo.name}
-            </span>
-          </li>
-        ))}
-      </ul>
+
+      {months.map((month) => (
+        <section key={month.key} className={styles.month} aria-labelledby={`month-${month.key}`}>
+          <h2 id={`month-${month.key}`} className={styles.monthHeading}>
+            {month.label}
+            <span className={styles.monthCount}>{month.photos.length}</span>
+          </h2>
+
+          <ul className={styles.grid}>
+            {month.photos.map((photo) => (
+              <li key={photo.id}>
+                <a
+                  className={styles.tile}
+                  href={contentUrl(photo.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the
+                      optimizer cannot reach a private, session-protected origin. */}
+                  <img
+                    className={styles.image}
+                    src={thumbnailUrl(photo.id, "small")}
+                    srcSet={`${thumbnailUrl(photo.id, "small")} 1x, ${thumbnailUrl(photo.id, "medium")} 2x`}
+                    alt={photo.name}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span className={styles.caption}>{photo.name}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </>
   );
 }

@@ -71,6 +71,13 @@ pub async fn security_middleware(
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
     for (name, value) in security_headers() {
+        // `Cache-Control` is the one baseline header a handler may
+        // override: thumbnails are private but worth caching, and
+        // `no-store` would make a photo grid re-fetch everything.
+        if name == header::CACHE_CONTROL && headers.contains_key(&name) {
+            continue;
+        }
+
         headers.insert(name, value);
     }
 

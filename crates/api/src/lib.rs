@@ -20,6 +20,7 @@ pub mod observability;
 pub mod ratelimit;
 pub mod scanjob;
 pub mod security;
+pub mod thumbnails;
 pub mod transfers;
 pub mod view;
 

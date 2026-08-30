@@ -14,4 +14,4 @@ pub mod scan;
 
 pub use item::{Item, ItemKind};
 pub use repository::{CatalogError, LibrarySummary};
-pub use scan::{ScanSummary, TRASH_DIRECTORY, UPLOAD_DIRECTORY};
+pub use scan::{ScanSummary, DERIVATIVES_DIRECTORY, TRASH_DIRECTORY, UPLOAD_DIRECTORY};

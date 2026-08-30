@@ -33,6 +33,10 @@ pub const TRASH_DIRECTORY: &str = ".homecloud-trash";
 /// reason: a half-written file is not library content.
 pub const UPLOAD_DIRECTORY: &str = ".homecloud-incoming";
 
+/// Generated derivatives. Skipped because they are rebuildable output,
+/// not something a person put in their library.
+pub const DERIVATIVES_DIRECTORY: &str = ".homecloud-derivatives";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct ScanSummary {
     /// Entries seen on disk.
@@ -152,5 +156,9 @@ pub async fn reconcile(
 /// HomeCloud's own directories live inside the root so everything a user
 /// owns stays in one place, but they are not library content.
 fn is_reserved(entry: &Entry, depth: usize) -> bool {
-    depth == 0 && matches!(entry.name.as_str(), TRASH_DIRECTORY | UPLOAD_DIRECTORY)
+    depth == 0
+        && matches!(
+            entry.name.as_str(),
+            TRASH_DIRECTORY | UPLOAD_DIRECTORY | DERIVATIVES_DIRECTORY
+        )
 }

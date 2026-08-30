@@ -118,6 +118,17 @@
   text-align: center;
 }
 
+/* A picture is easier to recognise than its file name; the alt text is
+   empty because the name is right beside it. */
+.preview {
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 0.25rem;
+  object-fit: cover;
+  background: var(--surface-hover);
+}
+
 .numeric {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;

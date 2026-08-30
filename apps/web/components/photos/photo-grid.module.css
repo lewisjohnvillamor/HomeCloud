@@ -1,7 +1,39 @@
+.note {
+  margin-block: 0 1.25rem;
+  color: var(--text-muted);
+}
+
+.month {
+  margin-block-end: 2rem;
+}
+
+.monthHeading {
+  display: flex;
+  gap: 0.625rem;
+  align-items: baseline;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  margin: 0 0 0.625rem;
+  padding-block: 0.375rem;
+  /* The heading stays legible while its month scrolls past underneath. */
+  background: linear-gradient(var(--background) 70%, transparent);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.monthCount {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.375rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -9,19 +41,16 @@
 
 .tile {
   position: relative;
+  display: block;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   background: var(--surface-hover);
+  color: inherit;
+  text-decoration: none;
 }
 
-.link {
-  display: block;
-  block-size: 100%;
-  inline-size: 100%;
-}
-
-.link:focus-visible {
+.tile:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -30,22 +59,53 @@
   block-size: 100%;
   inline-size: 100%;
   object-fit: cover;
-  /* Full-size originals are used until a derivative pipeline exists;
-     lazy loading keeps a large library from downloading all at once. */
-  background: var(--surface-hover);
+  /* A photo shifting on hover is decoration; the scale is small enough
+     to read as "this is interactive" rather than as movement. */
+  transition: transform 200ms ease;
 }
 
+.tile:hover .image,
+.tile:focus-visible .image {
+  transform: scale(1.03);
+}
+
+/* The name only appears on hover or focus, so the grid stays a wall of
+   pictures rather than a wall of file names. */
 .caption {
-  display: block;
-  margin-block-start: 0.25rem;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  padding: 1.5rem 0.5rem 0.375rem;
+  background: linear-gradient(transparent, rgb(0 0 0 / 65%));
+  color: #fff;
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
-.note {
-  margin-block-end: 1rem;
-  color: var(--text-muted);
+.tile:hover .caption,
+.tile:focus-visible .caption {
+  opacity: 1;
+}
+
+/* Touch has no hover: showing the name there would mean it never appears. */
+@media (hover: none) {
+  .caption {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image,
+  .caption {
+    transition: none;
+  }
+
+  .tile:hover .image,
+  .tile:focus-visible .image {
+    transform: none;
+  }
 }

@@ -171,3 +171,13 @@ export function postFile<T>(
 export function contentUrl(itemId: string): string {
   return `${API_BASE_URL}/api/v1/items/${encodeURIComponent(itemId)}/content`;
 }
+
+export type ThumbnailSize = "small" | "medium" | "large";
+
+/**
+ * URL of a generated preview. Far smaller than the original, which is
+ * what makes a grid of photos usable over a home network.
+ */
+export function thumbnailUrl(itemId: string, size: ThumbnailSize = "small"): string {
+  return `${API_BASE_URL}/api/v1/items/${encodeURIComponent(itemId)}/thumbnail?size=${size}`;
+}

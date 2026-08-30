@@ -186,3 +186,19 @@ optional capabilities disabled, and `Cache-Control: no-store`.
 
 Metadata request bodies are capped at 64 KiB. File transfer endpoints will
 define their own, larger, bounded limits when they are implemented.
+
+## 15. Image Derivatives
+
+Thumbnail generation decodes files that arrived from cameras, phones, chat
+apps, and downloads, so it is treated as parsing hostile input:
+
+- format is decided by content, never by file extension;
+- image dimensions are read from the header and refused above 80 megapixels,
+  so a decompression bomb is rejected before any pixel buffer is allocated;
+- decoder allocation is capped, and source files above 96 MiB are not read;
+- generation runs on a blocking pool, never on an async request executor;
+- a damaged or unreadable file produces a normal client error, not a panic and
+  not a server error;
+- derivatives are written to a cache directory inside the library root, keyed
+  by item, size, and a fingerprint of the source, and are excluded from scans.
+  Deleting that directory costs a regeneration and nothing else.

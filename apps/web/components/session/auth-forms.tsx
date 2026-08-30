@@ -5,6 +5,7 @@ import { createOwner, signIn } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
 import { Button } from "@/components/ui/button";
 import styles from "@/components/ui/form.module.css";
+import { AuthScreen } from "./auth-screen";
 import { useSession } from "./session-provider";
 
 /** Mirrors the server's policy so the message arrives before a round trip. */
@@ -53,68 +54,74 @@ export function SetupForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.title}>Set up HomeCloud</h2>
-      <p className={styles.hint}>
-        This creates the owner account for this server. It is stored on your own hardware.
-      </p>
+    <AuthScreen
+      promise="Your files and photos, on hardware you own."
+      footnote="Nothing leaves this machine. When setup finishes, HomeCloud reads the library folder it was pointed at and shows you what is already there."
+    >
+      <form className={styles.form} onSubmit={submit}>
+        <h2 className={styles.title}>Set up HomeCloud</h2>
+        <p className={styles.hint}>
+          This creates the owner account for this server.
+        </p>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={nameId}>
-          Your name
-        </label>
-        <input
-          id={nameId}
-          className={styles.input}
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-          autoComplete="username"
-          required
-          maxLength={64}
-        />
-      </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={nameId}>
+            Your name
+          </label>
+          <input
+            id={nameId}
+            className={styles.input}
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            autoComplete="username"
+            required
+            maxLength={64}
+          />
+        </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={passwordId}>
-          Password
-        </label>
-        <input
-          id={passwordId}
-          className={styles.input}
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="new-password"
-          required
-          minLength={MIN_PASSWORD_LENGTH}
-        />
-        <span className={styles.hint}>
-          At least {MIN_PASSWORD_LENGTH} characters. A memorable phrase works well.
-        </span>
-      </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={passwordId}>
+            Password
+          </label>
+          <input
+            id={passwordId}
+            className={styles.input}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="new-password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+          />
+          <span className={styles.hint}>
+            At least {MIN_PASSWORD_LENGTH} characters. A memorable phrase works
+            well.
+          </span>
+        </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={libraryId}>
-          Library name
-        </label>
-        <input
-          id={libraryId}
-          className={styles.input}
-          value={libraryName}
-          onChange={(event) => setLibraryName(event.target.value)}
-          required
-          maxLength={64}
-        />
-      </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={libraryId}>
+            Library name
+          </label>
+          <input
+            id={libraryId}
+            className={styles.input}
+            value={libraryName}
+            onChange={(event) => setLibraryName(event.target.value)}
+            required
+            maxLength={64}
+          />
+        </div>
 
-      {problem ? <ProblemMessage problem={problem} /> : null}
+        {problem ? <ProblemMessage problem={problem} /> : null}
 
-      <div className={styles.actions}>
-        <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? "Creating account…" : "Create owner account"}
-        </Button>
-      </div>
-    </form>
+        <div className={styles.actions}>
+          <Button type="submit" variant="primary" disabled={submitting}>
+            {submitting ? "Creating account…" : "Create owner account"}
+          </Button>
+        </div>
+      </form>
+    </AuthScreen>
   );
 }
 
@@ -146,45 +153,47 @@ export function SignInForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.title}>Sign in</h2>
+    <AuthScreen promise="Your files and photos, on hardware you own.">
+      <form className={styles.form} onSubmit={submit}>
+        <h2 className={styles.title}>Sign in</h2>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={nameId}>
-          Your name
-        </label>
-        <input
-          id={nameId}
-          className={styles.input}
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-          autoComplete="username"
-          required
-        />
-      </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={nameId}>
+            Your name
+          </label>
+          <input
+            id={nameId}
+            className={styles.input}
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            autoComplete="username"
+            required
+          />
+        </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={passwordId}>
-          Password
-        </label>
-        <input
-          id={passwordId}
-          className={styles.input}
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          required
-        />
-      </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={passwordId}>
+            Password
+          </label>
+          <input
+            id={passwordId}
+            className={styles.input}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </div>
 
-      {problem ? <ProblemMessage problem={problem} /> : null}
+        {problem ? <ProblemMessage problem={problem} /> : null}
 
-      <div className={styles.actions}>
-        <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign in"}
-        </Button>
-      </div>
-    </form>
+        <div className={styles.actions}>
+          <Button type="submit" variant="primary" disabled={submitting}>
+            {submitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </div>
+      </form>
+    </AuthScreen>
   );
 }
