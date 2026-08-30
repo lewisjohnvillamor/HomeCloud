@@ -126,3 +126,183 @@
   font-size: 0.6875rem;
   line-height: 1;
 }
+
+/* A tile and the controls that sit on top of it. */
+.cell {
+  position: relative;
+}
+
+/* Selecting turns tiles into checkboxes, so the tile itself becomes a
+   button and needs the same reset a link got. */
+
+/* The ring is an overlay rather than an outline: an outline drawn inside
+   the box is painted under the photo, which is to say not seen at all. */
+.tile[data-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--focus);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+button.tile {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.check {
+  position: absolute;
+  inset-block-start: 0.375rem;
+  inset-inline-start: 0.375rem;
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 35%);
+  color: #fff;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.tile[data-selected="true"] .check {
+  background: var(--focus);
+}
+
+/* Star and remove sit above the tile rather than inside its link, so
+   they are their own targets for a pointer and for the keyboard. */
+.star,
+.remove {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  display: grid;
+  place-items: center;
+  min-inline-size: 2rem;
+  min-block-size: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 35%);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star {
+  inset-inline-start: 0.25rem;
+}
+
+.remove {
+  inset-inline-end: 0.25rem;
+}
+
+.star:focus-visible,
+.remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.star[aria-pressed="true"] {
+  color: #ffd166;
+}
+
+.hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The controls stay out of the way until the tile is touched, hovered,
+   or focused — except a star that is already on, which is information. */
+@media (hover: hover) {
+  .star,
+  .remove {
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .cell:hover .star,
+  .cell:hover .remove,
+  .star:focus-visible,
+  .remove:focus-visible,
+  .star[aria-pressed="true"] {
+    opacity: 1;
+  }
+}
+
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+}
+
+.albums {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.albumCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.albumCover {
+  aspect-ratio: 1;
+  inline-size: 100%;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background: var(--surface-hover);
+  object-fit: cover;
+}
+
+.albumEmptyCover {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.albumName {
+  font-weight: 500;
+}
+
+.albumCount {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block-end: 1rem;
+}
+
+.barNote {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}

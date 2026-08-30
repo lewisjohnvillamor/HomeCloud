@@ -69,6 +69,16 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
 > GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
 > POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> PUT    /api/v1/items/{id}/favorite               (built) star a picture — idempotent
+> DELETE /api/v1/items/{id}/favorite               (built) take the star back
+> GET    /api/v1/libraries/{id}/favorites          (built) this person's own favorites
+> GET    /api/v1/libraries/{id}/albums             (built) albums, with a cover and a count
+> POST   /api/v1/libraries/{id}/albums             (built) make an album
+> GET    /api/v1/albums/{id}                       (built) an album and its pictures, in order
+> PATCH  /api/v1/albums/{id}                       (built) rename an album
+> DELETE /api/v1/albums/{id}                       (built) delete an album, keeping its pictures
+> POST   /api/v1/albums/{id}/items                 (built) add pictures to the end
+> DELETE /api/v1/albums/{id}/items/{item}          (built) take a picture out
 > POST   /api/v1/tv/pairings                       (built) a television asks to be paired — no session
 > GET    /api/v1/tv/pairings/{poll_token}          (built) has anyone approved it — no session
 > POST   /api/v1/tv/pairings/{code}/approve        (built) approve the code on a screen

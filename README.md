@@ -115,6 +115,11 @@ A single-user deployment is usable end to end:
   Both preview inline in the file list too. Video previews need FFmpeg on the
   server; without it everything else still works and videos simply have no
   preview.
+- **Albums and favorites** — star a picture and it is yours: in a shared
+  library, what someone stars is theirs alone. Albums are the opposite — a set
+  the whole library shares, arranged in the order you put them in. Neither owns
+  any bytes, so deleting an album keeps every photo in it, and renaming or
+  moving a file leaves both intact.
 - **Search** — finds a file by its name *or* by the text inside it (plain text
   and PDF today), with a snippet showing the matching passage.
 - **People** — invite someone to the library with a one-time link; they create
@@ -146,7 +151,8 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: video transcoding for playback, offline sync, and the local AI
+Not yet built: resumable uploads for very large files, upload request links,
+file versions, video transcoding for playback, offline sync, and the local AI
 features. See `ROADMAP.md`.
 
 ## Local Development

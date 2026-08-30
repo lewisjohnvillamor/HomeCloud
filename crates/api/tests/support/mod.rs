@@ -243,6 +243,18 @@ impl TestApp {
         .await
     }
 
+    pub async fn patch_json(&self, path: &str, body: serde_json::Value) -> TestResponse {
+        self.send(
+            axum::http::Request::builder()
+                .method("PATCH")
+                .uri(path)
+                .header(axum::http::header::CONTENT_TYPE, "application/json")
+                .body(axum::body::Body::from(body.to_string()))
+                .expect("valid request"),
+        )
+        .await
+    }
+
     /// Creates the owner account and signs in, the precondition for
     /// every authenticated test.
     pub async fn sign_up_owner(&self) -> TestResponse {

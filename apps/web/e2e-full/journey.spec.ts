@@ -702,6 +702,80 @@ test("a photo is filed under the month it was taken, not the day it was copied",
   await owner.close();
 });
 
+test("a photo can be starred, and starring is one person's own", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("starred.png", Buffer.from(PNG_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "starred.png" })).toBeVisible();
+
+  await ownerPage.goto("/photos");
+  await ownerPage.getByRole("button", { name: "Add starred.png to favorites" }).click();
+
+  // It shows as starred, and it is in the Favorites view.
+  await expect(
+    ownerPage.getByRole("button", { name: "Remove starred.png from favorites" }),
+  ).toBeVisible();
+
+  await ownerPage.getByRole("tab", { name: "Favorites" }).click();
+  await expect(ownerPage.getByRole("img", { name: "starred.png" })).toBeVisible();
+
+  // Taking the star back empties the view again.
+  await ownerPage.getByRole("button", { name: "Remove starred.png from favorites" }).click();
+  await expect(ownerPage.getByRole("heading", { name: "Nothing starred yet" })).toBeVisible();
+
+  await owner.close();
+});
+
+test("photos can be gathered into an album", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([
+      tempFile("album-one.png", Buffer.from(PNG_BASE64, "base64")),
+      tempFile("album-two.png", Buffer.from(PNG_BASE64, "base64")),
+    ]);
+  await expect(ownerPage.getByRole("row").filter({ hasText: "album-two.png" })).toBeVisible();
+
+  await ownerPage.goto("/photos");
+
+  // Choosing pictures is a mode: the ordinary thing to do with a photo
+  // is open it, not tick it.
+  await ownerPage.getByRole("button", { name: "Select photos" }).click();
+  await ownerPage.getByRole("button", { name: /album-one\.png/ }).click();
+  await ownerPage.getByRole("button", { name: /album-two\.png/ }).click();
+  await expect(ownerPage.getByText("2 selected")).toBeVisible();
+
+  ownerPage.once("dialog", (dialog) => dialog.accept("Wales, summer 2019"));
+  await ownerPage.getByRole("button", { name: "Add to a new album" }).click();
+
+  await ownerPage.getByRole("tab", { name: "Albums" }).click();
+  const card = ownerPage.getByRole("button", { name: /Wales, summer 2019/ });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("2 photos");
+
+  // Opening it shows the pictures, and one can be taken back out.
+  await card.click();
+  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toBeVisible();
+  await ownerPage
+    .getByRole("button", { name: "Remove from this album: album-one.png" })
+    .click();
+  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toHaveCount(0);
+
+  // Deleting the album keeps the photos.
+  ownerPage.once("dialog", (dialog) => dialog.accept());
+  await ownerPage.getByRole("button", { name: "Delete album" }).click();
+  await expect(ownerPage.getByRole("heading", { name: "No albums yet" })).toBeVisible();
+
+  await ownerPage.getByRole("tab", { name: "Timeline" }).click();
+  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toBeVisible();
+  await expect(ownerPage.getByRole("img", { name: "album-two.png" })).toBeVisible();
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

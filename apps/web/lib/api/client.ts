@@ -143,6 +143,38 @@ export function postJson<T>(
   );
 }
 
+/** For an idempotent create: starring something twice is still starred. */
+export function putJson<T>(
+  path: string,
+  payload: unknown,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "PUT",
+    path,
+    parse,
+    { body: JSON.stringify(payload ?? {}), contentType: "application/json" },
+    options,
+  );
+}
+
+/** For changing one field of something that already exists. */
+export function patchJson<T>(
+  path: string,
+  payload: unknown,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "PATCH",
+    path,
+    parse,
+    { body: JSON.stringify(payload ?? {}), contentType: "application/json" },
+    options,
+  );
+}
+
 export function deleteJson<T>(
   path: string,
   parse: Parser<T>,

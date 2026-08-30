@@ -18,8 +18,8 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    auth, bootstrap, health, items, library, members, observability, passkeys, recovery, security,
-    shares, thumbnails, transfers, tv,
+    albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
+    security, shares, thumbnails, transfers, tv,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -273,6 +273,31 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
+        )
+        // Curating a library: one person's favorites, and albums the
+        // whole library shares.
+        .route(
+            "/api/v1/items/{item}/favorite",
+            axum::routing::put(albums::add_favorite).delete(albums::remove_favorite),
+        )
+        .route(
+            "/api/v1/libraries/{library}/favorites",
+            get(albums::list_favorites),
+        )
+        .route(
+            "/api/v1/libraries/{library}/albums",
+            get(albums::list_albums).post(albums::create_album),
+        )
+        .route(
+            "/api/v1/albums/{album}",
+            get(albums::read_album)
+                .patch(albums::rename_album)
+                .delete(albums::delete_album),
+        )
+        .route("/api/v1/albums/{album}/items", post(albums::add_to_album))
+        .route(
+            "/api/v1/albums/{album}/items/{item}",
+            axum::routing::delete(albums::remove_from_album),
         )
         // Pairing a television. Starting and polling take no session:
         // a screen that cannot sign in is the whole reason this exists.

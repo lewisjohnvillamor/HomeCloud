@@ -572,3 +572,58 @@ export function parsePairingStatus(value: unknown): PairingStatus | undefined {
     libraryName: text(raw.library_name),
   };
 }
+
+/** A curated set of pictures inside a library. */
+export type Album = {
+  id: string;
+  name: string;
+  createdAt: string;
+  itemCount: number;
+  coverItemId: string | null;
+};
+
+export function parseAlbum(value: unknown): Album | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.name !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    createdAt: text(raw.created_at) ?? "",
+    itemCount: typeof raw.item_count === "number" ? raw.item_count : 0,
+    coverItemId: text(raw.cover_item_id),
+  };
+}
+
+export function parseAlbums(value: unknown): Album[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const albums: Album[] = [];
+  for (const entry of value) {
+    const album = parseAlbum(entry);
+    if (!album) {
+      return undefined;
+    }
+    albums.push(album);
+  }
+
+  return albums;
+}
+
+export type AlbumContents = { album: Album; items: Item[] };
+
+export function parseAlbumContents(value: unknown): AlbumContents | undefined {
+  const raw = record(value);
+  if (!raw) {
+    return undefined;
+  }
+
+  const album = parseAlbum(raw.album);
+  const items = parseItems(raw.items);
+
+  return album && items ? { album, items } : undefined;
+}

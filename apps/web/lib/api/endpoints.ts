@@ -9,13 +9,16 @@ import {
   thumbnailUrl,
   deleteJson,
   getJson,
+  patchJson,
   postFile,
   postJson,
+  putJson,
   type ApiResult,
   type RequestOptions,
 } from "./client";
 import {
   parseBrowse,
+  parseAlbum,
   parseItem,
   parseItems,
   parseLibraries,
@@ -29,6 +32,8 @@ import {
   parseInvitationPreview,
   parseInvitations,
   parseMembers,
+  parseAlbumContents,
+  parseAlbums,
   parsePairing,
   parsePairingStatus,
   parseSession,
@@ -48,6 +53,8 @@ import {
   type RegisteredPasskey,
   type ScanStatus,
   type SearchResult,
+  type Album,
+  type AlbumContents,
   type Pairing,
   type PairingStatus,
   type Session,
@@ -439,6 +446,96 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+// --- Favorites and albums ---
+
+/** Starring is idempotent, so a client that retries is safe. */
+export function addFavorite(item: string, options?: RequestOptions): Promise<ApiResult<unknown>> {
+  return putJson(`/api/v1/items/${encodeURIComponent(item)}/favorite`, {}, asUnknown, options);
+}
+
+export function removeFavorite(
+  item: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/items/${encodeURIComponent(item)}/favorite`, asUnknown, options);
+}
+
+/** One person's own favorites. Not the library's. */
+export function fetchFavorites(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/favorites`,
+    parseItems,
+    options,
+  );
+}
+
+export function fetchAlbums(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Album[]>> {
+  return getJson(`/api/v1/libraries/${encodeURIComponent(library)}/albums`, parseAlbums, options);
+}
+
+export function createAlbum(
+  library: string,
+  name: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Album>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/albums`,
+    { name },
+    parseAlbum,
+    options,
+  );
+}
+
+export function fetchAlbum(
+  album: string,
+  options?: RequestOptions,
+): Promise<ApiResult<AlbumContents>> {
+  return getJson(`/api/v1/albums/${encodeURIComponent(album)}`, parseAlbumContents, options);
+}
+
+export function renameAlbum(
+  album: string,
+  name: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return patchJson(`/api/v1/albums/${encodeURIComponent(album)}`, { name }, asUnknown, options);
+}
+
+export function deleteAlbum(album: string, options?: RequestOptions): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/albums/${encodeURIComponent(album)}`, asUnknown, options);
+}
+
+export function addToAlbum(
+  album: string,
+  items: string[],
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return postJson(
+    `/api/v1/albums/${encodeURIComponent(album)}/items`,
+    { items },
+    asUnknown,
+    options,
+  );
+}
+
+export function removeFromAlbum(
+  album: string,
+  item: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(
+    `/api/v1/albums/${encodeURIComponent(album)}/items/${encodeURIComponent(item)}`,
+    asUnknown,
+    options,
+  );
 }
 
 // --- Account recovery ---

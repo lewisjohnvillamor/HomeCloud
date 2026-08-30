@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { contentUrl, fetchPhotos, thumbnailUrl } from "@/lib/api/endpoints";
+import { fetchPhotos } from "@/lib/api/endpoints";
 import type { Item } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
-import { formatDate } from "@/lib/format";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
+import { PhotoTile } from "./photo-tile";
 import styles from "./photo-grid.module.css";
 
 /**
@@ -39,23 +39,6 @@ type Month = { key: string; label: string; photos: Item[] };
  * photos to a new disk rewrites every file time, and a timeline that
  * puts a decade of pictures under this month is no timeline at all.
  */
-/**
- * What a photo says about itself, for the tile's hover text: the day it
- * was taken and what took it, when the camera recorded either.
- */
-function details(photo: Item): string {
-  const parts = [photo.name];
-
-  if (photo.takenAt) {
-    parts.push(formatDate(photo.takenAt));
-  }
-  if (photo.camera) {
-    parts.push(photo.camera);
-  }
-
-  return parts.join(" · ");
-}
-
 function groupByMonth(photos: Item[]): Month[] {
   const months = new Map<string, Month>();
 
@@ -89,7 +72,21 @@ function groupByMonth(photos: Item[]): Month[] {
  * originals: a library of a few thousand items has to load on a phone
  * over a home network.
  */
-export function PhotoGrid({ library }: { library: string }) {
+export function PhotoGrid({
+  library,
+  selecting,
+  selected,
+  favorites,
+  onToggleSelected,
+  onToggleFavorite,
+}: {
+  library: string;
+  selecting?: boolean;
+  selected?: ReadonlySet<string>;
+  favorites?: ReadonlySet<string>;
+  onToggleSelected?: (photo: Item) => void;
+  onToggleFavorite?: (photo: Item) => void;
+}) {
   const load = useCallback(
     (signal: AbortSignal) => fetchPhotos(library, { signal }),
     [library],
@@ -136,34 +133,15 @@ export function PhotoGrid({ library }: { library: string }) {
 
           <ul className={styles.grid}>
             {month.photos.map((photo) => (
-              <li key={photo.id}>
-                <a
-                  className={styles.tile}
-                  href={contentUrl(photo.id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={details(photo)}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- the
-                      optimizer cannot reach a private, session-protected origin. */}
-                  <img
-                    className={styles.image}
-                    src={thumbnailUrl(photo.id, "small")}
-                    srcSet={`${thumbnailUrl(photo.id, "small")} 1x, ${thumbnailUrl(photo.id, "medium")} 2x`}
-                    alt={photo.name}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  {photo.isVideo ? (
-                    <span className={styles.videoBadge} aria-hidden="true">
-                      ▶
-                    </span>
-                  ) : null}
-                  <span className={styles.caption}>
-                    {photo.isVideo ? `Video · ${photo.name}` : photo.name}
-                  </span>
-                </a>
-              </li>
+              <PhotoTile
+                key={photo.id}
+                photo={photo}
+                selecting={selecting}
+                selected={selected?.has(photo.id)}
+                favorite={favorites?.has(photo.id)}
+                onToggleSelected={onToggleSelected}
+                onToggleFavorite={onToggleFavorite}
+              />
             ))}
           </ul>
         </section>
