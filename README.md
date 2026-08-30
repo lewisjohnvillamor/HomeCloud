@@ -156,6 +156,9 @@ A single-user deployment is usable end to end:
   send files *into* one folder without an account, without seeing what is
   already in it, and without reaching anything else. Each link carries its own
   limits on how many files and how many bytes it will ever accept.
+- **Sharing an album** — a link to the set someone arranged, not to the folder
+  its pictures happen to sit in. A visitor sees the album's name and its photos
+  in order, and nothing else in the library — not even the folders they live in.
 - **Sharing** — create a read-only public link to one file or folder, with an
   optional expiry and an optional password, revocable at any moment. A link
   grants nothing else: no browsing, no uploads, no other item. A protected

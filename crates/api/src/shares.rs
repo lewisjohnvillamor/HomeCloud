@@ -139,6 +139,43 @@ fn rfc3339(value: OffsetDateTime) -> String {
         .unwrap_or_default()
 }
 
+/// How long a link lives, as the request asked for it.
+///
+/// Shared by both kinds of share so a link to an album cannot outlive
+/// the rules a link to a file follows.
+fn expiry(days: Option<i64>) -> Result<Option<OffsetDateTime>, ApiError> {
+    match days {
+        None => Ok(None),
+        Some(days) if (1..=MAX_EXPIRY_DAYS).contains(&days) => {
+            Ok(Some(OffsetDateTime::now_utc() + Duration::days(days)))
+        }
+        Some(_) => Err(ApiError::bad_request(format!(
+            "Choose an expiry between 1 and {MAX_EXPIRY_DAYS} days."
+        ))),
+    }
+}
+
+/// Hashes a link password, if there is one.
+///
+/// A share password is a shared secret, not a personal one, so it has
+/// its own shorter floor: a long passphrase nobody will type from a
+/// message is a password nobody uses.
+async fn password_hash(password: Option<&str>) -> Result<Option<String>, ApiError> {
+    match password.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(password) if password.chars().count() < MIN_SHARE_PASSWORD_LENGTH => {
+            Err(ApiError::bad_request(format!(
+                "A link password needs at least {MIN_SHARE_PASSWORD_LENGTH} characters."
+            )))
+        }
+        Some(password) => Ok(Some(
+            homecloud_auth::hash_recovery_code(password.to_owned())
+                .await
+                .map_err(|_| ApiError::internal())?,
+        )),
+    }
+}
+
 /// `POST /api/v1/items/{item}/shares`
 pub async fn create(
     State(state): State<AppState>,
@@ -155,34 +192,8 @@ pub async fn create(
         return Err(ApiError::conflict("Restore this item before sharing it."));
     }
 
-    let expires_at = match request.expires_in_days {
-        None => None,
-        Some(days) if (1..=MAX_EXPIRY_DAYS).contains(&days) => {
-            Some(OffsetDateTime::now_utc() + Duration::days(days))
-        }
-        Some(_) => {
-            return Err(ApiError::bad_request(format!(
-                "Choose an expiry between 1 and {MAX_EXPIRY_DAYS} days."
-            )))
-        }
-    };
-
-    // A share password is a shared secret, not a personal one, so it has
-    // its own shorter floor: a long passphrase nobody will type from a
-    // message is a password nobody uses.
-    let password_hash = match request.password.as_deref().map(str::trim) {
-        None | Some("") => None,
-        Some(password) if password.chars().count() < MIN_SHARE_PASSWORD_LENGTH => {
-            return Err(ApiError::bad_request(format!(
-                "A link password needs at least {MIN_SHARE_PASSWORD_LENGTH} characters."
-            )))
-        }
-        Some(password) => Some(
-            homecloud_auth::hash_recovery_code(password.to_owned())
-                .await
-                .map_err(|_| ApiError::internal())?,
-        ),
-    };
+    let expires_at = expiry(request.expires_in_days)?;
+    let password_hash = password_hash(request.password.as_deref()).await?;
 
     let token = generate_token()?;
 
@@ -364,9 +375,33 @@ pub async fn list_for_library(
 // --- Public access. No session; the token is the whole credential. ---
 
 /// What a share token resolves to.
+/// One resolved share, as the database returns it: the share, its
+/// library, the item or album it names, who made it, and whether it is
+/// password-protected.
+type ShareRow = (
+    uuid::Uuid,
+    uuid::Uuid,
+    Option<uuid::Uuid>,
+    Option<uuid::Uuid>,
+    uuid::Uuid,
+    bool,
+);
+
+/// What a link points at. Exactly one of the two, because a share of
+/// both, or of neither, is not a thing the reader knows how to answer.
+#[derive(Debug, Clone, Copy)]
+enum Target {
+    /// A file, or a folder and everything under it.
+    Item(ItemId),
+    /// An album: a set someone arranged, which owns no bytes and has no
+    /// path. Sharing the folder its pictures happen to sit in would
+    /// share whatever else is in that folder.
+    Album(uuid::Uuid),
+}
+
 struct Capability {
     library: LibraryId,
-    root: ItemId,
+    target: Target,
     #[allow(dead_code)]
     created_by: UserId,
 }
@@ -387,13 +422,13 @@ async fn resolve(
         return Err(ApiError::not_found());
     }
 
-    let row: Option<(uuid::Uuid, uuid::Uuid, uuid::Uuid, uuid::Uuid, bool)> = sqlx::query_as(
+    let row: Option<ShareRow> = sqlx::query_as(
         "UPDATE shares
          SET access_count = access_count + 1, last_accessed_at = now()
          WHERE token_hash = $1
            AND revoked_at IS NULL
            AND (expires_at IS NULL OR expires_at > now())
-         RETURNING id, library_id, item_id, created_by, password_hash IS NOT NULL",
+         RETURNING id, library_id, item_id, album_id, created_by, password_hash IS NOT NULL",
     )
     .bind(token_hash(token))
     .fetch_optional(pool)
@@ -403,8 +438,17 @@ async fn resolve(
         ApiError::dependency_unavailable("database")
     })?;
 
-    let Some((id, library, item, created_by, protected)) = row else {
+    let Some((id, library, item, album, created_by, protected)) = row else {
         return Err(ApiError::not_found());
+    };
+
+    let target = match (item, album) {
+        (Some(item), None) => Target::Item(ItemId::from_uuid(item)),
+        (None, Some(album)) => Target::Album(album),
+        // The database constraint makes this unreachable; treating it as
+        // "not found" rather than unwrapping keeps a corrupt row from
+        // taking a request down.
+        _ => return Err(ApiError::not_found()),
     };
 
     // A protected link discloses nothing — not even the item's name —
@@ -415,7 +459,7 @@ async fn resolve(
 
     Ok(Capability {
         library: LibraryId::from_uuid(library),
-        root: ItemId::from_uuid(item),
+        target,
         created_by: UserId::from_uuid(created_by),
     })
 }
@@ -510,7 +554,14 @@ async fn item_within(
     capability: &Capability,
     requested: Option<ItemId>,
 ) -> Result<(Item, Item), ApiError> {
-    let root: Item = repository::item_in_library(pool, capability.library, capability.root)
+    let root_id = match capability.target {
+        Target::Item(item) => item,
+        // An album has no root item to be inside of; membership is the
+        // containment rule instead.
+        Target::Album(album) => return album_member(pool, capability, album, requested).await,
+    };
+
+    let root: Item = repository::item_in_library(pool, capability.library, root_id)
         .await
         .map_err(catalog_error)?;
 
@@ -539,8 +590,54 @@ async fn item_within(
     Ok((root, item))
 }
 
+/// The containment rule for an album share: a picture is reachable if it
+/// is in the album, and nothing else is.
+///
+/// Returns the requested picture as both root and item so the caller's
+/// relative-path logic keeps working; an album has no path to be
+/// relative to.
+async fn album_member(
+    pool: &PgPool,
+    capability: &Capability,
+    album: uuid::Uuid,
+    requested: Option<ItemId>,
+) -> Result<(Item, Item), ApiError> {
+    let Some(requested) = requested else {
+        return Err(ApiError::not_found());
+    };
+
+    let member: Option<bool> =
+        sqlx::query_scalar("SELECT true FROM album_items WHERE album_id = $1 AND item_id = $2")
+            .bind(album)
+            .bind(requested.as_uuid())
+            .fetch_optional(pool)
+            .await
+            .map_err(|error| {
+                tracing::warn!(error = %error, "album membership lookup failed");
+                ApiError::dependency_unavailable("database")
+            })?;
+
+    if member.is_none() {
+        return Err(ApiError::not_found());
+    }
+
+    let item = repository::item_in_library(pool, capability.library, requested)
+        .await
+        .map_err(catalog_error)?;
+
+    if item.trashed_at.is_some() || item.missing_since.is_some() {
+        return Err(ApiError::not_found());
+    }
+
+    Ok((item.clone(), item))
+}
+
 #[derive(Debug, Serialize)]
 pub struct PublicShareView {
+    /// The shared item itself. Absent when the link points at an album,
+    /// which is not an item.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<PublicAlbumView>,
     /// The shared item itself.
     pub item: ItemView,
     /// Children, when the shared item is a folder.
@@ -561,6 +658,14 @@ pub struct PublicQuery {
     pub key: Option<String>,
 }
 
+/// What a visitor is told about a shared album: its name, and the
+/// pictures in it. Never who made it or which library it belongs to.
+#[derive(Debug, Serialize)]
+pub struct PublicAlbumView {
+    pub name: String,
+    pub item_count: i64,
+}
+
 /// `GET /api/v1/public/{token}` — what this link points at.
 pub async fn public_view(
     State(state): State<AppState>,
@@ -568,6 +673,11 @@ pub async fn public_view(
     Query(query): Query<PublicQuery>,
 ) -> Result<Json<PublicShareView>, ApiError> {
     let capability = resolve(&state, &token, query.key.as_deref()).await?;
+
+    if let Target::Album(album) = capability.target {
+        return public_album(&state, &capability, album).await;
+    }
+
     let requested = query.item.as_deref().map(parse_item).transpose()?;
     let (root, item) = item_within(state.db(), &capability, requested).await?;
 
@@ -589,12 +699,156 @@ pub async fn public_view(
         .unwrap_or_default();
 
     Ok(Json(PublicShareView {
+        album: None,
         item: relative_to(&root, ItemView::from(&item).without_location()),
         items: crate::view::items(&children)
             .into_iter()
             .map(|child| relative_to(&root, child.without_location()))
             .collect(),
         relative_path,
+    }))
+}
+
+/// A shared album: the arrangement, in the order it was arranged.
+async fn public_album(
+    state: &AppState,
+    capability: &Capability,
+    album: uuid::Uuid,
+) -> Result<Json<PublicShareView>, ApiError> {
+    let name: Option<String> = sqlx::query_scalar("SELECT name FROM albums WHERE id = $1")
+        .bind(album)
+        .fetch_optional(state.db())
+        .await
+        .map_err(|error| {
+            tracing::warn!(error = %error, "shared album lookup failed");
+            ApiError::dependency_unavailable("database")
+        })?;
+
+    let Some(name) = name else {
+        return Err(ApiError::not_found());
+    };
+
+    let ids: Vec<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT ai.item_id FROM album_items ai
+         JOIN items i ON i.id = ai.item_id
+         WHERE ai.album_id = $1
+           AND i.trashed_at IS NULL
+           AND i.missing_since IS NULL
+         ORDER BY ai.position",
+    )
+    .bind(album)
+    .fetch_all(state.db())
+    .await
+    .map_err(|error| {
+        tracing::warn!(error = %error, "shared album contents lookup failed");
+        ApiError::dependency_unavailable("database")
+    })?;
+
+    let mut items = Vec::with_capacity(ids.len());
+    for id in ids {
+        if let Ok(item) =
+            repository::item_in_library(state.db(), capability.library, ItemId::from_uuid(id)).await
+        {
+            items.push(item);
+        }
+    }
+
+    // The album stands in for the item a file share would name, so the
+    // shape of the response does not change for one kind of link.
+    let cover = items.first().cloned();
+
+    Ok(Json(PublicShareView {
+        album: Some(PublicAlbumView {
+            name: name.clone(),
+            item_count: items.len() as i64,
+        }),
+        item: match cover {
+            Some(item) => {
+                let mut view = ItemView::from(&item).without_location();
+                // A visitor sees the album's name, never where its
+                // pictures sit in somebody's library.
+                view.path = view.name.clone();
+                view
+            }
+            None => ItemView::empty_album(&name),
+        },
+        items: items
+            .iter()
+            .map(|item| {
+                let mut view = ItemView::from(item).without_location();
+                view.path = view.name.clone();
+                view
+            })
+            .collect(),
+        relative_path: String::new(),
+    }))
+}
+
+/// `POST /api/v1/albums/{album}/shares` — share an album.
+pub async fn create_for_album(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(album): Path<String>,
+    Json(request): Json<CreateShareRequest>,
+) -> Result<Json<ShareView>, ApiError> {
+    let album = uuid::Uuid::parse_str(&album).map_err(|_| ApiError::not_found())?;
+
+    // Membership is the check: an album belongs to a library, and only
+    // its members know it exists.
+    let row: Option<(uuid::Uuid, String)> = sqlx::query_as(
+        "SELECT a.library_id, a.name FROM albums a
+         WHERE a.id = $1
+           AND EXISTS (
+               SELECT 1 FROM library_members m
+               WHERE m.library_id = a.library_id AND m.user_id = $2
+           )",
+    )
+    .bind(album)
+    .bind(user.as_uuid())
+    .fetch_optional(state.db())
+    .await
+    .map_err(|error| {
+        tracing::warn!(error = %error, "album lookup failed");
+        ApiError::dependency_unavailable("database")
+    })?;
+
+    let Some((library, name)) = row else {
+        return Err(ApiError::not_found());
+    };
+
+    let expires_at = expiry(request.expires_in_days)?;
+    let password_hash = password_hash(request.password.as_deref()).await?;
+    let token = generate_token()?;
+
+    let row: (uuid::Uuid, OffsetDateTime) = sqlx::query_as(
+        "INSERT INTO shares (library_id, album_id, created_by, token_hash, expires_at, password_hash)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, created_at",
+    )
+    .bind(library)
+    .bind(album)
+    .bind(user.as_uuid())
+    .bind(token_hash(token.expose()))
+    .bind(expires_at)
+    .bind(password_hash.as_deref())
+    .fetch_one(state.db())
+    .await
+    .map_err(|error| {
+        tracing::error!(error = %error, "could not create an album share");
+        ApiError::internal()
+    })?;
+
+    tracing::info!("an album was shared");
+
+    Ok(Json(ShareView {
+        id: row.0.to_string(),
+        item_id: album.to_string(),
+        item_name: name,
+        created_at: rfc3339(row.1),
+        expires_at: expires_at.map(rfc3339),
+        access_count: 0,
+        protected: password_hash.is_some(),
+        token: Some(token.expose().to_owned()),
     }))
 }
 

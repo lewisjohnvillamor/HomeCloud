@@ -1134,6 +1134,63 @@ test("a memory can be dismissed and brought back", async ({ browser }) => {
   await owner.close();
 });
 
+test("an album can be shared with someone who has no account", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  const bytes = Buffer.from(PNG_BASE64, "base64");
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([tempFile("shared-one.png", bytes), tempFile("kept-private.png", bytes)]);
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "kept-private.png" }),
+  ).toBeVisible();
+
+  await ownerPage.goto("/photos");
+  await ownerPage.getByRole("button", { name: "Select photos" }).click();
+  const chosen = ownerPage.getByRole("button", { name: /shared-one\.png/ });
+  await expect(chosen).toBeVisible();
+  await chosen.click();
+  await expect(ownerPage.getByText("1 selected")).toBeVisible();
+
+  ownerPage.once("dialog", (dialog) => dialog.accept("Postcards"));
+  await ownerPage.getByRole("button", { name: "Add to a new album" }).click();
+  await expect(ownerPage.getByRole("status")).toContainText("Postcards");
+
+  await ownerPage.getByRole("tab", { name: "Albums" }).click();
+  await ownerPage.getByRole("button", { name: /Postcards/ }).click();
+
+  // The link is shown once, because the token is never stored.
+  let link = "";
+  ownerPage.once("dialog", (dialog) => {
+    link = dialog.defaultValue();
+    return dialog.accept();
+  });
+  await ownerPage.getByRole("button", { name: "Share", exact: true }).click();
+  await expect.poll(() => link).toContain("/s/");
+
+  // Someone with no account, no cookies, and no session.
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto(link);
+
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toHaveText("Postcards");
+  await expect(visitorPage.getByText(/Album · 1 photo/)).toBeVisible();
+
+  // The album, and nothing else in the library.
+  await expect(
+    visitorPage.getByRole("listitem").filter({ hasText: "shared-one.png" }),
+  ).toBeVisible();
+  await expect(
+    visitorPage.getByRole("listitem").filter({ hasText: "kept-private.png" }),
+  ).toHaveCount(0);
+  await expect(
+    visitorPage.getByRole("listitem").filter({ hasText: "placeholder.txt" }),
+  ).toHaveCount(0);
+
+  await visitor.close();
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

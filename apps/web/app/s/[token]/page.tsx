@@ -64,17 +64,19 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
     );
   }
 
-  const { item, items, relativePath } = state.data;
+  const { album, item, items, relativePath } = state.data;
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <p className={styles.brand}>Shared from HomeCloud</p>
-        <h1 className={styles.title}>{item.name}</h1>
+        <h1 className={styles.title}>{album ? album.name : item.name}</h1>
         <p className={styles.meta}>
-          {item.kind === "folder"
-            ? `Folder · ${items.length} item${items.length === 1 ? "" : "s"}`
-            : `${formatBytes(item.sizeBytes)} · ${formatDate(item.modifiedAt)}`}
+          {album
+            ? `Album · ${album.itemCount} photo${album.itemCount === 1 ? "" : "s"}`
+            : item.kind === "folder"
+              ? `Folder · ${items.length} item${items.length === 1 ? "" : "s"}`
+              : `${formatBytes(item.sizeBytes)} · ${formatDate(item.modifiedAt)}`}
         </p>
       </header>
 
@@ -86,15 +88,17 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
 
       {relativePath ? <p className={styles.meta}>{relativePath}</p> : null}
 
-      {item.kind === "file" ? (
-        <FilePreview token={token} item={item} openItem={openItem} unlockKey={key} />
-      ) : (
+      {album || item.kind !== "file" ? (
+        // An album shows its pictures in the order they were arranged.
+        // The listing already knows how to open one from a share.
         <FolderListing
           token={token}
           items={items}
           unlockKey={key}
           onOpen={(child) => setOpenItem(child.id)}
         />
+      ) : (
+        <FilePreview token={token} item={item} openItem={openItem} unlockKey={key} />
       )}
     </div>
   );

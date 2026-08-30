@@ -81,6 +81,7 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/items/{id}/versions               (built) what this file used to be
 > GET    /api/v1/items/{id}/versions/{v}/content   (built) download an earlier version
 > POST   /api/v1/items/{id}/versions/{v}/restore   (built) put an earlier version back
+> POST   /api/v1/albums/{id}/shares                (built) share an album publicly
 > POST   /api/v1/items/{id}/upload-requests        (built) ask for files in a folder
 > GET    /api/v1/libraries/{id}/upload-requests    (built) live upload links, for auditing
 > DELETE /api/v1/upload-requests/{id}              (built) stop accepting files

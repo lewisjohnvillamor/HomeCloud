@@ -338,7 +338,28 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Private AI
+## 21. Shared Albums
+
+A share has always pointed at one item. An album is not an item — it owns no
+bytes and has no path — so a link to one carries its own reference rather than
+letting a folder stand in, which would share whatever else happened to be in
+that folder.
+
+- **membership is the boundary.** A picture is reachable through an album link
+  if it is in the album, and nothing else is: not its siblings on disk, not its
+  folder, not the rest of the library. Removing a picture from the album
+  removes it from everyone holding the link, immediately;
+- the database enforces that a share points at exactly one thing. A share of
+  both, or of neither, is not something the reader knows how to answer, and a
+  corrupt row is treated as "not found" rather than unwrapped;
+- **paths are rewritten to bare names.** A visitor was given an album, not a
+  tour of somebody's folders, so nothing in the response says where the
+  pictures live;
+- locations are stripped, as everywhere else a share link produces output;
+- expiry, passwords and revocation are the same code as file shares, because a
+  link to an album must not outlive the rules a link to a file follows.
+
+## 22. Private AI
 
 Off by default, and off unless a library owner turns it on:
 
@@ -360,7 +381,7 @@ Off by default, and off unless a library owner turns it on:
   reconciliation, extraction and hashing, so it can never starve an upload or a
   preview.
 
-## 22. Photo Locations
+## 23. Photo Locations
 
 Where a photo was taken is, for most people's libraries, where they live. It
 is treated accordingly:
@@ -378,7 +399,7 @@ is treated accordingly:
   anything. Requesting map squares around a coordinate tells that service
   where the photos are, which defeats the point of self-hosting.
 
-## 23. Version History
+## 24. Version History
 
 What a file used to be is data a person may be relying on, so the version store
 is treated as data rather than as cache:
@@ -403,7 +424,7 @@ time a scan notices, and a history that quietly missed those changes would be
 worse than one that never claimed to have them. The interface says so where
 someone would otherwise assume.
 
-## 24. Upload Request Links
+## 25. Upload Request Links
 
 The only capability in the product that lets an unauthenticated stranger
 *write*, so it is the most tightly bounded thing here:
@@ -429,7 +450,7 @@ The only capability in the product that lets an unauthenticated stranger
   because a link that lets someone write is a thing an owner should be able to
   see and switch off.
 
-## 25. Resumable Uploads
+## 26. Resumable Uploads
 
 An upload that spans many requests is a small amount of state a client can lie
 about, so the rules are about not believing it:
@@ -452,7 +473,7 @@ about, so the rules are about not believing it:
 - staging files live inside the library root, are named by the server, and are
   swept along with their sessions when one is abandoned.
 
-## 26. Photo Metadata
+## 27. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -473,7 +494,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 27. Television Pairing
+## 28. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and
