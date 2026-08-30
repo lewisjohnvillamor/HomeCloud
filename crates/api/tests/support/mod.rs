@@ -171,11 +171,16 @@ impl TestApp {
         use tower::ServiceExt;
 
         let mut request = request;
-        if let Some(cookie) = self.cookie.lock().expect("cookie lock").clone() {
-            request.headers_mut().insert(
-                axum::http::header::COOKIE,
-                axum::http::HeaderValue::from_str(&cookie).expect("valid cookie"),
-            );
+
+        // Only when the caller has not supplied one: a test that sends a
+        // specific session must not have it replaced by the jar.
+        if !request.headers().contains_key(axum::http::header::COOKIE) {
+            if let Some(cookie) = self.cookie.lock().expect("cookie lock").clone() {
+                request.headers_mut().insert(
+                    axum::http::header::COOKIE,
+                    axum::http::HeaderValue::from_str(&cookie).expect("valid cookie"),
+                );
+            }
         }
 
         let response = self
@@ -242,6 +247,11 @@ impl TestApp {
             }),
         )
         .await
+    }
+
+    /// The cookie header this client would send, if it has a session.
+    pub fn session_cookie(&self) -> Option<String> {
+        self.cookie.lock().expect("cookie lock").clone()
     }
 
     /// Drops the remembered cookie without telling the server, which is

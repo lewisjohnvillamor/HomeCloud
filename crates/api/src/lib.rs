@@ -16,6 +16,7 @@ pub mod error;
 pub mod health;
 pub mod items;
 pub mod library;
+pub mod members;
 pub mod observability;
 pub mod ratelimit;
 pub mod scanjob;

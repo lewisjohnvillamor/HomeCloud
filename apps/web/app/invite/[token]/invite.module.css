@@ -1,0 +1,36 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  min-block-size: min(70dvh, 40rem);
+  text-align: center;
+}
+
+.lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  align-items: center;
+  max-inline-size: 30rem;
+}
+
+.name {
+  margin: 0;
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.promise {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1.0625rem;
+  text-wrap: balance;
+}
+
+.screen form {
+  inline-size: min(100%, 26rem);
+  text-align: start;
+}

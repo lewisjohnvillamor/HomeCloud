@@ -224,3 +224,29 @@ A share link is a capability, deliberately narrower than a session:
 Not yet implemented: password-protected links, download limits, and per-link
 rate limiting. Entropy is currently the whole defence against guessing, which
 is sound but is not defence in depth.
+
+## 17. Membership and Invitations
+
+Library membership is the authorization boundary the rest of the system rests
+on, so the rules are deliberately few and enforced server-side:
+
+- **Two roles.** A member reads and writes library content. Only the owner
+  manages who has access. One function answers "may this caller change
+  membership", and every such route goes through it.
+- **One owner.** The database rejects a second owner per library, and an
+  invitation can only grant `member` — there is no path that promotes anyone.
+- **The owner cannot be removed**, in the domain and in the delete statement.
+- **Removal is immediate.** Deleting a membership also revokes that person's
+  sessions, so an open browser tab loses access at once rather than at expiry.
+- **Invitations are bearer tokens** with the same rules as sessions and share
+  links: 256 bits of entropy, stored hashed, bounded lifetime (30 days
+  maximum), single use, and revocable.
+- **An invitation discloses only what it is for** — the library's name and who
+  sent it. Unknown, expired, revoked, and already-accepted invitations are
+  answered identically.
+- **A non-member gets "not found"**, never "forbidden": whether a library
+  exists is itself private. A member who lacks a power is told plainly, because
+  they already know the library exists.
+
+Not yet implemented: passkeys, account recovery, per-folder permissions, and an
+audit log of membership changes (they are logged, but not queryable).

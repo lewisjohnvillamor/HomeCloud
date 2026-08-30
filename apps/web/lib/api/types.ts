@@ -252,3 +252,98 @@ export function parsePublicShare(value: unknown): PublicShare | undefined {
     relativePath: typeof raw.relative_path === "string" ? raw.relative_path : "",
   };
 }
+
+export type Member = {
+  userId: string;
+  displayName: string;
+  role: "owner" | "member";
+  addedAt: string;
+  isYou: boolean;
+};
+
+export function parseMembers(value: unknown): Member[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const members: Member[] = [];
+  for (const entry of value) {
+    const raw = record(entry);
+    if (!raw || typeof raw.user_id !== "string" || typeof raw.display_name !== "string") {
+      return undefined;
+    }
+
+    members.push({
+      userId: raw.user_id,
+      displayName: raw.display_name,
+      role: raw.role === "owner" ? "owner" : "member",
+      addedAt: text(raw.added_at) ?? "",
+      isYou: raw.is_you === true,
+    });
+  }
+
+  return members;
+}
+
+export type Invitation = {
+  id: string;
+  libraryName: string;
+  invitedBy: string;
+  createdAt: string;
+  expiresAt: string;
+  /** Present only on the response that created it. */
+  token: string | null;
+};
+
+export function parseInvitation(value: unknown): Invitation | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    libraryName: text(raw.library_name) ?? "",
+    invitedBy: text(raw.invited_by) ?? "",
+    createdAt: text(raw.created_at) ?? "",
+    expiresAt: text(raw.expires_at) ?? "",
+    token: text(raw.token),
+  };
+}
+
+export function parseInvitations(value: unknown): Invitation[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const invitations: Invitation[] = [];
+  for (const entry of value) {
+    const invitation = parseInvitation(entry);
+    if (!invitation) {
+      return undefined;
+    }
+    invitations.push(invitation);
+  }
+
+  return invitations;
+}
+
+/** What someone holding an invitation is told before accepting. */
+export type InvitationPreview = {
+  libraryName: string;
+  invitedBy: string;
+  expiresAt: string;
+};
+
+export function parseInvitationPreview(value: unknown): InvitationPreview | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.library_name !== "string") {
+    return undefined;
+  }
+
+  return {
+    libraryName: raw.library_name,
+    invitedBy: text(raw.invited_by) ?? "",
+    expiresAt: text(raw.expires_at) ?? "",
+  };
+}

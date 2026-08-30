@@ -286,3 +286,66 @@ test("a revoked share link stops opening", async ({ browser }) => {
   await visitor.close();
   await owner.close();
 });
+
+test("an invited person joins the library and sees its files", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "family-notes.txt");
+
+  // The owner invites someone from More.
+  await ownerPage.goto("/more");
+  await ownerPage.getByRole("button", { name: "Invite someone" }).click();
+  const invitation = await ownerPage.getByLabel("Invitation link").inputValue();
+  expect(invitation).toContain("/invite/");
+
+  // The invited person has no account and no session.
+  const guest = await browser.newContext();
+  const guestPage = await guest.newPage();
+  await guestPage.goto(invitation);
+
+  await expect(guestPage.getByText("invited you to")).toBeVisible();
+  await guestPage.getByLabel("Your name").fill("Grace");
+  await guestPage.getByLabel("Password").fill("another good passphrase here");
+  await guestPage.getByRole("button", { name: "Join the library" }).click();
+
+  await expect(guestPage.getByRole("heading", { level: 1 })).toHaveText("Welcome back, Grace");
+
+  // She can read the library, and can add to it.
+  await guestPage.goto("/files");
+  await expect(guestPage.getByRole("row").filter({ hasText: "family-notes.txt" })).toBeVisible();
+
+  // She is not the owner, so the owner's controls are not offered to her.
+  await guestPage.goto("/more");
+  await expect(guestPage.getByRole("listitem").filter({ hasText: "Grace" })).toBeVisible();
+  await expect(guestPage.getByRole("button", { name: "Invite someone" })).toHaveCount(0);
+
+  await guest.close();
+  await owner.close();
+});
+
+test("a removed member loses access straight away", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "family-notes.txt");
+  await ownerPage.goto("/more");
+  await ownerPage.getByRole("button", { name: "Invite someone" }).click();
+  const invitation = await ownerPage.getByLabel("Invitation link").inputValue();
+
+  const guest = await browser.newContext();
+  const guestPage = await guest.newPage();
+  await guestPage.goto(invitation);
+  await guestPage.getByLabel("Your name").fill("Mallory");
+  await guestPage.getByLabel("Password").fill("yet another passphrase ok");
+  await guestPage.getByRole("button", { name: "Join the library" }).click();
+  await expect(guestPage.getByRole("heading", { level: 1 })).toHaveText("Welcome back, Mallory");
+
+  // The owner removes them.
+  ownerPage.once("dialog", (dialog) => dialog.accept());
+  await ownerPage.goto("/more");
+  const row = ownerPage.getByRole("listitem").filter({ hasText: "Mallory" });
+  await row.getByRole("button", { name: /Remove/ }).click();
+  await expect(ownerPage.getByRole("listitem").filter({ hasText: "Mallory" })).toHaveCount(0);
+
+  // Their open session is over, not merely powerless.
+  await guestPage.goto("/files");
+  await expect(guestPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await guest.close();
+  await owner.close();
+});

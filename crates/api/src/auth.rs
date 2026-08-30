@@ -85,6 +85,27 @@ impl FromRequestParts<AppState> for CurrentUser {
     }
 }
 
+/// Resolves the caller from a request's cookies, without making the
+/// route require a session.
+///
+/// For handlers that behave differently for a signed-in visitor but are
+/// still open to anyone — accepting an invitation, for instance.
+pub(crate) async fn current_user(state: &AppState, parts: &Parts) -> Option<UserId> {
+    let token = parts
+        .headers
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|header| cookie_value(header, SESSION_COOKIE))?;
+
+    match session::authenticate(state.db(), token).await {
+        Ok(session) => session.map(|session| session.user),
+        Err(error) => {
+            tracing::warn!(error = %error, "session lookup failed");
+            None
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct SetupRequest {
     pub display_name: String,
@@ -286,7 +307,7 @@ pub async fn session_status(
     }))
 }
 
-async fn issue_session(
+pub(crate) async fn issue_session(
     state: &AppState,
     user: UserId,
     display_name: String,
@@ -318,7 +339,7 @@ async fn issue_session(
 
 /// Whether a database error is a unique-constraint violation, which is
 /// how a duplicate account name arrives.
-fn is_unique_violation(error: &sqlx::Error) -> bool {
+pub(crate) fn is_unique_violation(error: &sqlx::Error) -> bool {
     matches!(
         error.as_database_error().and_then(|error| error.code()),
         Some(code) if code == "23505"

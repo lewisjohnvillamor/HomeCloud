@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ApiResult } from "@/lib/api/client";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { Button } from "@/components/ui/button";
+import { PeopleSection } from "@/components/people/people-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
 import {
@@ -178,6 +179,17 @@ export default function MorePage() {
             title="No library yet"
             description="This account is not a member of any library."
           />
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="people-heading">
+        <h2 id="people-heading" className={styles.heading}>
+          People
+        </h2>
+        {library ? (
+          <PeopleSection library={library.id} isOwner={library.role === "owner"} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
         )}
       </section>
 

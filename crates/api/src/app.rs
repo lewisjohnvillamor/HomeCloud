@@ -17,7 +17,8 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    auth, bootstrap, health, items, library, observability, security, shares, thumbnails, transfers,
+    auth, bootstrap, health, items, library, members, observability, security, shares, thumbnails,
+    transfers,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -141,6 +142,32 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/libraries/{library}/shares",
             get(shares::list_for_library),
+        )
+        .route(
+            "/api/v1/libraries/{library}/members",
+            get(members::list_members),
+        )
+        .route(
+            "/api/v1/libraries/{library}/members/{member}",
+            axum::routing::delete(members::remove_member),
+        )
+        .route(
+            "/api/v1/libraries/{library}/invitations",
+            get(members::list_invitations).post(members::create_invitation),
+        )
+        .route(
+            "/api/v1/invitations/{invitation}",
+            axum::routing::delete(members::revoke_invitation),
+        )
+        // Accepting an invitation cannot require a session: the person
+        // accepting usually does not have an account yet.
+        .route(
+            "/api/v1/invitations/{token}/preview",
+            get(members::preview_invitation),
+        )
+        .route(
+            "/api/v1/invitations/{token}/accept",
+            post(members::accept_invitation),
         )
         // Public share routes take no session: the token in the path is
         // the entire credential, and it grants read access to one item.

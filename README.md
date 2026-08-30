@@ -111,6 +111,9 @@ A single-user deployment is usable end to end:
   thumbnails so a large library loads on a phone. Images also preview inline in
   the file list.
 - **Search** — name search across the library.
+- **People** — invite someone to the library with a one-time link; they create
+  their own account and can then read and add files. Only the owner manages
+  membership, and removing someone ends their sessions immediately.
 - **Sharing** — create a read-only public link to one file or folder, with an
   optional expiry, revocable at any moment. A link grants nothing else: no
   browsing, no uploads, no other item.
@@ -120,7 +123,7 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: passkeys, multi-user invitations, password-protected shares,
+Not yet built: passkeys, account recovery, password-protected shares,
 video thumbnails and transcoding, offline sync, the TV interface, and the local
 AI features. See `ROADMAP.md`.
 

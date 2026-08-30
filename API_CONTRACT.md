@@ -51,6 +51,13 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/public/{token}                    (built) what a link points at — no session
 > GET    /api/v1/public/{token}/content            (built) download through a link
 > GET    /api/v1/public/{token}/thumbnail          (built) preview through a link
+> GET    /api/v1/libraries/{id}/members            (built) who is in this library
+> DELETE /api/v1/libraries/{id}/members/{user}     (built) remove a member — owner only
+> POST   /api/v1/libraries/{id}/invitations        (built) invite someone — owner only
+> GET    /api/v1/libraries/{id}/invitations        (built) pending invitations — owner only
+> DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
+> GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
+> POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
 > ```
 >
 > Errors use the problem shape described in section 6, served as

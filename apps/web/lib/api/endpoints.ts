@@ -21,6 +21,10 @@ import {
   parseLibraries,
   parsePublicShare,
   parseScanStatus,
+  parseInvitation,
+  parseInvitationPreview,
+  parseInvitations,
+  parseMembers,
   parseSession,
   parseShare,
   parseShares,
@@ -28,6 +32,9 @@ import {
   type Item,
   type Library,
   type PublicShare,
+  type Invitation,
+  type InvitationPreview,
+  type Member,
   type ScanStatus,
   type Session,
   type Share,
@@ -240,6 +247,83 @@ export function publicThumbnailUrl(token: string, item?: string): string {
   const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
 
   return `/api/v1/public/${encodeURIComponent(token)}/thumbnail${suffix}`;
+}
+
+// --- People ---
+
+export function fetchMembers(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Member[]>> {
+  return getJson(`/api/v1/libraries/${encodeURIComponent(library)}/members`, parseMembers, options);
+}
+
+export function removeMember(
+  library: string,
+  member: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/members/${encodeURIComponent(member)}`,
+    asUnknown,
+    options,
+  );
+}
+
+export function createInvitation(
+  library: string,
+  expiresInDays: number,
+  options?: RequestOptions,
+): Promise<ApiResult<Invitation>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/invitations`,
+    { expires_in_days: expiresInDays },
+    parseInvitation,
+    options,
+  );
+}
+
+export function fetchInvitations(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Invitation[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/invitations`,
+    parseInvitations,
+    options,
+  );
+}
+
+export function revokeInvitation(
+  invitation: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/invitations/${encodeURIComponent(invitation)}`, asUnknown, options);
+}
+
+/** Takes no session: the person accepting usually has no account yet. */
+export function previewInvitation(
+  token: string,
+  options?: RequestOptions,
+): Promise<ApiResult<InvitationPreview>> {
+  return getJson(
+    `/api/v1/invitations/${encodeURIComponent(token)}/preview`,
+    parseInvitationPreview,
+    options,
+  );
+}
+
+export function acceptInvitation(
+  token: string,
+  account: { displayName: string; password: string } | null,
+  options?: RequestOptions,
+): Promise<ApiResult<Session>> {
+  return postJson(
+    `/api/v1/invitations/${encodeURIComponent(token)}/accept`,
+    account ? { display_name: account.displayName, password: account.password } : {},
+    parseSession,
+    options,
+  );
 }
 
 export { contentUrl, thumbnailUrl };
