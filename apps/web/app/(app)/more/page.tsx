@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ApiResult } from "@/lib/api/client";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
@@ -224,7 +225,8 @@ export default function MorePage() {
           </p>
           <div className={styles.actions}>
             <a className={styles.tvLink} href="/tv">
-              Open the TV view
+              <Icon name="tv" />
+            Open the TV view
             </a>
           </div>
         </section>

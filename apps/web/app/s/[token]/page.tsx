@@ -2,6 +2,7 @@
 
 import { use, useCallback, useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
   fetchPublicShare,
@@ -79,7 +80,7 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
 
       {openItem ? (
         <button type="button" className={styles.back} onClick={() => setOpenItem(undefined)}>
-          ← Back to the shared folder
+          <Icon name="back" /> Back to the shared folder
         </button>
       ) : null}
 
@@ -235,7 +236,7 @@ function FolderListing({
               />
             ) : (
               <span className={styles.icon} aria-hidden="true">
-                {child.kind === "folder" ? "📁" : "📄"}
+                <Icon name={child.kind === "folder" ? "folder" : "file"} />
               </span>
             )}
             {child.name}

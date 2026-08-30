@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon } from "@/components/ui/icon";
 import { isCurrent, NAVIGATION_ITEMS } from "./navigation-items";
 import styles from "./primary-nav.module.css";
 
@@ -28,6 +29,7 @@ export function PrimaryNav() {
                 aria-current={current ? "page" : undefined}
                 data-current={current ? "true" : undefined}
               >
+                <Icon name={item.icon} />
                 {item.label}
               </Link>
             </li>

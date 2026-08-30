@@ -2,6 +2,7 @@
 
 import { use, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { fetchPublicUploadRequest, sendToUploadRequest } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
@@ -138,20 +139,7 @@ export default function SendPage({ params }: { params: Promise<{ token: string }
           <ul className={styles.list}>
             {sent.map((name) => (
               <li key={name} className={styles.row}>
-                <svg
-                  className={styles.tick}
-                  width="1em"
-                  height="1em"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="m4 12.5 5 5L20 6.5" />
-                </svg>
+                <Icon name="check" />
                 {name}
               </li>
             ))}

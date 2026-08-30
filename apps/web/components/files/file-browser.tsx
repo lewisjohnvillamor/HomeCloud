@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { VersionDialog } from "@/components/files/version-dialog";
 import { RequestDialog } from "@/components/share/request-dialog";
 import { ShareDialog } from "@/components/share/share-dialog";
@@ -222,9 +223,11 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
           onClick={() => uploadInput.current?.click()}
           disabled={Boolean(busy)}
         >
+          <Icon name="upload" />
           Upload files
         </Button>
         <Button onClick={() => void onNewFolder()} disabled={Boolean(busy)}>
+          <Icon name="folder" />
           New folder
         </Button>
         <input
@@ -326,8 +329,8 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         className={styles.name}
                         onClick={() => onNavigate(item.path)}
                       >
-                        <span className={styles.kindIcon} aria-hidden="true">
-                          📁
+                        <span className={styles.kindIcon}>
+                          <Icon name="folder" />
                         </span>
                         {item.name}
                       </button>
@@ -345,8 +348,8 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                             decoding="async"
                           />
                         ) : (
-                          <span className={styles.kindIcon} aria-hidden="true">
-                            📄
+                          <span className={styles.kindIcon}>
+                            <Icon name="file" />
                           </span>
                         )}
                         {item.name}
@@ -369,6 +372,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           href={contentUrl(item.id)}
                           download={item.name}
                         >
+                          <Icon name="download" />
                           Download
                           <span className={styles.visuallyHidden}>
                             {" "}
@@ -377,6 +381,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         </a>
                       ) : null}
                       <Button variant="quiet" onClick={() => setSharing(item)}>
+                        <Icon name="share" />
                         Share
                         <span className={styles.visuallyHidden}>
                           {" "}
@@ -385,6 +390,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                       </Button>
                       {item.kind === "file" ? (
                         <Button variant="quiet" onClick={() => void onCopy(item)}>
+                          <Icon name="copy" />
                           Copy
                           <span className={styles.visuallyHidden}>
                             {" "}
@@ -394,6 +400,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                       ) : null}
                       {item.kind === "file" ? (
                         <Button variant="quiet" onClick={() => setHistory(item)}>
+                          <Icon name="history" />
                           History
                           <span className={styles.visuallyHidden}>
                             {" "}
@@ -403,6 +410,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                       ) : null}
                       {item.kind === "folder" ? (
                         <Button variant="quiet" onClick={() => setRequesting(item)}>
+                          <Icon name="inbox" />
                           Ask for files
                           <span className={styles.visuallyHidden}>
                             {" "}
@@ -414,6 +422,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         variant="quiet"
                         onClick={() => void onRename(item)}
                       >
+                        <Icon name="rename" />
                         Rename
                         <span className={styles.visuallyHidden}>
                           {" "}
@@ -424,6 +433,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         variant="quiet"
                         onClick={() => void onTrash(item)}
                       >
+                        <Icon name="trash" />
                         Delete
                         <span className={styles.visuallyHidden}>
                           {" "}

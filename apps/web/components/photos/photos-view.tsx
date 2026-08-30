@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
   addFavorite,
@@ -296,6 +297,7 @@ function AlbumsView({
     <>
       <div className={styles.bar}>
         <Button variant="primary" onClick={() => void onCreate()}>
+          <Icon name="folder" />
           New album
         </Button>
       </div>
@@ -420,7 +422,7 @@ function AlbumView({
     <>
       <div className={styles.bar}>
         <Button variant="quiet" onClick={onClose}>
-          ← All albums
+          <Icon name="back" /> All albums
         </Button>
         <span className={styles.barNote}>
           {details.name} · {items.length} {items.length === 1 ? "photo" : "photos"}

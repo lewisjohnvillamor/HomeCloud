@@ -137,8 +137,24 @@
 .rowActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   justify-content: flex-end;
+}
+
+/* The actions column sizes to its own content and the name takes what is
+   left. Without this the automatic algorithm gives the name everything
+   and the actions wrap one per line, which adding icons was enough to
+   trigger at a full desktop width. */
+@media (min-width: 40.001rem) {
+  .table td:last-child,
+  .table th:last-child {
+    inline-size: 1%;
+    white-space: nowrap;
+  }
+
+  .rowActions {
+    flex-wrap: nowrap;
+  }
 }
 
 /* Narrow screens: size and date are secondary to name and actions, and
