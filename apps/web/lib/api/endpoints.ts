@@ -819,6 +819,20 @@ export function createAlbum(
   );
 }
 
+/** Shares an album — the arrangement, not the folder its photos sit in. */
+export function createAlbumShare(
+  album: string,
+  input: { expiresInDays: number | null; password?: string },
+  options?: RequestOptions,
+): Promise<ApiResult<Share>> {
+  return postJson(
+    `/api/v1/albums/${encodeURIComponent(album)}/shares`,
+    { expires_in_days: input.expiresInDays, password: input.password },
+    parseShare,
+    options,
+  );
+}
+
 export function fetchAlbum(
   album: string,
   options?: RequestOptions,

@@ -37,6 +37,29 @@ pub struct ItemView {
 }
 
 impl ItemView {
+    /// A stand-in for a shared album that has nothing in it.
+    ///
+    /// The response shape does not change for one kind of link, so an
+    /// empty album answers with its own name rather than with nothing.
+    pub fn empty_album(name: &str) -> Self {
+        Self {
+            id: String::new(),
+            name: name.to_owned(),
+            path: name.to_owned(),
+            kind: "folder",
+            size_bytes: 0,
+            content_type: None,
+            modified_at: None,
+            taken_at: None,
+            camera: None,
+            latitude: None,
+            longitude: None,
+            is_image: false,
+            is_video: false,
+            trashed: false,
+        }
+    }
+
     /// The same item with its location removed.
     ///
     /// Everything a share link produces goes through this. Where a photo

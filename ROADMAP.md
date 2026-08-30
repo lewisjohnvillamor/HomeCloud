@@ -9,7 +9,8 @@
 > recovery codes, server-enforced library membership, invitations with
 > per-role powers, revocable public share links that can carry a password of
 > their own, and upload request links for receiving files from someone with no
-> account. Phase 4 has the Photos
+> account, and public pages for files, folders and albums. Phase 3 is complete.
+> Phase 4 has the Photos
 > timeline over images and videos, with generated thumbnails and FFmpeg poster
 > frames, capture dates and cameras read from EXIF, per-person favorites, and
 > albums, and map metadata with a places view; transcoding for playback, the

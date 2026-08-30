@@ -356,6 +356,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/albums/{album}/items", post(albums::add_to_album))
         .route(
+            "/api/v1/albums/{album}/shares",
+            post(shares::create_for_album),
+        )
+        .route(
             "/api/v1/albums/{album}/items/{item}",
             axum::routing::delete(albums::remove_from_album),
         )

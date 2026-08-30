@@ -8,6 +8,7 @@ import {
   addFavorite,
   addToAlbum,
   createAlbum,
+  createAlbumShare,
   deleteAlbum,
   fetchAlbum,
   fetchAlbums,
@@ -392,6 +393,29 @@ function AlbumView({
     }
   }
 
+  async function onShare(name: string) {
+    setProblem(null);
+
+    const created = await createAlbumShare(album, { expiresInDays: 30 });
+    if (!created.ok) {
+      setProblem(created.problem);
+      return;
+    }
+
+    const link = `${window.location.origin}/s/${created.data.token ?? ""}`;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      // The prompt below still shows it; a refused clipboard is not
+      // worth interrupting for.
+    }
+
+    // Shown rather than quietly copied, because this is the only time
+    // the link exists: the token is never stored and cannot be shown
+    // again.
+    window.prompt(`Anyone with this link can see “${name}”. It expires in 30 days.`, link);
+  }
+
   async function onRemove(photo: Item) {
     const result = await removeFromAlbum(album, photo.id);
     if (result.ok) {
@@ -427,6 +451,10 @@ function AlbumView({
         <span className={styles.barNote}>
           {details.name} · {items.length} {items.length === 1 ? "photo" : "photos"}
         </span>
+        <Button onClick={() => void onShare(details.name)}>
+          <Icon name="share" />
+          Share
+        </Button>
         <Button onClick={() => void onRename(details.name)}>Rename</Button>
         <Button variant="quiet" onClick={() => void onDelete(details.name)}>
           Delete album

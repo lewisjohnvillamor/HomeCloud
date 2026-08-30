@@ -252,6 +252,8 @@ export function parseShares(value: unknown): Share[] | undefined {
 
 /** What a visitor holding a share link can see. */
 export type PublicShare = {
+  /** Present when the link points at an album rather than an item. */
+  album: { name: string; itemCount: number } | null;
   item: Item;
   items: Item[];
   relativePath: string;
@@ -269,7 +271,16 @@ export function parsePublicShare(value: unknown): PublicShare | undefined {
     return undefined;
   }
 
+  const album = record(raw.album);
+
   return {
+    album:
+      album && typeof album.name === "string"
+        ? {
+            name: album.name,
+            itemCount: typeof album.item_count === "number" ? album.item_count : 0,
+          }
+        : null,
     item,
     items,
     relativePath: typeof raw.relative_path === "string" ? raw.relative_path : "",
