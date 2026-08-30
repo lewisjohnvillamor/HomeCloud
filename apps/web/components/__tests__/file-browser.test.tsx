@@ -115,11 +115,13 @@ describe("FileBrowser", () => {
       new File(["contents"], "report.txt", { type: "text/plain" }),
     );
 
+    // A small file goes in one request; `sendFile` chooses that path.
     await waitFor(() =>
       expect(endpoints.uploadFile).toHaveBeenCalledWith(
         "lib-1",
         "report.txt",
         expect.any(File),
+        expect.anything(),
       ),
     );
     expect(await screen.findByRole("status")).toHaveTextContent("1 file uploaded");

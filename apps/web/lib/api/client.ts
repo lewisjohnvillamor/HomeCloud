@@ -183,6 +183,22 @@ export function deleteJson<T>(
   return request("DELETE", path, parse, {}, options);
 }
 
+/** Sends one chunk of a resumable upload. */
+export function patchFile<T>(
+  path: string,
+  chunk: Blob,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "PATCH",
+    path,
+    parse,
+    { body: chunk, contentType: "application/octet-stream" },
+    options,
+  );
+}
+
 /** Sends a file body. The browser streams it; nothing is buffered here. */
 export function postFile<T>(
   path: string,

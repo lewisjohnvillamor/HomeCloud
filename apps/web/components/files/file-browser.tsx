@@ -11,8 +11,8 @@ import {
   moveItem,
   thumbnailUrl,
   trashItem,
-  uploadFile,
 } from "@/lib/api/endpoints";
+import { sendFile } from "@/lib/api/send-file";
 import type { ApiProblem } from "@/lib/api/problem";
 import type { Browse, Item } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
@@ -78,10 +78,15 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
     let uploaded = 0;
     for (const file of Array.from(files)) {
       const ok = await run(`Uploading ${file.name}`, async () => {
-        const result = await uploadFile(
-          library,
-          joinPath(path, file.name),
-          file,
+        const result = await sendFile(
+          { library, path: joinPath(path, file.name), file },
+          // A large file is sent in pieces, so say how far along it is
+          // rather than leaving a progress-free wait.
+          ({ sent, total }) => {
+            if (total > 0 && sent < total) {
+              setBusy(`Uploading ${file.name} — ${Math.floor((sent / total) * 100)}%`);
+            }
+          },
         );
 
         return result.ok

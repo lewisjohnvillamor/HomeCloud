@@ -806,6 +806,38 @@ test("photos can be gathered into an album", async ({ browser }) => {
   await owner.close();
 });
 
+test("a large file is sent in pieces and arrives whole", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // Over the threshold where the client stops sending a file in one
+  // request, so this exercises the session path rather than the simple
+  // one. The contents are patterned, so a chunk landing at the wrong
+  // offset would show up as a different file.
+  const size = 9 * 1024 * 1024;
+  const contents = Buffer.alloc(size);
+  for (let index = 0; index < size; index += 1) {
+    contents[index] = index % 251;
+  }
+  const path = tempFile("holiday.bin", contents);
+
+  await ownerPage.getByLabel("Choose files to upload").setInputFiles(path);
+
+  const row = ownerPage.getByRole("row").filter({ hasText: "holiday.bin" });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(ownerPage.getByRole("status")).toContainText("1 file uploaded");
+
+  // Downloaded back, it is the same file: 9 MB, byte for byte.
+  const download = await Promise.all([
+    ownerPage.waitForEvent("download"),
+    row.getByRole("link", { name: /Download/ }).click(),
+  ]);
+  const saved = await download[0].path();
+  const { readFileSync } = await import("node:fs");
+  expect(readFileSync(saved).equals(contents)).toBe(true);
+
+  await owner.close();
+});
+
 /**
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.

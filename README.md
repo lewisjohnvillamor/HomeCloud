@@ -106,9 +106,10 @@ A single-user deployment is usable end to end:
   indexes the library folder it was pointed at.
 - **Files** — browse folders, upload (streamed, never overwriting), download
   (with byte ranges, so media seeks), create folders, rename, move, and delete
-  to a trash folder that keeps your files on disk. A large file can be sent in
+  to a trash folder that keeps your files on disk. A large file is sent in
   chunks and picked up again where it stopped, so one dropped connection does
-  not mean starting a 40 GB video over.
+  not mean starting a 40 GB video over; a photo still goes in one request,
+  because three round trips to move two megabytes helps nobody.
 - **Photos** — images and videos, grouped by the month the picture was *taken*
   — read from the camera's own metadata, because copying a folder to a new disk
   rewrites every file date — served as generated thumbnails (a poster frame for

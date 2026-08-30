@@ -9,6 +9,7 @@ import {
   thumbnailUrl,
   deleteJson,
   getJson,
+  patchFile,
   patchJson,
   postFile,
   postJson,
@@ -446,6 +447,118 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+// --- Resumable uploads ---
+
+export type UploadSession = {
+  id: string;
+  path: string;
+  /** Where to continue from, as the server counted it. */
+  offset: number;
+  sizeBytes: number;
+  maxChunkBytes: number;
+  expiresAt: string;
+};
+
+function parseUploadSession(value: unknown): UploadSession | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== "string" || typeof raw.offset !== "number") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    path: typeof raw.path === "string" ? raw.path : "",
+    offset: raw.offset,
+    sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
+    maxChunkBytes:
+      typeof raw.max_chunk_bytes === "number" ? raw.max_chunk_bytes : 8 * 1024 * 1024,
+    expiresAt: typeof raw.expires_at === "string" ? raw.expires_at : "",
+  };
+}
+
+function parseUploadSessions(value: unknown): UploadSession[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const sessions: UploadSession[] = [];
+  for (const entry of value) {
+    const session = parseUploadSession(entry);
+    if (!session) {
+      return undefined;
+    }
+    sessions.push(session);
+  }
+
+  return sessions;
+}
+
+export function createUploadSession(
+  input: { library: string; path: string; sizeBytes: number },
+  options?: RequestOptions,
+): Promise<ApiResult<UploadSession>> {
+  return postJson(
+    "/api/v1/uploads",
+    { library_id: input.library, path: input.path, size_bytes: input.sizeBytes },
+    parseUploadSession,
+    options,
+  );
+}
+
+/** How much the server actually has, which is the only offset that counts. */
+export function fetchUploadStatus(
+  session: string,
+  options?: RequestOptions,
+): Promise<ApiResult<UploadSession>> {
+  return getJson(`/api/v1/uploads/${encodeURIComponent(session)}`, parseUploadSession, options);
+}
+
+export function appendUploadChunk(
+  session: string,
+  offset: number,
+  chunk: Blob,
+  options?: RequestOptions,
+): Promise<ApiResult<UploadSession>> {
+  return patchFile(
+    `/api/v1/uploads/${encodeURIComponent(session)}?offset=${offset}`,
+    chunk,
+    parseUploadSession,
+    options,
+  );
+}
+
+export function completeUpload(
+  session: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postJson(
+    `/api/v1/uploads/${encodeURIComponent(session)}/complete`,
+    {},
+    parseItem,
+    options,
+  );
+}
+
+export function abortUpload(session: string, options?: RequestOptions): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/uploads/${encodeURIComponent(session)}`, asUnknown, options);
+}
+
+/** Unfinished uploads, so one can be picked up after a reload. */
+export function fetchUploadSessions(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<UploadSession[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/uploads`,
+    parseUploadSessions,
+    options,
+  );
 }
 
 // --- Favorites and albums ---
