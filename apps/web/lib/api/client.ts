@@ -183,6 +183,22 @@ export function deleteJson<T>(
   return request("DELETE", path, parse, {}, options);
 }
 
+/** Replaces a file's body wholesale. */
+export function putFile<T>(
+  path: string,
+  file: Blob,
+  parse: Parser<T>,
+  options: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  return request(
+    "PUT",
+    path,
+    parse,
+    { body: file, contentType: file.type || "application/octet-stream" },
+    options,
+  );
+}
+
 /** Sends one chunk of a resumable upload. */
 export function patchFile<T>(
   path: string,

@@ -1,0 +1,103 @@
+.page {
+  /* Centred, like the share page. Without this it hugged the left edge
+     of a desktop window and read as an unfinished draft. */
+  max-inline-size: 40rem;
+  margin-inline: auto;
+}
+
+.header {
+  margin-block-end: var(--space-6);
+}
+
+.brand {
+  margin: 0 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  max-inline-size: 60ch;
+  margin-block: var(--space-3) 0;
+  color: var(--text-muted);
+}
+
+/* The panel is the whole point of the page: it is where the person acts.
+   Everything above it is context. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.allowance {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.choose {
+  display: inline-flex;
+}
+
+.hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-block-start: var(--space-6);
+}
+
+.sentTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+/* A tick, so a sent file reads as done at a glance rather than as one
+   more line of text. */
+.tick {
+  flex: none;
+  color: var(--focus);
+}

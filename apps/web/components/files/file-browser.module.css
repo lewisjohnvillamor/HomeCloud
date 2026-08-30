@@ -137,8 +137,24 @@
 .rowActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   justify-content: flex-end;
+}
+
+/* The actions column sizes to its own content and the name takes what is
+   left. Without this the automatic algorithm gives the name everything
+   and the actions wrap one per line, which adding icons was enough to
+   trigger at a full desktop width. */
+@media (min-width: 40.001rem) {
+  .table td:last-child,
+  .table th:last-child {
+    inline-size: 1%;
+    white-space: nowrap;
+  }
+
+  .rowActions {
+    flex-wrap: nowrap;
+  }
 }
 
 /* Narrow screens: size and date are secondary to name and actions, and
@@ -152,14 +168,41 @@
     padding: 0.375rem 0.25rem;
   }
 
+  /* The actions wrap onto as many lines as they need. Forcing them onto
+     one line was fine with three of them and squeezed the file name —
+     the one thing a file row exists to show — down to nothing once
+     there were five. */
   .rowActions {
-    flex-wrap: nowrap;
-    gap: 0;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .rowActions > * {
-    padding-inline: 0.375rem;
+    padding-inline: 0.5rem;
     font-size: 0.8125rem;
+  }
+
+  /* Whatever else is in the row, the name keeps a readable share of it. */
+  .name {
+    min-inline-size: 0;
+    white-space: normal;
+  }
+
+  /* Fixed columns, because the automatic algorithm gave the actions
+     whatever the name did not want and left them stacking one per line —
+     which turned a two-file folder into a full screen. Split explicitly
+     instead, so the actions flow across in a couple of lines. */
+  .table {
+    table-layout: fixed;
+  }
+
+  .table th:first-child,
+  .table td:first-child {
+    inline-size: 40%;
+  }
+
+  .rowActions {
+    justify-content: flex-start;
   }
 }
 
@@ -188,6 +231,14 @@
   color: var(--text);
   font-weight: 400;
   text-decoration: none;
+}
+
+/* Same reasoning as the quiet button: on a phone this needs a real
+   target, not a pointer-sized one. */
+@media (max-width: 40rem) {
+  .downloadLink {
+    min-block-size: 2.75rem;
+  }
 }
 
 .downloadLink:hover {

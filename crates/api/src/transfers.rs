@@ -185,8 +185,23 @@ async fn stream_path(
     content_type: Option<&str>,
     headers: &HeaderMap,
 ) -> Result<Response, ApiError> {
-    let (mut file, size) = storage.open_file(location).await.map_err(storage_error)?;
+    let (file, size) = storage.open_file(location).await.map_err(storage_error)?;
 
+    stream_reader(file, size, name, content_type, headers).await
+}
+
+/// Streams an already-opened file, with range support.
+///
+/// Split out because a kept version has no library path: its bytes live
+/// in the app's own store, and it still deserves the same range
+/// handling and the same safe content disposition as anything else.
+pub async fn stream_reader(
+    mut file: tokio::fs::File,
+    size: u64,
+    name: &str,
+    content_type: Option<&str>,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
     let range = headers
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())

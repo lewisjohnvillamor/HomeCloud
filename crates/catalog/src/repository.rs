@@ -23,7 +23,7 @@ pub enum CatalogError {
 }
 
 const ITEM_COLUMNS: &str = "id, library_id, parent_id, relative_path, name, kind, size_bytes, \
-                            content_type, modified_at, taken_at, camera, trashed_at, \
+                            content_type, modified_at, taken_at, camera, latitude, longitude, trashed_at, \
                             missing_since";
 
 fn item_from_row(row: &PgRow) -> Result<Item, CatalogError> {
@@ -44,6 +44,8 @@ fn item_from_row(row: &PgRow) -> Result<Item, CatalogError> {
         modified_at: row.try_get("modified_at")?,
         taken_at: row.try_get("taken_at")?,
         camera: row.try_get("camera")?,
+        latitude: row.try_get("latitude")?,
+        longitude: row.try_get("longitude")?,
         trashed_at: row.try_get("trashed_at")?,
         missing_since: row.try_get("missing_since")?,
     })
@@ -300,6 +302,57 @@ pub async fn search(
 ///
 /// For search, where ranking happens in the query that produced the ids
 /// and must survive the fetch.
+/// Photos that recorded where they were taken, newest first.
+pub async fn located_media(
+    pool: &PgPool,
+    library: LibraryId,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Item>, CatalogError> {
+    let rows = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items
+         WHERE library_id = $1
+           AND latitude IS NOT NULL
+           AND longitude IS NOT NULL
+           AND trashed_at IS NULL
+           AND missing_since IS NULL
+         ORDER BY coalesce(taken_at, modified_at) DESC NULLS LAST
+         LIMIT $2 OFFSET $3"
+    ))
+    .bind(library.as_uuid())
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    items_from_rows(rows)
+}
+
+/// Every live file in a library with a given content hash.
+///
+/// Ordered oldest first, so the copy that arrived first — usually the
+/// one someone means to keep — reads as the original.
+pub async fn items_with_hash(
+    pool: &PgPool,
+    library: LibraryId,
+    hash: &[u8],
+) -> Result<Vec<Item>, CatalogError> {
+    let rows = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items
+         WHERE library_id = $1
+           AND content_hash = $2
+           AND trashed_at IS NULL
+           AND missing_since IS NULL
+         ORDER BY indexed_at, relative_path"
+    ))
+    .bind(library.as_uuid())
+    .bind(hash)
+    .fetch_all(pool)
+    .await?;
+
+    items_from_rows(rows)
+}
+
 pub async fn items_by_ids(
     pool: &PgPool,
     library: LibraryId,

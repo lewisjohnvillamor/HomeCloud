@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/ui/icon";
 import type { Item } from "@/lib/api/types";
 import { contentUrl, thumbnailUrl } from "@/lib/api/endpoints";
 import { formatDate } from "@/lib/format";
@@ -61,8 +62,8 @@ export function PhotoTile({
         decoding="async"
       />
       {photo.isVideo ? (
-        <span className={styles.videoBadge} aria-hidden="true">
-          ▶
+        <span className={styles.videoBadge}>
+          <Icon name="play" />
         </span>
       ) : null}
       <span className={styles.caption}>
@@ -83,9 +84,7 @@ export function PhotoTile({
           onClick={() => onToggleSelected?.(photo)}
         >
           {picture}
-          <span className={styles.check} aria-hidden="true">
-            {selected ? "✓" : ""}
-          </span>
+          <span className={styles.check}>{selected ? <Icon name="check" /> : null}</span>
         </button>
       ) : (
         <a
@@ -106,7 +105,7 @@ export function PhotoTile({
           aria-pressed={favorite ? "true" : "false"}
           onClick={() => onToggleFavorite(photo)}
         >
-          <span aria-hidden="true">{favorite ? "★" : "☆"}</span>
+          <Icon name={favorite ? "star-filled" : "star"} />
           <span className={styles.hidden}>
             {favorite ? `Remove ${photo.name} from favorites` : `Add ${photo.name} to favorites`}
           </span>
@@ -119,7 +118,7 @@ export function PhotoTile({
           className={styles.remove}
           onClick={() => action.onAction(photo)}
         >
-          <span aria-hidden="true">×</span>
+          <Icon name="close" />
           <span className={styles.hidden}>
             {action.label} {photo.name}
           </span>

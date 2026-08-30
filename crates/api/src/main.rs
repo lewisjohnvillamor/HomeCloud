@@ -113,6 +113,14 @@ fn spawn_maintenance(pool: sqlx::PgPool, state: AppState) {
                 Err(error) => tracing::warn!(error = %error, "share purge failed"),
             }
 
+            // Expired upload request links, so an owner's list stays
+            // truthful.
+            match homecloud_api::requests::purge_expired(&pool).await {
+                Ok(0) => {}
+                Ok(expired) => tracing::info!(expired, "closed expired upload links"),
+                Err(error) => tracing::warn!(error = %error, "upload link purge failed"),
+            }
+
             // Abandoned uploads, and the bytes they were holding. This
             // sweep touches the disk: an unfinished upload is not just a
             // row.

@@ -13,6 +13,7 @@ import {
   patchJson,
   postFile,
   postJson,
+  putFile,
   putJson,
   type ApiResult,
   type RequestOptions,
@@ -35,13 +36,18 @@ import {
   parseMembers,
   parseAlbumContents,
   parseAlbums,
+  parseDuplicateGroups,
+  parseFileVersions,
   parsePairing,
+  parsePublicUploadRequest,
   parsePairingStatus,
   parseSession,
   parseShare,
   parseShares,
   parseTvDevice,
   parseTvDevices,
+  parseUploadRequest,
+  parseUploadRequests,
   type Browse,
   type Item,
   type Library,
@@ -56,11 +62,15 @@ import {
   type SearchResult,
   type Album,
   type AlbumContents,
+  type DuplicateGroup,
+  type FileVersion,
   type Pairing,
   type PairingStatus,
   type Session,
   type Share,
+  type PublicUploadRequest,
   type TvDevice,
+  type UploadRequest,
 } from "./types";
 
 export type BootstrapStatus = { needsOwner: boolean };
@@ -447,6 +457,144 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+/** Photos that recorded where they were taken. Members only. */
+export function fetchPlaces(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/places`,
+    parseItems,
+    options,
+  );
+}
+
+/** Exact duplicates: same bytes, same hash. */
+export function fetchDuplicates(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<DuplicateGroup[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/duplicates`,
+    parseDuplicateGroups,
+    options,
+  );
+}
+
+/** Copies a file, leaving the original where it is. */
+export function copyItem(
+  item: string,
+  path: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/copy`,
+    { path },
+    parseItem,
+    options,
+  );
+}
+
+// --- What a file used to be ---
+
+export function fetchVersions(
+  item: string,
+  options?: RequestOptions,
+): Promise<ApiResult<FileVersion[]>> {
+  return getJson(
+    `/api/v1/items/${encodeURIComponent(item)}/versions`,
+    parseFileVersions,
+    options,
+  );
+}
+
+/** Replaces a file's contents, keeping the old ones as a version. */
+export function replaceContent(
+  item: string,
+  file: File,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return putFile(`/api/v1/items/${encodeURIComponent(item)}/content`, file, parseItem, options);
+}
+
+export function versionContentUrl(item: string, version: string): string {
+  return `/api/v1/items/${encodeURIComponent(item)}/versions/${encodeURIComponent(version)}/content`;
+}
+
+export function restoreVersion(
+  item: string,
+  version: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/versions/${encodeURIComponent(version)}/restore`,
+    {},
+    parseItem,
+    options,
+  );
+}
+
+// --- Upload request links ---
+
+/** The mirror image of a share: write into one folder, read nothing. */
+export function createUploadRequest(
+  item: string,
+  input: { title?: string; expiresInDays: number | null },
+  options?: RequestOptions,
+): Promise<ApiResult<UploadRequest>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/upload-requests`,
+    { title: input.title, expires_in_days: input.expiresInDays },
+    parseUploadRequest,
+    options,
+  );
+}
+
+export function fetchUploadRequests(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<UploadRequest[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/upload-requests`,
+    parseUploadRequests,
+    options,
+  );
+}
+
+export function revokeUploadRequest(
+  id: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/upload-requests/${encodeURIComponent(id)}`, asUnknown, options);
+}
+
+/** What the link is for. Takes no session. */
+export function fetchPublicUploadRequest(
+  token: string,
+  options?: RequestOptions,
+): Promise<ApiResult<PublicUploadRequest>> {
+  return getJson(
+    `/api/v1/public/upload-requests/${encodeURIComponent(token)}`,
+    parsePublicUploadRequest,
+    options,
+  );
+}
+
+/** Sends one file through a link. Takes no session. */
+export function sendToUploadRequest(
+  token: string,
+  name: string,
+  file: File,
+  options?: RequestOptions,
+): Promise<ApiResult<Item>> {
+  return postFile(
+    `/api/v1/public/upload-requests/${encodeURIComponent(token)}/files?name=${encodeURIComponent(name)}`,
+    file,
+    parseItem,
+    options,
+  );
 }
 
 // --- Resumable uploads ---

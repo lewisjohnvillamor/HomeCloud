@@ -31,7 +31,9 @@ const MAX_CAMERA_LENGTH: usize = 96;
 const EARLIEST_YEAR: i32 = 1900;
 
 /// What was worth keeping from a photo's header.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+// No `Eq`: coordinates are floats, and float equality is not an
+// equivalence relation.
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct PhotoMetadata {
     /// When the picture was taken, as the camera recorded it.
     pub taken_at: Option<OffsetDateTime>,
@@ -39,13 +41,20 @@ pub struct PhotoMetadata {
     pub camera: Option<String>,
     /// How the camera was held, as an EXIF orientation value (1–8).
     pub orientation: Option<u16>,
+    /// Where the picture was taken, in decimal degrees. Both or neither:
+    /// half a coordinate is not a place.
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 impl PhotoMetadata {
     /// Whether anything at all was found. Used to tell "no metadata in
     /// this file" from "not looked at yet".
     pub fn is_empty(&self) -> bool {
-        self.taken_at.is_none() && self.camera.is_none() && self.orientation.is_none()
+        self.taken_at.is_none()
+            && self.camera.is_none()
+            && self.orientation.is_none()
+            && self.latitude.is_none()
     }
 }
 
@@ -62,11 +71,87 @@ pub fn read(source: &[u8]) -> PhotoMetadata {
         return PhotoMetadata::default();
     };
 
+    let (latitude, longitude) = coordinates(&exif).unzip();
+
     PhotoMetadata {
         taken_at: taken_at(&exif),
         camera: camera(&exif),
         orientation: orientation(&exif),
+        latitude,
+        longitude,
     }
+}
+
+/// Where the picture was taken.
+///
+/// EXIF stores this as degrees, minutes and seconds plus a separate
+/// hemisphere letter, so both halves are needed and a photo with only
+/// one is treated as having no location at all — half a coordinate is
+/// not a place, and guessing the other half would put someone's holiday
+/// in the wrong hemisphere.
+///
+/// This is the most sensitive thing in a photo's header: it is where
+/// somebody lives. It is read here and shown to library members, and it
+/// is never attached to a share link.
+fn coordinates(exif: &exif::Exif) -> Option<(f64, f64)> {
+    let latitude = degrees(exif, exif::Tag::GPSLatitude, exif::Tag::GPSLatitudeRef, 'S')?;
+    let longitude = degrees(
+        exif,
+        exif::Tag::GPSLongitude,
+        exif::Tag::GPSLongitudeRef,
+        'W',
+    )?;
+
+    // A camera with no fix writes zeroes rather than omitting the tags.
+    // Null Island is not where the photo was taken.
+    if latitude == 0.0 && longitude == 0.0 {
+        return None;
+    }
+
+    // Anything outside the real range is a corrupt header, not a place.
+    if !(-90.0..=90.0).contains(&latitude) || !(-180.0..=180.0).contains(&longitude) {
+        return None;
+    }
+
+    Some((latitude, longitude))
+}
+
+/// One coordinate, converted from degrees/minutes/seconds to decimal.
+fn degrees(
+    exif: &exif::Exif,
+    value_tag: exif::Tag,
+    reference_tag: exif::Tag,
+    negative: char,
+) -> Option<f64> {
+    let field = exif.get_field(value_tag, exif::In::PRIMARY)?;
+
+    let exif::Value::Rational(ref parts) = field.value else {
+        return None;
+    };
+    if parts.len() < 3 {
+        return None;
+    }
+
+    let decimal = parts[0].to_f64() + parts[1].to_f64() / 60.0 + parts[2].to_f64() / 3600.0;
+    if !decimal.is_finite() {
+        return None;
+    }
+
+    let reference =
+        exif.get_field(reference_tag, exif::In::PRIMARY)
+            .and_then(|field| match field.value {
+                exif::Value::Ascii(ref values) => values
+                    .first()
+                    .and_then(|raw| raw.first())
+                    .map(|byte| (*byte as char).to_ascii_uppercase()),
+                _ => None,
+            })?;
+
+    Some(if reference == negative {
+        -decimal
+    } else {
+        decimal
+    })
 }
 
 /// The capture time, preferring the moment the shutter opened over the

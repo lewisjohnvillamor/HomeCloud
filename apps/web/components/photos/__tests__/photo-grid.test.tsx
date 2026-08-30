@@ -20,6 +20,8 @@ function media(name: string, overrides: Partial<Item> = {}): Item {
     sizeBytes: 1000,
     contentType: "image/png",
     modifiedAt: "2026-03-04T10:00:00Z",
+    latitude: null,
+    longitude: null,
     takenAt: null,
     camera: null,
     isImage: true,

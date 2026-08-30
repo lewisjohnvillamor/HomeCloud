@@ -128,6 +128,8 @@ pub async fn describe_one(
 
     item.taken_at = metadata.taken_at;
     item.camera = metadata.camera;
+    item.latitude = metadata.latitude;
+    item.longitude = metadata.longitude;
 
     item
 }
@@ -173,12 +175,17 @@ async fn record(
     metadata: &exif::PhotoMetadata,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
-        "UPDATE items SET taken_at = $2, camera = $3, photo_metadata_at = $4 WHERE id = $1",
+        "UPDATE items
+         SET taken_at = $2, camera = $3, photo_metadata_at = $4,
+             latitude = $5, longitude = $6
+         WHERE id = $1",
     )
     .bind(item.as_uuid())
     .bind(metadata.taken_at)
     .bind(metadata.camera.as_deref())
     .bind(OffsetDateTime::now_utc())
+    .bind(metadata.latitude)
+    .bind(metadata.longitude)
     .execute(pool)
     .await?;
 

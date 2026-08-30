@@ -19,7 +19,7 @@ use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
     albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
-    security, shares, thumbnails, transfers, tv, uploads,
+    requests, security, shares, thumbnails, transfers, tv, uploads, versions,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -223,6 +223,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/items/{item}/children", get(items::children))
         .route("/api/v1/items/{item}/move", post(items::move_item))
+        .route("/api/v1/items/{item}/copy", post(items::copy_item))
         .route("/api/v1/items/{item}/restore", post(items::restore_item))
         .route(
             "/api/v1/items/{item}/shares",
@@ -273,6 +274,42 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
+        )
+        // Where photos were taken.
+        .route("/api/v1/libraries/{library}/places", get(library::places))
+        // Exact duplicates, for reclaiming space.
+        .route(
+            "/api/v1/libraries/{library}/duplicates",
+            get(library::duplicates),
+        )
+        // What a file used to be. Replacing goes through the transfer
+        // router below, which has the larger body limit.
+        .route("/api/v1/items/{item}/versions", get(versions::list))
+        .route(
+            "/api/v1/items/{item}/versions/{version}/content",
+            get(versions::download),
+        )
+        .route(
+            "/api/v1/items/{item}/versions/{version}/restore",
+            post(versions::restore),
+        )
+        // Upload request links: the mirror image of a share. Someone
+        // with the link can write into one folder and read nothing.
+        .route(
+            "/api/v1/items/{item}/upload-requests",
+            post(requests::create),
+        )
+        .route(
+            "/api/v1/libraries/{library}/upload-requests",
+            get(requests::list),
+        )
+        .route(
+            "/api/v1/upload-requests/{id}",
+            axum::routing::delete(requests::revoke),
+        )
+        .route(
+            "/api/v1/public/upload-requests/{token}",
+            get(requests::public_view),
         )
         // Resumable uploads. The bytes themselves go through the
         // transfer router below, which has the larger body limit.
@@ -347,6 +384,16 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/uploads/{id}",
             axum::routing::patch(uploads::append),
+        )
+        .route(
+            "/api/v1/items/{item}/content",
+            axum::routing::put(versions::replace),
+        )
+        // A file arriving through an upload request link. No session,
+        // and the link's own limits bound what it can cost.
+        .route(
+            "/api/v1/public/upload-requests/{token}/files",
+            post(requests::send),
         )
         .layer(RequestBodyLimitLayer::new(
             transfers::MAX_UPLOAD_BYTES as usize,

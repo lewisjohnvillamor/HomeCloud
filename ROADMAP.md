@@ -1,16 +1,19 @@
 # Roadmap
 
 > **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
-> for the filesystem backend apart from versions: the catalog reconciles
-> against disk, and transfers — including resumable uploads — folders, renames,
-> moves, and trash/restore all work. Phase 3 has
-> landed apart from upload request links: password-backed sessions, passkeys,
+> for the filesystem backend: the catalog reconciles against disk, and
+> transfers — including resumable uploads — folders, renames, moves,
+> trash/restore, copy, BLAKE3 background hashing with exact-duplicate
+> reporting, and version history for changes the app itself made all work. Phase 3 has
+> landed in full: password-backed sessions, passkeys,
 > recovery codes, server-enforced library membership, invitations with
-> per-role powers, and revocable public share links that can carry a
-> password of their own. Phase 4 has the Photos
+> per-role powers, revocable public share links that can carry a password of
+> their own, and upload request links for receiving files from someone with no
+> account. Phase 4 has the Photos
 > timeline over images and videos, with generated thumbnails and FFmpeg poster
 > frames, capture dates and cameras read from EXIF, per-person favorites, and
-> albums; transcoding for playback and map metadata are still ahead. Phase 6 has its
+> albums, and map metadata with a places view; transcoding for playback, the
+> phone backup flow, and the RAW/motion capability matrix are still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside
 > file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
 > has the `/tv` interface, a remote-driven slideshow, deterministic memories,

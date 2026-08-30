@@ -2,11 +2,15 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { VersionDialog } from "@/components/files/version-dialog";
+import { RequestDialog } from "@/components/share/request-dialog";
 import { ShareDialog } from "@/components/share/share-dialog";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
   browse as browseRequest,
   contentUrl,
+  copyItem,
   createFolder,
   moveItem,
   thumbnailUrl,
@@ -37,6 +41,8 @@ export type FileBrowserProps = {
 export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sharing, setSharing] = useState<Item | null>(null);
+  const [requesting, setRequesting] = useState<Item | null>(null);
+  const [history, setHistory] = useState<Item | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -105,6 +111,19 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
     if (uploadInput.current) {
       uploadInput.current.value = "";
     }
+  }
+
+  async function onCopy(item: Item) {
+    const destination = window.prompt("Copy to which path?", `${item.path}`);
+    if (!destination?.trim() || destination.trim() === item.path) {
+      return;
+    }
+
+    await run(`Copying ${item.name}`, async () => {
+      const result = await copyItem(item.id, destination.trim());
+
+      return result.ok ? { ok: true } : { ok: false, problem: result.problem };
+    });
   }
 
   async function onNewFolder() {
@@ -182,6 +201,18 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
 
   return (
     <div>
+      {history ? (
+        <VersionDialog
+          item={history}
+          onClose={() => setHistory(null)}
+          onChanged={() => void reload()}
+        />
+      ) : null}
+
+      {requesting ? (
+        <RequestDialog item={requesting} onClose={() => setRequesting(null)} />
+      ) : null}
+
       {sharing ? (
         <ShareDialog item={sharing} onClose={() => setSharing(null)} />
       ) : null}
@@ -192,9 +223,11 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
           onClick={() => uploadInput.current?.click()}
           disabled={Boolean(busy)}
         >
+          <Icon name="upload" />
           Upload files
         </Button>
         <Button onClick={() => void onNewFolder()} disabled={Boolean(busy)}>
+          <Icon name="folder" />
           New folder
         </Button>
         <input
@@ -296,8 +329,8 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         className={styles.name}
                         onClick={() => onNavigate(item.path)}
                       >
-                        <span className={styles.kindIcon} aria-hidden="true">
-                          📁
+                        <span className={styles.kindIcon}>
+                          <Icon name="folder" />
                         </span>
                         {item.name}
                       </button>
@@ -315,8 +348,8 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                             decoding="async"
                           />
                         ) : (
-                          <span className={styles.kindIcon} aria-hidden="true">
-                            📄
+                          <span className={styles.kindIcon}>
+                            <Icon name="file" />
                           </span>
                         )}
                         {item.name}
@@ -339,6 +372,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           href={contentUrl(item.id)}
                           download={item.name}
                         >
+                          <Icon name="download" />
                           Download
                           <span className={styles.visuallyHidden}>
                             {" "}
@@ -347,16 +381,48 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         </a>
                       ) : null}
                       <Button variant="quiet" onClick={() => setSharing(item)}>
+                        <Icon name="share" />
                         Share
                         <span className={styles.visuallyHidden}>
                           {" "}
                           {item.name}
                         </span>
                       </Button>
+                      {item.kind === "file" ? (
+                        <Button variant="quiet" onClick={() => void onCopy(item)}>
+                          <Icon name="copy" />
+                          Copy
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
+                      {item.kind === "file" ? (
+                        <Button variant="quiet" onClick={() => setHistory(item)}>
+                          <Icon name="history" />
+                          History
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
+                      {item.kind === "folder" ? (
+                        <Button variant="quiet" onClick={() => setRequesting(item)}>
+                          <Icon name="inbox" />
+                          Ask for files
+                          <span className={styles.visuallyHidden}>
+                            {" "}
+                            {item.name}
+                          </span>
+                        </Button>
+                      ) : null}
                       <Button
                         variant="quiet"
                         onClick={() => void onRename(item)}
                       >
+                        <Icon name="rename" />
                         Rename
                         <span className={styles.visuallyHidden}>
                           {" "}
@@ -367,6 +433,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         variant="quiet"
                         onClick={() => void onTrash(item)}
                       >
+                        <Icon name="trash" />
                         Delete
                         <span className={styles.visuallyHidden}>
                           {" "}

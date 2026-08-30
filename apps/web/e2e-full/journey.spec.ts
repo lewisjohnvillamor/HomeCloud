@@ -27,6 +27,13 @@ let recoveryCode = "";
  * Fujifilm X100V. Assembled by the same rules as the Rust tests, so the
  * journey exercises real metadata rather than a stubbed field.
  */
+/**
+ * A JPEG whose header says it was taken at Greenwich — 51°28'N, 0°5'W.
+ * Built by the same rules as the Rust fixtures.
+ */
+const JPEG_AT_GREENWICH_BASE64 = 
+  "/9j/4QCIRXhpZgAASUkqAAgAAAABACWIBAABAAAAGgAAAAAAAAAEAAEAAgACAAAATgAAAAIABQADAAAAUAAAAAMAAgACAAAAVwAAAAQABQADAAAAaAAAAAAAAAAzAAAAAQAAABwAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAUAAAABAAAAAAAAAAEAAAD/2Q==";
+
 const JPEG_TAKEN_2019_BASE64 =
   "/9j/4QBvRXhpZgAASUkqAAgAAAADAA8BAgAJAAAAMgAAABABAgAGAAAAOwAAAGmHBAABAAAAQQAAAAAAAABGdWppZmlsbQBYMTAwVgABAAOQAgAUAAAAUwAAAAAAAAAyMDE5OjA3OjA0IDEyOjMwOjQ1AP/Z";
 
@@ -781,6 +788,11 @@ test("photos can be gathered into an album", async ({ browser }) => {
   ownerPage.once("dialog", (dialog) => dialog.accept("Wales, summer 2019"));
   await ownerPage.getByRole("button", { name: "Add to a new album" }).click();
 
+  // Wait for the album to actually exist before looking for it: the
+  // click only starts the work, and switching tabs first means the
+  // Albums view fetches a list the album is not in yet.
+  await expect(ownerPage.getByRole("status")).toContainText("Wales, summer 2019");
+
   await ownerPage.getByRole("tab", { name: "Albums" }).click();
   const card = ownerPage.getByRole("button", { name: /Wales, summer 2019/ });
   await expect(card).toBeVisible();
@@ -834,6 +846,209 @@ test("a large file is sent in pieces and arrives whole", async ({ browser }) => 
   const saved = await download[0].path();
   const { readFileSync } = await import("node:fs");
   expect(readFileSync(saved).equals(contents)).toBe(true);
+
+  await owner.close();
+});
+
+test("someone with no account can send files into one folder", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // A folder to receive them.
+  ownerPage.once("dialog", (dialog) => dialog.accept("Wedding photos"));
+  await ownerPage.getByRole("button", { name: "New folder" }).click();
+  const row = ownerPage.getByRole("row").filter({ hasText: "Wedding photos" });
+  await expect(row).toBeVisible();
+
+  await row.getByRole("button", { name: /Ask for files/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /Ask for files/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Create link" }).click();
+
+  const link = await dialog.getByLabel("Upload link").inputValue();
+  expect(link).toContain("/u/");
+  await dialog.getByRole("button", { name: "Close" }).click();
+
+  // A visitor with no session, no cookies, and no account.
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto(link);
+
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toContainText("Wedding photos");
+  // Nothing to read: no listing, no navigation, no other item.
+  await expect(visitorPage.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+  await expect(visitorPage.getByText("placeholder.txt")).toHaveCount(0);
+
+  await visitorPage
+    .getByLabel("Choose files to send")
+    .setInputFiles(tempFile("confetti.txt", "from a guest"));
+  await expect(visitorPage.getByRole("region", { name: "Files sent" })).toContainText(
+    "confetti.txt",
+  );
+
+  // The owner has it, in that folder and nowhere else.
+  await ownerPage.goto("/files");
+  // The folder's own button is named for the folder; the row's other
+  // controls carry a verb, so an exact match picks the right one.
+  await ownerPage.getByRole("button", { name: "Wedding photos", exact: true }).click();
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "confetti.txt" }),
+  ).toBeVisible();
+
+  // And can switch the link off, after which it opens for nobody.
+  await ownerPage.goto("/more");
+  // Scoped to the section: a folder name can appear in more than one
+  // list on this page.
+  const links = ownerPage.getByRole("region", { name: "Upload links" });
+  const listed = links.getByRole("listitem").filter({ hasText: "Wedding photos" });
+  await expect(listed).toBeVisible();
+  await listed.getByRole("button", { name: /Revoke/ }).click();
+  await expect(links.getByRole("listitem").filter({ hasText: "Wedding photos" })).toHaveCount(0);
+
+  await visitorPage.goto(link);
+  await expect(
+    visitorPage.getByRole("heading", { name: "This link is not available" }),
+  ).toBeVisible();
+
+  await visitor.close();
+  await owner.close();
+});
+
+test("a replaced file keeps what it was, and can be put back", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("draft.txt", "the first draft"));
+  const row = ownerPage.getByRole("row").filter({ hasText: "draft.txt" });
+  await expect(row).toBeVisible();
+
+  await row.getByRole("button", { name: /History/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /History/ });
+  await expect(dialog).toContainText("no earlier contents kept");
+
+  await dialog
+    .getByLabel("Replace draft.txt")
+    .setInputFiles(tempFile("draft.txt", "a much worse second draft"));
+
+  // The old contents are kept, and downloadable.
+  await expect(dialog.getByRole("link", { name: "Download" })).toBeVisible();
+  const download = await Promise.all([
+    ownerPage.waitForEvent("download"),
+    dialog.getByRole("link", { name: "Download" }).click(),
+  ]);
+  const { readFileSync } = await import("node:fs");
+  expect(readFileSync(await download[0].path()).toString()).toBe("the first draft");
+
+  // Putting it back makes it current again.
+  await dialog.getByRole("button", { name: "Restore" }).click();
+  await dialog.getByRole("button", { name: "Close" }).click();
+
+  const current = await Promise.all([
+    ownerPage.waitForEvent("download"),
+    row.getByRole("link", { name: /Download/ }).click(),
+  ]);
+  expect(readFileSync(await current[0].path()).toString()).toBe("the first draft");
+
+  await owner.close();
+});
+
+test("the same file kept twice is reported as a duplicate", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // Content unique to this journey. The suite shares one library and
+  // reuses the same tiny PNG everywhere, so a photo would land in a
+  // group with every other copy of it and the count would be anyone's
+  // guess.
+  const receipt = "Invoice 88213 for one standby generator, delivered to the workshop.";
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([
+      tempFile("receipt-from-email.txt", receipt),
+      tempFile("receipt-scanned.txt", receipt),
+    ]);
+  await expect(ownerPage.getByRole("row").filter({ hasText: "receipt-scanned.txt" })).toBeVisible();
+
+  // Files are hashed in the background after a scan.
+  await ownerPage.goto("/more");
+  await scanLibrary(ownerPage);
+
+  const duplicates = ownerPage.getByRole("region", { name: "Duplicates" });
+  await expect(async () => {
+    await ownerPage.goto("/more");
+    await expect(duplicates).toContainText("receipt-scanned.txt", { timeout: 2_000 });
+  }).toPass({ timeout: 60_000, intervals: [2_000] });
+
+  await expect(duplicates).toContainText("receipt-from-email.txt");
+
+  // Removing one copy leaves the other, and the set stops being reported.
+  ownerPage.once("dialog", (dialog) => dialog.accept());
+  await duplicates
+    .getByRole("button", { name: "Move to trash receipt-scanned.txt" })
+    .click();
+
+  await expect(async () => {
+    await ownerPage.goto("/more");
+    await expect(duplicates).not.toContainText("receipt-scanned.txt", { timeout: 2_000 });
+  }).toPass({ timeout: 30_000, intervals: [2_000] });
+
+  await ownerPage.goto("/files");
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "receipt-from-email.txt" }),
+  ).toBeVisible();
+
+  await owner.close();
+});
+
+test("a file can be copied without losing the original", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("report.txt", "the contents"));
+  const row = ownerPage.getByRole("row").filter({ hasText: "report.txt" });
+  await expect(row).toBeVisible();
+
+  ownerPage.once("dialog", (dialog) => dialog.accept("report-backup.txt"));
+  await row.getByRole("button", { name: /Copy/ }).click();
+
+  await expect(
+    ownerPage.getByRole("row").filter({ hasText: "report-backup.txt" }),
+  ).toBeVisible();
+  // The original is still there — a copy is not a move. Matched by the
+  // download link, whose accessible name names exactly one file.
+  await expect(
+    ownerPage.getByRole("link", { name: "Download report.txt", exact: true }),
+  ).toBeVisible();
+  await expect(
+    ownerPage.getByRole("link", { name: "Download report-backup.txt", exact: true }),
+  ).toBeVisible();
+
+  await owner.close();
+});
+
+test("a photo that recorded where it was taken appears on the map", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("greenwich.jpg", Buffer.from(JPEG_AT_GREENWICH_BASE64, "base64")));
+  await expect(ownerPage.getByRole("row").filter({ hasText: "greenwich.jpg" })).toBeVisible();
+
+  await ownerPage.goto("/photos");
+  await ownerPage.getByRole("tab", { name: "Places" }).click();
+
+  const plot = ownerPage.getByRole("group", { name: "Photo locations" });
+  await expect(plot).toBeVisible();
+
+  // The pin names the photo and roughly where it was.
+  const pin = plot.getByRole("button", { name: /greenwich\.jpg at 51\./ });
+  await expect(pin).toBeVisible();
+
+  await pin.click();
+  // The chosen photo, with the place it was taken.
+  const chosen = ownerPage.getByRole("link", { name: /greenwich\.jpg/ });
+  await expect(chosen).toBeVisible();
+  await expect(chosen).toContainText(/51\.4[0-9]*, -0\./);
 
   await owner.close();
 });

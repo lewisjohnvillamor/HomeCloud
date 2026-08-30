@@ -21,12 +21,32 @@ pub struct ItemView {
     pub taken_at: Option<String>,
     /// The camera, as one line: "Fujifilm X100V".
     pub camera: Option<String>,
+    /// Where the picture was taken. Present for a library's own members
+    /// and deliberately absent from anything a share link produces — a
+    /// link handed to a stranger must not carry someone's address.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub longitude: Option<f64>,
     /// Whether the Photos view should show this item as a still.
     pub is_image: bool,
     /// Whether it is a video, which the UI marks and plays rather than
     /// showing as a picture.
     pub is_video: bool,
     pub trashed: bool,
+}
+
+impl ItemView {
+    /// The same item with its location removed.
+    ///
+    /// Everything a share link produces goes through this. Where a photo
+    /// was taken is, for most libraries, where somebody lives, and a
+    /// link handed to a stranger must not carry it.
+    pub fn without_location(mut self) -> Self {
+        self.latitude = None;
+        self.longitude = None;
+        self
+    }
 }
 
 impl From<&Item> for ItemView {
@@ -41,6 +61,8 @@ impl From<&Item> for ItemView {
             modified_at: item.modified_at.and_then(rfc3339),
             taken_at: item.taken_at.and_then(rfc3339),
             camera: item.camera.clone(),
+            latitude: item.latitude,
+            longitude: item.longitude,
             is_image: item.is_image(),
             is_video: item.is_video(),
             trashed: item.trashed_at.is_some(),

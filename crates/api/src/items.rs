@@ -120,6 +120,50 @@ pub async fn move_item(
     Ok(Json(ItemView::from(&moved)))
 }
 
+/// `POST /api/v1/items/{item}/copy`
+///
+/// Files only. Copying a folder means copying a tree, which is a
+/// long-running job with progress and cancellation of its own; doing it
+/// inside one request would be a lie about how long it takes.
+pub async fn copy_item(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(item): Path<String>,
+    Json(request): Json<MoveRequest>,
+) -> Result<Json<ItemView>, ApiError> {
+    let item = load(&state, user, &item).await?;
+
+    if item.is_folder() {
+        return Err(ApiError::bad_request(
+            "Copying a folder is not supported yet. Copy the files inside it.",
+        ));
+    }
+    if item.trashed_at.is_some() || item.missing_since.is_some() {
+        return Err(ApiError::conflict("Restore the item before copying it."));
+    }
+
+    let requested = parse_path(&request.path)?;
+    let storage = storage_for(&state, item.library).await?;
+
+    // The same never-overwrite rule as an upload: a copy onto an
+    // existing name takes the next free one rather than replacing it.
+    let destination = storage
+        .available_path(&requested)
+        .await
+        .map_err(storage_error)?;
+
+    storage
+        .copy_file(&item.path, &destination)
+        .await
+        .map_err(storage_error)?;
+
+    let copied = record_uploaded_file(&state, item.library, &destination).await?;
+
+    tracing::info!("a file was copied");
+
+    Ok(Json(ItemView::from(&copied)))
+}
+
 /// `DELETE /api/v1/items/{item}` — moves the item to the trash.
 ///
 /// Nothing here unlinks user data: the file is moved into an

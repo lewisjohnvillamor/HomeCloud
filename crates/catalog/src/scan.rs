@@ -37,6 +37,10 @@ pub const UPLOAD_DIRECTORY: &str = ".homecloud-incoming";
 /// not something a person put in their library.
 pub const DERIVATIVES_DIRECTORY: &str = ".homecloud-derivatives";
 
+/// Previous contents of replaced files. Managed by the app, never
+/// library content, so a scan walks straight past it.
+pub const VERSIONS_DIRECTORY: &str = ".homecloud-versions";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct ScanSummary {
     /// Entries seen on disk.
@@ -159,6 +163,6 @@ fn is_reserved(entry: &Entry, depth: usize) -> bool {
     depth == 0
         && matches!(
             entry.name.as_str(),
-            TRASH_DIRECTORY | UPLOAD_DIRECTORY | DERIVATIVES_DIRECTORY
+            TRASH_DIRECTORY | UPLOAD_DIRECTORY | DERIVATIVES_DIRECTORY | VERSIONS_DIRECTORY
         )
 }

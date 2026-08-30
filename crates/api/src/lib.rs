@@ -14,6 +14,7 @@ pub mod bootstrap;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod hashing;
 pub mod health;
 pub mod indexing;
 pub mod items;
@@ -24,6 +25,7 @@ pub mod passkeys;
 pub mod photometa;
 pub mod ratelimit;
 pub mod recovery;
+pub mod requests;
 pub mod scanjob;
 pub mod security;
 pub mod shares;
@@ -31,6 +33,7 @@ pub mod thumbnails;
 pub mod transfers;
 pub mod tv;
 pub mod uploads;
+pub mod versions;
 pub mod view;
 
 /// Name reported by the API in logs and startup output.

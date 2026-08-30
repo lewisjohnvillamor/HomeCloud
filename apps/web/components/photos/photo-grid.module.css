@@ -182,8 +182,8 @@ button.tile {
   inset-block-start: 0.25rem;
   display: grid;
   place-items: center;
-  min-inline-size: 2rem;
-  min-block-size: 2rem;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
   padding: 0;
   border: 0;
   border-radius: 0.5rem;

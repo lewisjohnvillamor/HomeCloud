@@ -17,6 +17,9 @@ export type Item = {
   camera: string | null;
   isImage: boolean;
   isVideo: boolean;
+  /** Where the picture was taken. Never present on a shared link. */
+  latitude: number | null;
+  longitude: number | null;
   trashed: boolean;
 };
 
@@ -91,6 +94,8 @@ export function parseItem(value: unknown): Item | undefined {
     modifiedAt: text(raw.modified_at),
     takenAt: text(raw.taken_at),
     camera: text(raw.camera),
+    latitude: typeof raw.latitude === "number" ? raw.latitude : null,
+    longitude: typeof raw.longitude === "number" ? raw.longitude : null,
     isImage: raw.is_image === true,
     isVideo: raw.is_video === true,
     trashed: raw.trashed === true,
@@ -626,4 +631,154 @@ export function parseAlbumContents(value: unknown): AlbumContents | undefined {
   const items = parseItems(raw.items);
 
   return album && items ? { album, items } : undefined;
+}
+
+/** A link that lets someone send files into one folder. */
+export type UploadRequest = {
+  id: string;
+  itemId: string;
+  folderName: string;
+  title: string;
+  createdAt: string;
+  expiresAt: string | null;
+  maxFiles: number;
+  maxBytes: number;
+  receivedFiles: number;
+  receivedBytes: number;
+  /** Present only on the response that created the link. */
+  token: string | null;
+};
+
+export function parseUploadRequest(value: unknown): UploadRequest | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.title !== "string") {
+    return undefined;
+  }
+
+  const count = (field: unknown) => (typeof field === "number" ? field : 0);
+
+  return {
+    id: raw.id,
+    itemId: text(raw.item_id) ?? "",
+    folderName: text(raw.folder_name) ?? "",
+    title: raw.title,
+    createdAt: text(raw.created_at) ?? "",
+    expiresAt: text(raw.expires_at),
+    maxFiles: count(raw.max_files),
+    maxBytes: count(raw.max_bytes),
+    receivedFiles: count(raw.received_files),
+    receivedBytes: count(raw.received_bytes),
+    token: text(raw.token),
+  };
+}
+
+export function parseUploadRequests(value: unknown): UploadRequest[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const links: UploadRequest[] = [];
+  for (const entry of value) {
+    const link = parseUploadRequest(entry);
+    if (!link) {
+      return undefined;
+    }
+    links.push(link);
+  }
+
+  return links;
+}
+
+/** What someone holding an upload link is told. Never the contents. */
+export type PublicUploadRequest = {
+  title: string;
+  folderName: string;
+  filesLeft: number;
+  bytesLeft: number;
+};
+
+export function parsePublicUploadRequest(value: unknown): PublicUploadRequest | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.title !== "string") {
+    return undefined;
+  }
+
+  return {
+    title: raw.title,
+    folderName: text(raw.folder_name) ?? "",
+    filesLeft: typeof raw.files_left === "number" ? raw.files_left : 0,
+    bytesLeft: typeof raw.bytes_left === "number" ? raw.bytes_left : 0,
+  };
+}
+
+/** What a file used to be. */
+export type FileVersion = {
+  id: string;
+  sizeBytes: number;
+  contentType: string | null;
+  contentModifiedAt: string | null;
+  replacedAt: string;
+};
+
+export function parseFileVersion(value: unknown): FileVersion | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
+    contentType: text(raw.content_type),
+    contentModifiedAt: text(raw.content_modified_at),
+    replacedAt: text(raw.replaced_at) ?? "",
+  };
+}
+
+export function parseFileVersions(value: unknown): FileVersion[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const versions: FileVersion[] = [];
+  for (const entry of value) {
+    const version = parseFileVersion(entry);
+    if (!version) {
+      return undefined;
+    }
+    versions.push(version);
+  }
+
+  return versions;
+}
+
+/** A set of files that are byte-for-byte the same. */
+export type DuplicateGroup = {
+  sizeBytes: number;
+  /** What deleting every copy but one would free. */
+  reclaimableBytes: number;
+  items: Item[];
+};
+
+export function parseDuplicateGroups(value: unknown): DuplicateGroup[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const groups: DuplicateGroup[] = [];
+  for (const entry of value) {
+    const raw = record(entry);
+    const items = raw ? parseItems(raw.items) : undefined;
+    if (!raw || !items) {
+      return undefined;
+    }
+
+    groups.push({
+      sizeBytes: typeof raw.size_bytes === "number" ? raw.size_bytes : 0,
+      reclaimableBytes: typeof raw.reclaimable_bytes === "number" ? raw.reclaimable_bytes : 0,
+      items,
+    });
+  }
+
+  return groups;
 }

@@ -338,7 +338,76 @@ process rather than a linked library:
 Transcoding for playback is not implemented. It is a long-running, per-viewer
 workload with a different resource model and needs its own review.
 
-## 21. Resumable Uploads
+## 21. Photo Locations
+
+Where a photo was taken is, for most people's libraries, where they live. It
+is treated accordingly:
+
+- read from EXIF and shown to members of the library, and **stripped from
+  everything a share link produces** — both the shared item and its children.
+  A link handed to a stranger must not carry someone's address, and the
+  stripping happens in one place that every share response goes through;
+- a photo with only half a coordinate has no location at all. Half a
+  coordinate is not a place, and inferring the other half would put a holiday
+  in the wrong hemisphere;
+- zeroes are what a camera writes when it never got a fix, so they are ignored
+  rather than plotting every such photo in the Gulf of Guinea;
+- the places view plots coordinates directly and asks no tile service for
+  anything. Requesting map squares around a coordinate tells that service
+  where the photos are, which defeats the point of self-hosting.
+
+## 22. Version History
+
+What a file used to be is data a person may be relying on, so the version store
+is treated as data rather than as cache:
+
+- it lives in a managed directory inside the library root, which scans walk
+  straight past, so an old version can never turn up in someone's file list or
+  be mistaken for library content;
+- versions are **moved**, never copied. Replacing a file costs no extra space
+  and cannot half-succeed on a full disk, and if the replacement fails the
+  original is put straight back rather than leaving a gap where a file was;
+- a restore keeps what was current as a version of its own, so restoring is
+  never a way to lose the file you had;
+- a version belongs to its file. Asking for one through a different item is a
+  "not found", not a shortcut, and the stored name is checked to resolve inside
+  the version store even though the server chose it;
+- history is bounded per file, oldest first, so a file edited every minute
+  cannot fill a disk with its own past.
+
+The limit worth stating plainly: HomeCloud can only keep a version of a change
+it made itself. A file edited with another program has already changed by the
+time a scan notices, and a history that quietly missed those changes would be
+worse than one that never claimed to have them. The interface says so where
+someone would otherwise assume.
+
+## 23. Upload Request Links
+
+The only capability in the product that lets an unauthenticated stranger
+*write*, so it is the most tightly bounded thing here:
+
+- a link names one folder and grants nothing else. It cannot read — not the
+  folder's contents, not its path, not any other item — because the whole point
+  is sending without seeing;
+- the sender's file name is treated as a name and never as a path. Separators,
+  parent references, and control characters are stripped rather than rejected,
+  so a stranger sending a holiday photo does not have to debug a file name,
+  and what cannot be salvaged is refused. `../../etc/passwd` becomes `passwd`
+  in the link's own folder;
+- every link carries its own ceiling on how many files and how many bytes it
+  will ever accept, checked before the bytes are taken and again, conditionally,
+  when they are counted — so two people sending at once cannot push a link past
+  its limits. A file that arrives after the limit is reached is not kept;
+- the never-overwrite rule applies as everywhere else: two people sending
+  `IMG_0001.jpg` both keep their file;
+- unknown, expired, and revoked links are answered identically, so a visitor
+  cannot learn that one once existed, and revocation takes effect on the next
+  request;
+- links are listed to a library's members with what each has already received,
+  because a link that lets someone write is a thing an owner should be able to
+  see and switch off.
+
+## 24. Resumable Uploads
 
 An upload that spans many requests is a small amount of state a client can lie
 about, so the rules are about not believing it:
@@ -361,7 +430,7 @@ about, so the rules are about not believing it:
 - staging files live inside the library root, are named by the server, and are
   swept along with their sessions when one is abandoned.
 
-## 22. Photo Metadata
+## 25. Photo Metadata
 
 A photo's own header is the least trustworthy part of a photo library —
 arbitrary bytes from arbitrary cameras and arbitrary strangers — so reading it
@@ -382,7 +451,7 @@ is bounded in every direction:
 - a file that says nothing is recorded as having been read, so a library is not
   re-opened in full on every scan.
 
-## 23. Television Pairing
+## 26. Television Pairing
 
 A television cannot be asked for a password: entering one with a
 four-direction remote is the kind of friction that makes people give up and

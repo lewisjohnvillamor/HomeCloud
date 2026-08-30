@@ -23,6 +23,13 @@ pub const TRASH_DIRECTORY: &str = ".homecloud-trash";
 /// final rename is atomic, and skipped by scans.
 pub const UPLOAD_DIRECTORY: &str = ".homecloud-incoming";
 
+/// Directory holding previous contents of files this app replaced.
+///
+/// Unlike derivatives this is not disposable: it is the only copy of
+/// what a file used to be, and deleting it loses history a person may
+/// have been relying on.
+pub const VERSIONS_DIRECTORY: &str = ".homecloud-versions";
+
 /// Directory holding generated derivatives such as thumbnails.
 ///
 /// Disposable by design: deleting it costs a regeneration and nothing
