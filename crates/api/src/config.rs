@@ -21,6 +21,7 @@ pub mod vars {
     pub const STORAGE_ROOT: &str = "HOMECLOUD_STORAGE_ROOT";
     pub const ENVIRONMENT: &str = "HOMECLOUD_ENV";
     pub const TRUSTED_ORIGINS: &str = "HOMECLOUD_TRUSTED_ORIGINS";
+    pub const PUBLIC_ORIGIN: &str = "HOMECLOUD_PUBLIC_ORIGIN";
 }
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8080";
@@ -103,6 +104,10 @@ pub struct ServerConfig {
     /// the server's own. Needed when a reverse proxy rewrites `Host`,
     /// which makes the origin and the host legitimately differ.
     pub trusted_origins: Vec<String>,
+    /// The address people reach this deployment at. Passkeys are bound
+    /// to it by the WebAuthn specification, so it cannot be inferred
+    /// from a request header.
+    pub public_origin: Option<String>,
 }
 
 /// Where configuration values come from. Tests supply a map instead of
@@ -186,10 +191,14 @@ impl ServerConfig {
             })
             .unwrap_or_default();
 
+        let public_origin = optional(source, vars::PUBLIC_ORIGIN)
+            .map(|origin| origin.trim_end_matches('/').to_owned());
+
         Ok(Self {
             listen_addr,
             storage_root,
             trusted_origins,
+            public_origin,
             database: DatabaseConfig {
                 url: Secret(database_url),
                 max_connections,

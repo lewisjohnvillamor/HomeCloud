@@ -55,11 +55,14 @@ async fn run() -> anyhow::Result<()> {
         "listening"
     );
 
-    let state = AppState::with_origins(
+    let state = AppState::new(
         pool,
-        storage_root,
-        config.environment.is_production(),
-        config.trusted_origins.clone(),
+        homecloud_api::app::AppSettings {
+            storage_root,
+            production: config.environment.is_production(),
+            trusted_origins: config.trusted_origins.clone(),
+            public_origin: config.public_origin.clone(),
+        },
     );
 
     axum::serve(listener, router(state))

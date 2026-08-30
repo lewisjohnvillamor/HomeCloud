@@ -20,6 +20,8 @@ import {
   parseItems,
   parseLibraries,
   parsePublicShare,
+  parseChallenge,
+  parsePasskeys,
   parseScanStatus,
   parseSearchResults,
   parseInvitation,
@@ -36,6 +38,8 @@ import {
   type Invitation,
   type InvitationPreview,
   type Member,
+  type Challenge,
+  type RegisteredPasskey,
   type ScanStatus,
   type SearchResult,
   type Session,
@@ -326,6 +330,64 @@ export function acceptInvitation(
     parseSession,
     options,
   );
+}
+
+// --- Passkeys ---
+
+export function fetchPasskeys(options?: RequestOptions): Promise<ApiResult<RegisteredPasskey[]>> {
+  return getJson("/api/v1/auth/passkeys", parsePasskeys, options);
+}
+
+export function startPasskeyRegistration(
+  options?: RequestOptions,
+): Promise<ApiResult<Challenge>> {
+  return postJson("/api/v1/auth/passkeys/register/options", {}, parseChallenge, options);
+}
+
+export function finishPasskeyRegistration(
+  ceremonyId: string,
+  nickname: string,
+  credential: unknown,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return postJson(
+    "/api/v1/auth/passkeys/register/verify",
+    { ceremony_id: ceremonyId, nickname, credential },
+    asUnknown,
+    options,
+  );
+}
+
+export function startPasskeySignIn(
+  displayName: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Challenge>> {
+  return postJson(
+    "/api/v1/auth/passkeys/login/options",
+    { display_name: displayName },
+    parseChallenge,
+    options,
+  );
+}
+
+export function finishPasskeySignIn(
+  ceremonyId: string,
+  credential: unknown,
+  options?: RequestOptions,
+): Promise<ApiResult<Session>> {
+  return postJson(
+    "/api/v1/auth/passkeys/login/verify",
+    { ceremony_id: ceremonyId, credential },
+    parseSession,
+    options,
+  );
+}
+
+export function removePasskey(
+  passkey: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
 }
 
 export { contentUrl, thumbnailUrl };

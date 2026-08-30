@@ -19,6 +19,7 @@ pub mod items;
 pub mod library;
 pub mod members;
 pub mod observability;
+pub mod passkeys;
 pub mod ratelimit;
 pub mod scanjob;
 pub mod security;

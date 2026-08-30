@@ -18,8 +18,7 @@ async fn every_response_carries_the_baseline_headers() {
 
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()
@@ -61,8 +60,7 @@ async fn no_cors_headers_are_exposed() {
 
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()
@@ -92,8 +90,7 @@ async fn cross_origin_state_changing_requests_are_refused() {
 
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()
@@ -121,8 +118,7 @@ async fn same_origin_state_changing_requests_reach_routing() {
 
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()
@@ -153,8 +149,7 @@ async fn oversized_request_bodies_are_rejected() {
     let oversized = vec![b'a'; MAX_METADATA_BODY_BYTES + 1];
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()

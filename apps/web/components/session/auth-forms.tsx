@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { createOwner, signIn } from "@/lib/api/endpoints";
+import {
+  createOwner,
+  finishPasskeySignIn,
+  signIn,
+  startPasskeySignIn,
+} from "@/lib/api/endpoints";
+import { authenticateWithPasskey, isPasskeySupported } from "@/lib/webauthn";
 import type { ApiProblem } from "@/lib/api/problem";
 import { Button } from "@/components/ui/button";
 import styles from "@/components/ui/form.module.css";
@@ -136,6 +142,42 @@ export function SignInForm() {
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  /// Signing in with a device instead of a password. Offered only when
+  /// the browser supports it; the password field stays either way.
+  async function signInWithPasskey() {
+    setProblem(null);
+
+    if (!displayName.trim()) {
+      setProblem({ code: "bad_request", detail: "Enter your name first." });
+      return;
+    }
+
+    setSubmitting(true);
+    const challenge = await startPasskeySignIn(displayName.trim());
+
+    if (!challenge.ok) {
+      setProblem(challenge.problem);
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const credential = await authenticateWithPasskey(challenge.data.options);
+      const result = await finishPasskeySignIn(challenge.data.ceremonyId, credential);
+
+      if (result.ok) {
+        await refresh();
+        return;
+      }
+
+      setProblem(result.problem);
+    } catch {
+      setProblem({ code: "bad_request", detail: "No passkey was used." });
+    }
+
+    setSubmitting(false);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setProblem(null);
@@ -192,6 +234,11 @@ export function SignInForm() {
           <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
+          {isPasskeySupported() ? (
+            <Button onClick={() => void signInWithPasskey()} disabled={submitting}>
+              Use a passkey
+            </Button>
+          ) : null}
         </div>
       </form>
     </AuthScreen>

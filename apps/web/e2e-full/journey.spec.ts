@@ -380,3 +380,80 @@ test("search finds a document by a word inside it", async ({ browser }) => {
 
   await owner.close();
 });
+
+test("a passkey can be registered and then used to sign in", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // A virtual authenticator: Chromium's own, driven over CDP, so this
+  // exercises the real WebAuthn ceremony rather than a stub.
+  const cdp = await owner.newCDPSession(ownerPage);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+
+  await ownerPage.goto("/more");
+  await ownerPage.getByRole("button", { name: "Add a passkey" }).click();
+
+  await expect(ownerPage.getByRole("status").filter({ hasText: "Passkey" })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(
+    ownerPage.getByRole("listitem").filter({ hasText: "added" }).first(),
+  ).toBeVisible();
+
+  // Sign out, then back in with the passkey rather than the password.
+  await ownerPage.getByRole("button", { name: "Sign out" }).click();
+  await expect(ownerPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await ownerPage.getByLabel("Your name").fill(OWNER.name);
+  await ownerPage.getByRole("button", { name: "Use a passkey" }).click();
+
+  // Signed in again, without ever typing the password: the page they
+  // were on comes back rather than the sign-in screen.
+  await expect(ownerPage.getByText(`Signed in as ${OWNER.name}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await ownerPage.goto("/files");
+  await expect(ownerPage.getByRole("button", { name: "Upload files" })).toBeVisible();
+
+  await owner.close();
+});
+
+test("a passkey belonging to nobody cannot sign anyone in", async ({ browser }) => {
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+
+  const cdp = await visitor.newCDPSession(visitorPage);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+
+  await visitorPage.goto("/");
+  await expect(visitorPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  // An account that does not exist, with a fresh authenticator holding
+  // no credential for this server.
+  await visitorPage.getByLabel("Your name").fill("Mallory");
+  await visitorPage.getByRole("button", { name: "Use a passkey" }).click();
+
+  await expect(visitorPage.getByRole("main").getByRole("alert")).toContainText("No passkey");
+  await expect(visitorPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await visitor.close();
+});

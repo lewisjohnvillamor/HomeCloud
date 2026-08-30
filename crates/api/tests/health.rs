@@ -49,7 +49,10 @@ async fn liveness_succeeds_without_a_database() {
         .expect("lazy pool");
 
     let (status, body) = get(
-        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        router(AppState::new(
+            pool,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
+        )),
         "/health/live",
     )
     .await;
@@ -71,7 +74,10 @@ async fn readiness_fails_when_the_database_is_unreachable() {
         .expect("lazy pool");
 
     let (status, body) = get(
-        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        router(AppState::new(
+            pool,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
+        )),
         "/health/ready",
     )
     .await;
@@ -98,8 +104,7 @@ async fn readiness_succeeds_against_a_live_database() {
     let (status, body) = get(
         router(AppState::new(
             db.pool.clone(),
-            std::path::PathBuf::from("."),
-            false,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
         )),
         "/health/ready",
     )
@@ -120,8 +125,7 @@ async fn unknown_routes_return_the_problem_shape() {
     let (status, body) = get(
         router(AppState::new(
             db.pool.clone(),
-            std::path::PathBuf::from("."),
-            false,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
         )),
         "/does-not-exist",
     )
@@ -142,8 +146,7 @@ async fn problems_use_the_problem_json_media_type() {
 
     let response = router(AppState::new(
         db.pool.clone(),
-        std::path::PathBuf::from("."),
-        false,
+        homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
     ))
     .oneshot(
         Request::builder()
@@ -174,8 +177,7 @@ async fn bootstrap_status_reports_that_an_owner_is_needed() {
     let (status, body) = get(
         router(AppState::new(
             db.pool.clone(),
-            std::path::PathBuf::from("."),
-            false,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
         )),
         "/api/v1/bootstrap",
     )
@@ -200,7 +202,10 @@ async fn bootstrap_status_is_unavailable_without_a_database() {
         .expect("lazy pool");
 
     let (status, body) = get(
-        router(AppState::new(pool, std::path::PathBuf::from("."), false)),
+        router(AppState::new(
+            pool,
+            homecloud_api::app::AppSettings::development(std::path::PathBuf::from(".")),
+        )),
         "/api/v1/bootstrap",
     )
     .await;

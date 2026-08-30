@@ -3,10 +3,12 @@
 // Application crates have no need for `unsafe`; an exception requires an ADR.
 #![forbid(unsafe_code)]
 
+pub mod passkey;
 pub mod password;
 pub mod session;
 pub mod token;
 
+pub use passkey::{PasskeyError, PasskeyService};
 pub use password::{PasswordError, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH};
 pub use session::{Session, SessionError, SessionToken, SESSION_TTL};
 pub use token::Token;

@@ -120,11 +120,14 @@ A single-user deployment is usable end to end:
   browsing, no uploads, no other item.
 - **More** — rescan the library, audit and revoke shared links, restore from
   trash, sign out.
+- **Passkeys** — register a device as a passkey and sign in with it instead of
+  a password. Needs `HOMECLOUD_PUBLIC_ORIGIN` set, because WebAuthn binds a
+  credential to a domain; without it the option is hidden rather than broken.
 - **Security** — Argon2id passwords, `HttpOnly` session cookies, throttled
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: passkeys, account recovery, password-protected shares,
+Not yet built: account recovery, password-protected shares,
 video thumbnails and transcoding, offline sync, the TV interface, and the local
 AI features. See `ROADMAP.md`.
 

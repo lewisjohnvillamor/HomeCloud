@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ApiResult } from "@/lib/api/client";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { Button } from "@/components/ui/button";
+import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
@@ -137,6 +138,9 @@ export default function MorePage() {
           .
         </p>
         <Button onClick={() => void signOut()}>Sign out</Button>
+
+        <h3 className={styles.subheading}>Passkeys</h3>
+        <PasskeySection />
       </section>
 
       <section className={styles.section} aria-labelledby="library-heading">

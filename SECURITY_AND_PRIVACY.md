@@ -250,3 +250,23 @@ on, so the rules are deliberately few and enforced server-side:
 
 Not yet implemented: passkeys, account recovery, per-folder permissions, and an
 audit log of membership changes (they are logged, but not queryable).
+
+## 18. Passkeys
+
+Passkeys are a second credential against the same session model as a password:
+
+- the relying-party origin comes from configuration, never from a request
+  header — a server that trusted `Host` would let an attacker register
+  credentials for their own domain;
+- challenges are held in memory for five minutes, bound to the account that
+  started them, single-use, and capped in number;
+- a registration challenge issued for one account cannot be completed by
+  another, even with a valid session for that other account;
+- the signature counter is written back after every sign-in, which is what
+  makes cloned-authenticator detection meaningful;
+- a request for a passkey challenge answers identically for an unknown account
+  and for one with no passkey, and is subject to the same sign-in throttle;
+- stored credentials contain public keys only; nothing here is a secret of the
+  user's;
+- a passkey never replaces the password, so losing a device does not lock
+  someone out of a server sitting in their own house.

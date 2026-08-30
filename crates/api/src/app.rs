@@ -13,12 +13,13 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::error::ApiError;
+use crate::passkeys::Ceremonies;
 use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    auth, bootstrap, health, items, library, members, observability, security, shares, thumbnails,
-    transfers,
+    auth, bootstrap, health, items, library, members, observability, passkeys, security, shares,
+    thumbnails, transfers,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -36,32 +37,74 @@ struct Inner {
     origin_policy: OriginPolicy,
     login_attempts: AttemptLimiter,
     scans: Arc<ScanRegistry>,
+    passkeys: Option<homecloud_auth::PasskeyService>,
+    ceremonies: Ceremonies,
+}
+
+/// How the server is deployed. Grouped rather than passed as a handful
+/// of positional arguments, so adding a setting does not ripple through
+/// every construction site.
+#[derive(Debug, Clone)]
+pub struct AppSettings {
+    pub storage_root: PathBuf,
+    /// Production tightens cookies and the cross-origin policy.
+    pub production: bool,
+    /// Origins allowed to make state-changing requests, for a proxy that
+    /// rewrites `Host`.
+    pub trusted_origins: Vec<String>,
+    /// The address people reach this server at, such as
+    /// `https://home.example`. Passkeys are bound to it, so without it
+    /// they are unavailable rather than guessed.
+    pub public_origin: Option<String>,
+}
+
+impl AppSettings {
+    /// Settings for a local development or test server.
+    pub fn development(storage_root: PathBuf) -> Self {
+        Self {
+            storage_root,
+            production: false,
+            trusted_origins: Vec::new(),
+            public_origin: None,
+        }
+    }
 }
 
 impl AppState {
-    pub fn new(db: PgPool, storage_root: PathBuf, production: bool) -> Self {
-        Self::with_origins(db, storage_root, production, Vec::new())
-    }
+    pub fn new(db: PgPool, settings: AppSettings) -> Self {
+        // A public origin that cannot be parsed disables passkeys rather
+        // than failing startup: the rest of the server still works, and
+        // the reason is logged once here.
+        let passkeys = settings.public_origin.as_deref().and_then(|origin| {
+            match homecloud_auth::PasskeyService::new(origin) {
+                Ok(service) => Some(service),
+                Err(error) => {
+                    tracing::error!(error = %error, "passkeys are disabled: the public origin is not usable");
+                    None
+                }
+            }
+        });
 
-    pub fn with_origins(
-        db: PgPool,
-        storage_root: PathBuf,
-        production: bool,
-        trusted_origins: Vec<String>,
-    ) -> Self {
+        let mut trusted = settings.trusted_origins;
+        if let Some(origin) = settings.public_origin.clone() {
+            trusted.push(origin);
+        }
+
         Self {
             db,
             inner: Arc::new(Inner {
-                storage_root,
-                secure_cookies: production,
+                storage_root: settings.storage_root,
+                secure_cookies: settings.production,
                 origin_policy: OriginPolicy {
-                    trusted: trusted_origins,
+                    trusted,
                     // Development proxies the web app from another port;
                     // production must name its origin explicitly.
-                    allow_loopback: !production,
+                    allow_loopback: !settings.production,
                 },
                 login_attempts: AttemptLimiter::new(),
                 scans: Arc::new(ScanRegistry::new()),
+                passkeys,
+                ceremonies: Ceremonies::new(),
             }),
         }
     }
@@ -97,6 +140,16 @@ impl AppState {
     pub fn origin_policy(&self) -> &OriginPolicy {
         &self.inner.origin_policy
     }
+
+    /// The passkey service, or `None` when this server has no public
+    /// origin configured and therefore cannot do WebAuthn.
+    pub fn passkeys(&self) -> Option<&homecloud_auth::PasskeyService> {
+        self.inner.passkeys.as_ref()
+    }
+
+    pub fn ceremonies(&self) -> &Ceremonies {
+        &self.inner.ceremonies
+    }
 }
 
 /// Builds the application router.
@@ -111,6 +164,30 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/logout", post(auth::logout))
         .route("/api/v1/session", get(auth::session_status))
+        .route(
+            "/api/v1/auth/passkeys",
+            get(passkeys::list).post(passkeys::register_options),
+        )
+        .route(
+            "/api/v1/auth/passkeys/register/options",
+            post(passkeys::register_options),
+        )
+        .route(
+            "/api/v1/auth/passkeys/register/verify",
+            post(passkeys::register_verify),
+        )
+        .route(
+            "/api/v1/auth/passkeys/login/options",
+            post(passkeys::login_options),
+        )
+        .route(
+            "/api/v1/auth/passkeys/login/verify",
+            post(passkeys::login_verify),
+        )
+        .route(
+            "/api/v1/auth/passkeys/{credential}",
+            axum::routing::delete(passkeys::remove),
+        )
         .route("/api/v1/libraries", get(library::list))
         .route("/api/v1/libraries/{library}/browse", get(library::browse))
         .route("/api/v1/libraries/{library}/photos", get(library::photos))

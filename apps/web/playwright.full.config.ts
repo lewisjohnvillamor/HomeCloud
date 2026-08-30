@@ -11,7 +11,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 3101);
 const apiPort = Number(process.env.PLAYWRIGHT_API_PORT ?? 8081);
-const baseURL = `http://127.0.0.1:${webPort}`;
+// `localhost` rather than an IP: WebAuthn binds credentials to a domain,
+// and an IP address is not a valid relying-party id.
+const baseURL = `http://localhost:${webPort}`;
 const apiOrigin = `http://127.0.0.1:${apiPort}`;
 
 const databaseUrl =
@@ -46,6 +48,9 @@ export default defineConfig({
         HOMECLOUD_DATABASE_URL: databaseUrl,
         HOMECLOUD_LISTEN_ADDR: `127.0.0.1:${apiPort}`,
         HOMECLOUD_STORAGE_ROOT: "./apps/web/.playwright-library",
+        // Passkeys are bound to an origin, so the journeys need the one
+        // the browser actually visits.
+        HOMECLOUD_PUBLIC_ORIGIN: baseURL,
         RUST_LOG: "warn,homecloud_api=info",
       },
     },

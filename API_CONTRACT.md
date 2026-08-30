@@ -16,8 +16,8 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 ## 3. Core Resources
 
 > **Implemented today.** The endpoints below marked *(built)* exist and are
-> covered by tests; the rest are the target contract. Authentication ships as
-> a password credential rather than passkeys — see
+> covered by tests; the rest are the target contract. Authentication accepts a
+> password or a passkey against the same session model — see
 > `docs/adr/0004-password-sessions-before-passkeys.md`.
 >
 > ```text
@@ -27,6 +27,12 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > POST   /api/v1/setup                             (built) create the owner, library, and session
 > POST   /api/v1/auth/login                        (built) sign in
 > POST   /api/v1/auth/logout                       (built) sign out
+> POST   /api/v1/auth/passkeys/register/options    (built) start registering a passkey
+> POST   /api/v1/auth/passkeys/register/verify     (built) finish registering a passkey
+> POST   /api/v1/auth/passkeys/login/options       (built) start a passkey sign-in — no session
+> POST   /api/v1/auth/passkeys/login/verify        (built) finish a passkey sign-in — no session
+> GET    /api/v1/auth/passkeys                     (built) this account's passkeys
+> DELETE /api/v1/auth/passkeys/{id}                (built) remove a passkey
 > GET    /api/v1/session                           (built) who is signed in
 > GET    /api/v1/libraries                         (built) libraries this account can see
 > GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb

@@ -25,6 +25,18 @@ Passkeys are added later as an additional credential type against the same
 session model, not as a replacement for it. The session layer is deliberately
 credential-agnostic so that addition does not require reworking authorization.
 
+## Follow-up (August 2026)
+
+Passkeys have since been added, exactly as this decision anticipated: a
+`credentials` table, four ceremony endpoints, and no change to sessions,
+cookies, or authorization. A password remains a valid credential, so a lost
+device does not lock anyone out of their own server.
+
+Passkeys require `HOMECLOUD_PUBLIC_ORIGIN`, because WebAuthn binds a credential
+to a domain and that domain cannot be taken from a request header — a server
+that trusted `Host` here would let an attacker mint credentials for their own
+domain. Without it the feature reports itself unavailable and the UI hides it.
+
 ## Consequences
 
 - Authorization can be enforced server-side today, on every catalog route.

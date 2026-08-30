@@ -411,3 +411,45 @@ export function snippetSegments(snippet: string): { text: string; matched: boole
 
   return segments.filter((segment) => segment.text.length > 0);
 }
+
+export type RegisteredPasskey = {
+  id: string;
+  nickname: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
+
+export function parsePasskeys(value: unknown): RegisteredPasskey[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const passkeys: RegisteredPasskey[] = [];
+  for (const entry of value) {
+    const raw = record(entry);
+    if (!raw || typeof raw.id !== "string" || typeof raw.nickname !== "string") {
+      return undefined;
+    }
+
+    passkeys.push({
+      id: raw.id,
+      nickname: raw.nickname,
+      createdAt: text(raw.created_at) ?? "",
+      lastUsedAt: text(raw.last_used_at),
+    });
+  }
+
+  return passkeys;
+}
+
+/** A WebAuthn challenge, passed to the browser untouched. */
+export type Challenge = { ceremonyId: string; options: unknown };
+
+export function parseChallenge(value: unknown): Challenge | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.ceremony_id !== "string" || raw.options === undefined) {
+    return undefined;
+  }
+
+  return { ceremonyId: raw.ceremony_id, options: raw.options };
+}

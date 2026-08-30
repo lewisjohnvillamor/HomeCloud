@@ -142,8 +142,16 @@ impl TestApp {
     pub async fn create() -> Option<Self> {
         let db = TestDatabase::create().await?;
         let root = tempfile::TempDir::new().expect("temporary library root");
-        let state =
-            homecloud_api::app::AppState::new(db.pool.clone(), root.path().to_path_buf(), false);
+        let state = homecloud_api::app::AppState::new(
+            db.pool.clone(),
+            homecloud_api::app::AppSettings {
+                // Passkeys are bound to an origin, and the test client
+                // speaks to the router directly, so the ceremonies are
+                // exercised against this one.
+                public_origin: Some("http://localhost:3000".to_owned()),
+                ..homecloud_api::app::AppSettings::development(root.path().to_path_buf())
+            },
+        );
 
         Some(Self {
             db,
