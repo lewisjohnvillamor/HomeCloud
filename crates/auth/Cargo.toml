@@ -1,0 +1,29 @@
+[package]
+name = "homecloud-auth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Credentials, sessions, and access decisions for HomeCloud."
+
+[dependencies]
+homecloud-domain.workspace = true
+
+argon2.workspace = true
+base64.workspace = true
+rand.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+webauthn-rs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

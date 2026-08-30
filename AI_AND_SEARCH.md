@@ -124,3 +124,30 @@ The assistant/search UI must distinguish:
 - AI-generated summaries.
 
 When answering “where is this file?”, use authoritative catalog data, not model inference.
+
+
+## Implementation Status (August 2026)
+
+The non-AI half of search is built and is the foundation the rest attaches to:
+
+- text is extracted from plain-text documents and PDFs during a library scan,
+  on a blocking pool, under explicit input and output limits;
+- extracted text lives in `item_text` with a generated `tsvector`, and is
+  searched together with file names in one ranked query that returns a
+  highlighted snippet;
+- everything in that table is derived: dropping it costs a rescan and nothing
+  else, which is the same rule this document sets for AI-derived data;
+- a file that cannot be read records *why* (unsupported, too large, damaged),
+  so a scan never reopens a hopeless file, and an unreadable PDF cannot take
+  the indexing task down with it.
+
+Still to come, in the order they make sense:
+
+1. **OCR** for scanned documents and photographed text, writing into the same
+   `item_text` row so search does not need to know where the text came from.
+2. **Embeddings** for semantic search, in a sibling table keyed by item, with
+   the provider abstraction this document describes.
+3. **Ask Your Library**, which orchestrates the two above plus catalog metadata.
+
+Each step is optional at runtime: with no model configured, search continues to
+work exactly as it does today.

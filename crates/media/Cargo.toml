@@ -1,0 +1,21 @@
+[package]
+name = "homecloud-media"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Image derivatives for HomeCloud. Pure CPU work, no I/O."
+
+[dev-dependencies]
+image = { workspace = true, features = ["rayon"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "time"] }
+
+[dependencies]
+image.workspace = true
+kamadak-exif.workspace = true
+time.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+thiserror.workspace = true
+tracing.workspace = true

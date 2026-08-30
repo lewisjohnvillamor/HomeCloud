@@ -1,0 +1,54 @@
+[package]
+name = "homecloud-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "HTTP API for HomeCloud."
+
+[[bin]]
+name = "homecloud-api"
+path = "src/main.rs"
+
+[dependencies]
+homecloud-auth.workspace = true
+homecloud-catalog.workspace = true
+homecloud-domain.workspace = true
+homecloud-media.workspace = true
+homecloud-search.workspace = true
+webauthn-rs.workspace = true
+homecloud-storage.workspace = true
+
+
+anyhow.workspace = true
+axum.workspace = true
+futures.workspace = true
+percent-encoding.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+homecloud-auth.workspace = true
+image.workspace = true
+homecloud-domain.workspace = true
+homecloud-media.workspace = true
+homecloud-search.workspace = true
+webauthn-rs.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tower = { workspace = true, features = ["util"] }
+tower-http.workspace = true

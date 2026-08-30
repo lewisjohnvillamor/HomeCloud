@@ -1,0 +1,29 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Environment and local state
+.env
+.env.local
+.env.*.local
+/data/
+/.homecloud/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Playwright full-stack run artefacts
+apps/web/.playwright-library/

@@ -1,0 +1,12 @@
+.detail {
+  max-inline-size: 60ch;
+  color: var(--text-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-inline-size: 26rem;
+  margin-block-start: 1.5rem;
+}

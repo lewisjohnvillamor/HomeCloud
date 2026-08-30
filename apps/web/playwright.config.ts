@@ -1,0 +1,39 @@
+import { defineConfig, devices } from "@playwright/test";
+
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
+const baseURL = `http://127.0.0.1:${port}`;
+
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: true,
+  forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
+  use: {
+    baseURL,
+    trace: "on-first-retry",
+  },
+  projects: [
+    {
+      name: "desktop-chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile-chromium",
+      use: { ...devices["Pixel 7"] },
+    },
+  ],
+  webServer: {
+    command: `pnpm build && pnpm exec next start --port ${port}`,
+    url: baseURL,
+    env: {
+      // Port 9 (discard) is never listening, so the "API unavailable"
+      // journey is exercised deterministically whether or not a real API
+      // happens to be running on the developer's machine.
+      HOMECLOUD_API_ORIGIN: "http://127.0.0.1:9",
+    },
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+  },
+});

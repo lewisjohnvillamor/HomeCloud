@@ -1,5 +1,21 @@
 # Roadmap
 
+> **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
+> for the filesystem backend apart from versions: the catalog reconciles
+> against disk, and transfers — including resumable uploads — folders, renames,
+> moves, and trash/restore all work. Phase 3 has
+> landed apart from upload request links: password-backed sessions, passkeys,
+> recovery codes, server-enforced library membership, invitations with
+> per-role powers, and revocable public share links that can carry a
+> password of their own. Phase 4 has the Photos
+> timeline over images and videos, with generated thumbnails and FFmpeg poster
+> frames, capture dates and cameras read from EXIF, per-person favorites, and
+> albums; transcoding for playback and map metadata are still ahead. Phase 6 has its
+> non-AI half: document text is extracted during a scan and searched alongside
+> file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
+> has the `/tv` interface, a remote-driven slideshow, deterministic memories,
+> and QR pairing with a TV-scoped credential; photo-frame mode is still ahead.
+
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 
 **MVP boundary:** Phases **0 through 6** are the MVP. Phase 6, **Search and Private AI**, is intentionally the final MVP milestone so AI lands on top of a trustworthy storage/media foundation instead of blocking it.

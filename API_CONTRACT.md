@@ -15,6 +15,95 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 
 ## 3. Core Resources
 
+> **Implemented today.** The endpoints below marked *(built)* exist and are
+> covered by tests; the rest are the target contract. Authentication accepts a
+> password or a passkey against the same session model — see
+> `docs/adr/0004-password-sessions-before-passkeys.md`.
+>
+> ```text
+> GET    /health/live                              (built) liveness, no database
+> GET    /health/ready                             (built) readiness, bounded DB probe
+> GET    /api/v1/bootstrap                         (built) does this deployment need an owner
+> POST   /api/v1/setup                             (built) create the owner, library, and session
+> POST   /api/v1/auth/login                        (built) sign in
+> POST   /api/v1/auth/logout                       (built) sign out
+> POST   /api/v1/auth/passkeys/register/options    (built) start registering a passkey
+> POST   /api/v1/auth/passkeys/register/verify     (built) finish registering a passkey
+> POST   /api/v1/auth/passkeys/login/options       (built) start a passkey sign-in — no session
+> POST   /api/v1/auth/passkeys/login/verify        (built) finish a passkey sign-in — no session
+> GET    /api/v1/auth/passkeys                     (built) this account's passkeys
+> DELETE /api/v1/auth/passkeys/{id}                (built) remove a passkey
+> GET    /api/v1/auth/recovery                     (built) whether this account has a recovery code
+> POST   /api/v1/auth/recovery                     (built) issue a new code, replacing any old one
+> POST   /api/v1/auth/recover                      (built) set a new password from a code — no session
+> GET    /api/v1/session                           (built) who is signed in
+> GET    /api/v1/libraries                         (built) libraries this account can see
+> GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb
+> GET    /api/v1/libraries/{id}/photos             (built) images and videos, by capture date
+> GET    /api/v1/libraries/{id}/memories           (built) on this day, recently added
+> GET    /api/v1/libraries/{id}/search?q=          (built) name and document-text search
+> GET    /api/v1/libraries/{id}/trash              (built) trashed items
+> POST   /api/v1/libraries/{id}/scan               (built) start a background reconciliation
+> GET    /api/v1/libraries/{id}/scan               (built) scan status
+> POST   /api/v1/libraries/{id}/folders            (built) create a folder
+> POST   /api/v1/libraries/{id}/upload?path=       (built) streaming upload, never overwrites
+> GET    /api/v1/items/{id}                        (built) item metadata
+> GET    /api/v1/items/{id}/children               (built) folder contents by id
+> GET    /api/v1/items/{id}/content                (built) download, supports one byte range
+> GET    /api/v1/items/{id}/thumbnail?size=       (built) generated preview: small|medium|large
+> POST   /api/v1/items/{id}/move                   (built) rename or move
+> DELETE /api/v1/items/{id}                        (built) move to trash
+> POST   /api/v1/items/{id}/restore                (built) restore from trash
+> POST   /api/v1/items/{id}/shares                 (built) create a public link
+> GET    /api/v1/items/{id}/shares                 (built) links for one item
+> GET    /api/v1/libraries/{id}/shares             (built) every live link, for auditing
+> DELETE /api/v1/shares/{id}                       (built) revoke a link
+> GET    /api/v1/public/{token}                    (built) what a link points at — no session
+> GET    /api/v1/public/{token}/content            (built) download through a link
+> GET    /api/v1/public/{token}/thumbnail          (built) preview through a link
+> POST   /api/v1/public/{token}/unlock             (built) prove a link's password — no session
+> GET    /api/v1/libraries/{id}/members            (built) who is in this library
+> DELETE /api/v1/libraries/{id}/members/{user}     (built) remove a member — owner only
+> POST   /api/v1/libraries/{id}/invitations        (built) invite someone — owner only
+> GET    /api/v1/libraries/{id}/invitations        (built) pending invitations — owner only
+> DELETE /api/v1/invitations/{id}                  (built) withdraw an invitation
+> GET    /api/v1/invitations/{token}/preview       (built) what an invitation is for — no session
+> POST   /api/v1/invitations/{token}/accept        (built) create an account and join — no session
+> POST   /api/v1/uploads                           (built) open a resumable upload session
+> GET    /api/v1/uploads/{id}                      (built) how many bytes arrived
+> PATCH  /api/v1/uploads/{id}?offset=              (built) append one chunk
+> POST   /api/v1/uploads/{id}/complete             (built) move the finished file into place
+> DELETE /api/v1/uploads/{id}                      (built) give up on an upload
+> GET    /api/v1/libraries/{id}/uploads            (built) this person's unfinished uploads
+> PUT    /api/v1/items/{id}/favorite               (built) star a picture — idempotent
+> DELETE /api/v1/items/{id}/favorite               (built) take the star back
+> GET    /api/v1/libraries/{id}/favorites          (built) this person's own favorites
+> GET    /api/v1/libraries/{id}/albums             (built) albums, with a cover and a count
+> POST   /api/v1/libraries/{id}/albums             (built) make an album
+> GET    /api/v1/albums/{id}                       (built) an album and its pictures, in order
+> PATCH  /api/v1/albums/{id}                       (built) rename an album
+> DELETE /api/v1/albums/{id}                       (built) delete an album, keeping its pictures
+> POST   /api/v1/albums/{id}/items                 (built) add pictures to the end
+> DELETE /api/v1/albums/{id}/items/{item}          (built) take a picture out
+> POST   /api/v1/tv/pairings                       (built) a television asks to be paired — no session
+> GET    /api/v1/tv/pairings/{poll_token}          (built) has anyone approved it — no session
+> POST   /api/v1/tv/pairings/{code}/approve        (built) approve the code on a screen
+> GET    /api/v1/libraries/{id}/tv                 (built) televisions paired with a library
+> DELETE /api/v1/tv/devices/{id}                   (built) disconnect a television
+> GET    /api/v1/tv/memories?token=                (built) the wall a paired screen shows — no session
+> GET    /api/v1/tv/thumbnail?token=&item=         (built) a picture preview for a paired screen
+> GET    /api/v1/tv/content?token=&item=           (built) a full picture for a paired screen
+> ```
+>
+> Errors use the problem shape described in section 6, served as
+> `application/problem+json` with the request id that appears in the logs.
+> One code is worth calling out: `password_required` (401) means a share
+> link is protected and has not been unlocked yet. It is distinct from
+> `unauthenticated` because the visitor has no account to sign in to —
+> they need the link's password. The unlock key returned by
+> `/unlock` is passed back as `?key=`, not a header, because an `<img>`
+> or a download link cannot send one.
+
 ### Auth
 - `POST /api/v1/auth/passkeys/register/options`
 - `POST /api/v1/auth/passkeys/register/verify`

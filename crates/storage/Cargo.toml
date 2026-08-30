@@ -1,0 +1,17 @@
+[package]
+name = "homecloud-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Storage backends for HomeCloud. Filesystem-first, read-only for now."
+
+[dependencies]
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "fs"] }

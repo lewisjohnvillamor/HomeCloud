@@ -1,0 +1,308 @@
+.note {
+  margin-block: 0 1.25rem;
+  color: var(--text-muted);
+}
+
+.month {
+  margin-block-end: 2rem;
+}
+
+.monthHeading {
+  display: flex;
+  gap: 0.625rem;
+  align-items: baseline;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  margin: 0 0 0.625rem;
+  padding-block: 0.375rem;
+  /* The heading stays legible while its month scrolls past underneath. */
+  background: linear-gradient(var(--background) 70%, transparent);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.monthCount {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background: var(--surface-hover);
+  color: inherit;
+  text-decoration: none;
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.image {
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+  /* A photo shifting on hover is decoration; the scale is small enough
+     to read as "this is interactive" rather than as movement. */
+  transition: transform 200ms ease;
+}
+
+.tile:hover .image,
+.tile:focus-visible .image {
+  transform: scale(1.03);
+}
+
+/* The name only appears on hover or focus, so the grid stays a wall of
+   pictures rather than a wall of file names. */
+.caption {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  padding: 1.5rem 0.5rem 0.375rem;
+  background: linear-gradient(transparent, rgb(0 0 0 / 65%));
+  color: #fff;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.tile:hover .caption,
+.tile:focus-visible .caption {
+  opacity: 1;
+}
+
+/* Touch has no hover: showing the name there would mean it never appears. */
+@media (hover: none) {
+  .caption {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image,
+  .caption {
+    transition: none;
+  }
+
+  .tile:hover .image,
+  .tile:focus-visible .image {
+    transform: none;
+  }
+}
+
+/* Videos look like photos in the timeline, so they need one mark that
+   says they will play rather than open. */
+.videoBadge {
+  position: absolute;
+  inset-block-start: 0.375rem;
+  inset-inline-end: 0.375rem;
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/* A tile and the controls that sit on top of it. */
+.cell {
+  position: relative;
+}
+
+/* Selecting turns tiles into checkboxes, so the tile itself becomes a
+   button and needs the same reset a link got. */
+
+/* The ring is an overlay rather than an outline: an outline drawn inside
+   the box is painted under the photo, which is to say not seen at all. */
+.tile[data-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--focus);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+button.tile {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.check {
+  position: absolute;
+  inset-block-start: 0.375rem;
+  inset-inline-start: 0.375rem;
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 35%);
+  color: #fff;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.tile[data-selected="true"] .check {
+  background: var(--focus);
+}
+
+/* Star and remove sit above the tile rather than inside its link, so
+   they are their own targets for a pointer and for the keyboard. */
+.star,
+.remove {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  display: grid;
+  place-items: center;
+  min-inline-size: 2rem;
+  min-block-size: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 35%);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star {
+  inset-inline-start: 0.25rem;
+}
+
+.remove {
+  inset-inline-end: 0.25rem;
+}
+
+.star:focus-visible,
+.remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.star[aria-pressed="true"] {
+  color: #ffd166;
+}
+
+.hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The controls stay out of the way until the tile is touched, hovered,
+   or focused — except a star that is already on, which is information. */
+@media (hover: hover) {
+  .star,
+  .remove {
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .cell:hover .star,
+  .cell:hover .remove,
+  .star:focus-visible,
+  .remove:focus-visible,
+  .star[aria-pressed="true"] {
+    opacity: 1;
+  }
+}
+
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+}
+
+.albums {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.albumCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.albumCover {
+  aspect-ratio: 1;
+  inline-size: 100%;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background: var(--surface-hover);
+  object-fit: cover;
+}
+
+.albumEmptyCover {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.albumName {
+  font-weight: 500;
+}
+
+.albumCount {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block-end: 1rem;
+}
+
+.barNote {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
