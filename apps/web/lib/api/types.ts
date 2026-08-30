@@ -181,3 +181,74 @@ export function parseScanStatus(value: unknown): ScanStatus | undefined {
     error: text(raw.last_error),
   };
 }
+
+export type Share = {
+  id: string;
+  itemId: string;
+  itemName: string;
+  createdAt: string;
+  expiresAt: string | null;
+  accessCount: number;
+  /** Present only on the response that created the share. */
+  token: string | null;
+};
+
+export function parseShare(value: unknown): Share | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.item_id !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    itemId: raw.item_id,
+    itemName: typeof raw.item_name === "string" ? raw.item_name : "",
+    createdAt: text(raw.created_at) ?? "",
+    expiresAt: text(raw.expires_at),
+    accessCount: typeof raw.access_count === "number" ? raw.access_count : 0,
+    token: text(raw.token),
+  };
+}
+
+export function parseShares(value: unknown): Share[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const shares: Share[] = [];
+  for (const entry of value) {
+    const share = parseShare(entry);
+    if (!share) {
+      return undefined;
+    }
+    shares.push(share);
+  }
+
+  return shares;
+}
+
+/** What a visitor holding a share link can see. */
+export type PublicShare = {
+  item: Item;
+  items: Item[];
+  relativePath: string;
+};
+
+export function parsePublicShare(value: unknown): PublicShare | undefined {
+  const raw = record(value);
+  if (!raw) {
+    return undefined;
+  }
+
+  const item = parseItem(raw.item);
+  const items = parseItems(raw.items);
+  if (!item || !items) {
+    return undefined;
+  }
+
+  return {
+    item,
+    items,
+    relativePath: typeof raw.relative_path === "string" ? raw.relative_path : "",
+  };
+}

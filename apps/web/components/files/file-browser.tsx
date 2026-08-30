@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ShareDialog } from "@/components/share/share-dialog";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import {
   browse as browseRequest,
@@ -35,6 +36,7 @@ export type FileBrowserProps = {
  */
 export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<Item | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -175,6 +177,10 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
 
   return (
     <div>
+      {sharing ? (
+        <ShareDialog item={sharing} onClose={() => setSharing(null)} />
+      ) : null}
+
       <div className={styles.toolbar}>
         <Button
           variant="primary"
@@ -335,6 +341,13 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           </span>
                         </a>
                       ) : null}
+                      <Button variant="quiet" onClick={() => setSharing(item)}>
+                        Share
+                        <span className={styles.visuallyHidden}>
+                          {" "}
+                          {item.name}
+                        </span>
+                      </Button>
                       <Button
                         variant="quiet"
                         onClick={() => void onRename(item)}

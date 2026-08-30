@@ -4,6 +4,7 @@
  */
 
 import {
+  asUnknown,
   contentUrl,
   thumbnailUrl,
   deleteJson,
@@ -18,13 +19,18 @@ import {
   parseItem,
   parseItems,
   parseLibraries,
+  parsePublicShare,
   parseScanStatus,
   parseSession,
+  parseShare,
+  parseShares,
   type Browse,
   type Item,
   type Library,
+  type PublicShare,
   type ScanStatus,
   type Session,
+  type Share,
 } from "./types";
 
 export type BootstrapStatus = { needsOwner: boolean };
@@ -178,6 +184,62 @@ export function trashItem(item: string, options?: RequestOptions): Promise<ApiRe
 
 export function restoreItem(item: string, options?: RequestOptions): Promise<ApiResult<Item>> {
   return postJson(`/api/v1/items/${encodeURIComponent(item)}/restore`, {}, parseItem, options);
+}
+
+// --- Sharing ---
+
+export function createShare(
+  item: string,
+  expiresInDays: number | null,
+  options?: RequestOptions,
+): Promise<ApiResult<Share>> {
+  return postJson(
+    `/api/v1/items/${encodeURIComponent(item)}/shares`,
+    { expires_in_days: expiresInDays },
+    parseShare,
+    options,
+  );
+}
+
+export function fetchSharesForItem(
+  item: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Share[]>> {
+  return getJson(`/api/v1/items/${encodeURIComponent(item)}/shares`, parseShares, options);
+}
+
+export function fetchSharesForLibrary(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<Share[]>> {
+  return getJson(`/api/v1/libraries/${encodeURIComponent(library)}/shares`, parseShares, options);
+}
+
+export function revokeShare(share: string, options?: RequestOptions): Promise<ApiResult<unknown>> {
+  return deleteJson(`/api/v1/shares/${encodeURIComponent(share)}`, asUnknown, options);
+}
+
+/** What a visitor with a link can see. Takes no session. */
+export function fetchPublicShare(
+  token: string,
+  item?: string,
+  options?: RequestOptions,
+): Promise<ApiResult<PublicShare>> {
+  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
+
+  return getJson(`/api/v1/public/${encodeURIComponent(token)}${suffix}`, parsePublicShare, options);
+}
+
+export function publicContentUrl(token: string, item?: string): string {
+  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
+
+  return `/api/v1/public/${encodeURIComponent(token)}/content${suffix}`;
+}
+
+export function publicThumbnailUrl(token: string, item?: string): string {
+  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
+
+  return `/api/v1/public/${encodeURIComponent(token)}/thumbnail${suffix}`;
 }
 
 export { contentUrl, thumbnailUrl };

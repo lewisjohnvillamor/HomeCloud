@@ -137,18 +137,55 @@ pub async fn download(
 
     // A trashed item's bytes live under the trash directory; only the
     // item that was trashed directly records where they went.
-    let location = if item.trashed_at.is_some() {
-        homecloud_catalog::mutation::trash_location(state.db(), item.library, item.id)
-            .await
-            .map_err(catalog_error)?
-            .ok_or_else(|| {
-                ApiError::conflict("This item is in the trash. Restore it to open it.")
-            })?
-    } else {
-        item.path.clone()
-    };
+    if item.trashed_at.is_some() {
+        let location =
+            homecloud_catalog::mutation::trash_location(state.db(), item.library, item.id)
+                .await
+                .map_err(catalog_error)?
+                .ok_or_else(|| {
+                    ApiError::conflict("This item is in the trash. Restore it to open it.")
+                })?;
 
-    let (mut file, size) = storage.open_file(&location).await.map_err(storage_error)?;
+        return stream_path(
+            &storage,
+            &location,
+            &item.name,
+            item.content_type.as_deref(),
+            &headers,
+        )
+        .await;
+    }
+
+    stream_file(&storage, &item, &headers).await
+}
+
+/// Streams a catalogued file, honouring a single byte range.
+///
+/// Shared with public share links, which reach a file through a
+/// capability rather than a session but must serve it identically.
+pub async fn stream_file(
+    storage: &homecloud_storage::FilesystemStorage,
+    item: &homecloud_catalog::Item,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
+    stream_path(
+        storage,
+        &item.path,
+        &item.name,
+        item.content_type.as_deref(),
+        headers,
+    )
+    .await
+}
+
+async fn stream_path(
+    storage: &homecloud_storage::FilesystemStorage,
+    location: &homecloud_storage::LibraryPath,
+    name: &str,
+    content_type: Option<&str>,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
+    let (mut file, size) = storage.open_file(location).await.map_err(storage_error)?;
 
     let range = headers
         .get(header::RANGE)
@@ -189,13 +226,10 @@ pub async fn download(
     *response.status_mut() = status;
 
     let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        content_type_header(item.content_type.as_deref()),
-    );
+    headers.insert(header::CONTENT_TYPE, content_type_header(content_type));
     headers.insert(
         header::CONTENT_DISPOSITION,
-        disposition_header(&item.name, item.content_type.as_deref()),
+        disposition_header(name, content_type),
     );
     headers.insert(
         header::CONTENT_LENGTH,

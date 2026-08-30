@@ -1,0 +1,10 @@
+.main {
+  min-block-size: 100dvh;
+  padding: 2rem 1.25rem 4rem;
+}
+
+@media (min-width: 48rem) {
+  .main {
+    padding-block-start: 4rem;
+  }
+}

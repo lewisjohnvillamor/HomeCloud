@@ -4,12 +4,7 @@
 //! so a database copy does not yield usable sessions, and lookups are by
 //! hash rather than by a value an attacker could enumerate.
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
 use homecloud_domain::identity::UserId;
-use rand::rngs::SysRng;
-use rand::TryRng;
-use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use time::{Duration, OffsetDateTime};
 
@@ -20,9 +15,6 @@ pub const SESSION_TTL: Duration = Duration::days(30);
 /// this, every authenticated request would write to the database.
 const LAST_SEEN_REFRESH_INTERVAL: Duration = Duration::hours(1);
 
-/// 256 bits of entropy: not guessable, and short enough for a cookie.
-const TOKEN_BYTES: usize = 32;
-
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
     #[error("session token could not be generated")]
@@ -31,34 +23,12 @@ pub enum SessionError {
     Database(#[from] sqlx::Error),
 }
 
-/// A freshly minted token. The plain text exists only long enough to be
-/// put in a cookie; it is never logged and never stored.
-#[derive(Clone)]
-pub struct SessionToken(String);
-
-impl SessionToken {
-    pub fn generate() -> Result<Self, SessionError> {
-        let mut bytes = [0u8; TOKEN_BYTES];
-        SysRng
-            .try_fill_bytes(&mut bytes)
-            .map_err(|_| SessionError::Entropy)?;
-
-        Ok(Self(URL_SAFE_NO_PAD.encode(bytes)))
-    }
-
-    pub fn expose(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Debug for SessionToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SessionToken(<redacted>)")
-    }
-}
+/// A session token. Shares the bearer-token implementation with share
+/// links, so both get the same entropy and the same storage rule.
+pub type SessionToken = crate::token::Token;
 
 fn token_hash(token: &str) -> Vec<u8> {
-    Sha256::digest(token.as_bytes()).to_vec()
+    crate::token::hash(token)
 }
 
 /// An authenticated session as the server sees it.
@@ -70,7 +40,7 @@ pub struct Session {
 
 /// Issues a session for a user.
 pub async fn create(pool: &PgPool, user: UserId) -> Result<SessionToken, SessionError> {
-    let token = SessionToken::generate()?;
+    let token = SessionToken::generate().map_err(|_| SessionError::Entropy)?;
     let expires_at = OffsetDateTime::now_utc() + SESSION_TTL;
 
     sqlx::query("INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)")
@@ -143,33 +113,4 @@ pub async fn purge_expired(pool: &PgPool) -> Result<u64, SessionError> {
         .await?;
 
     Ok(result.rows_affected())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tokens_are_unique_and_long_enough_to_resist_guessing() {
-        let first = SessionToken::generate().expect("token");
-        let second = SessionToken::generate().expect("token");
-
-        assert_ne!(first.expose(), second.expose());
-        assert!(first.expose().len() >= 43, "{}", first.expose().len());
-    }
-
-    #[test]
-    fn a_token_never_prints_itself() {
-        let token = SessionToken::generate().expect("token");
-
-        let rendered = format!("{token:?}");
-
-        assert!(!rendered.contains(token.expose()));
-    }
-
-    #[test]
-    fn hashing_is_stable_and_distinguishing() {
-        assert_eq!(token_hash("abc"), token_hash("abc"));
-        assert_ne!(token_hash("abc"), token_hash("abd"));
-    }
 }

@@ -17,7 +17,7 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    auth, bootstrap, health, items, library, observability, security, thumbnails, transfers,
+    auth, bootstrap, health, items, library, observability, security, shares, thumbnails, transfers,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -130,6 +130,29 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/items/{item}/children", get(items::children))
         .route("/api/v1/items/{item}/move", post(items::move_item))
         .route("/api/v1/items/{item}/restore", post(items::restore_item))
+        .route(
+            "/api/v1/items/{item}/shares",
+            get(shares::list_for_item).post(shares::create),
+        )
+        .route(
+            "/api/v1/shares/{share}",
+            axum::routing::delete(shares::revoke),
+        )
+        .route(
+            "/api/v1/libraries/{library}/shares",
+            get(shares::list_for_library),
+        )
+        // Public share routes take no session: the token in the path is
+        // the entire credential, and it grants read access to one item.
+        .route("/api/v1/public/{token}", get(shares::public_view))
+        .route(
+            "/api/v1/public/{token}/content",
+            get(shares::public_content),
+        )
+        .route(
+            "/api/v1/public/{token}/thumbnail",
+            get(shares::public_thumbnail),
+        )
         .route("/api/v1/items/{item}/content", get(transfers::download))
         .route("/api/v1/items/{item}/thumbnail", get(thumbnails::thumbnail))
         .fallback(not_found)

@@ -202,3 +202,25 @@ apps, and downloads, so it is treated as parsing hostile input:
 - derivatives are written to a cache directory inside the library root, keyed
   by item, size, and a fingerprint of the source, and are excluded from scans.
   Deleting that directory costs a regeneration and nothing else.
+
+## 16. Share Links
+
+A share link is a capability, deliberately narrower than a session:
+
+- it names exactly one item, and for a folder, only what is inside that
+  folder — an id from anywhere else resolves to "not found", including a
+  sibling folder in the same library;
+- it is read-only. Every mutating route requires a session, so a link cannot
+  upload, rename, move, delete, or create further links;
+- it carries 256 bits of entropy and is stored only as a SHA-256 hash, the
+  same rule sessions follow: a database copy yields no working links;
+- unknown, expired, and revoked tokens are answered identically, so a visitor
+  cannot learn that a link once existed;
+- revocation takes effect on the next request, and responses through a link
+  are never cached by a shared cache;
+- the public page is `noindex`, and the shared view renders paths relative to
+  the shared item, so a recipient never learns where it sits in the library.
+
+Not yet implemented: password-protected links, download limits, and per-link
+rate limiting. Entropy is currently the whole defence against guessing, which
+is sound but is not defence in depth.

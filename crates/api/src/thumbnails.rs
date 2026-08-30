@@ -64,6 +64,18 @@ pub async fn thumbnail(
 
     let storage = storage_for(&state, item.library).await?;
 
+    render(&storage, &item, size).await
+}
+
+/// Generates or serves a cached thumbnail.
+///
+/// Shared with public share links: a visitor holding a capability sees
+/// exactly the same derivative a member does, generated the same way.
+pub async fn render(
+    storage: &homecloud_storage::FilesystemStorage,
+    item: &homecloud_catalog::Item,
+    size: ThumbnailSize,
+) -> Result<Response, ApiError> {
     // The key changes when the file changes, so a replaced photo can
     // never be served from a stale derivative.
     let fingerprint = item

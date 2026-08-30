@@ -5,9 +5,11 @@
 
 pub mod password;
 pub mod session;
+pub mod token;
 
 pub use password::{PasswordError, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH};
 pub use session::{Session, SessionError, SessionToken, SESSION_TTL};
+pub use token::Token;
 
 /// Hashes a password without blocking the async executor.
 pub async fn hash_password(password: String) -> Result<String, PasswordError> {

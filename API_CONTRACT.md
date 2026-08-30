@@ -44,6 +44,13 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > POST   /api/v1/items/{id}/move                   (built) rename or move
 > DELETE /api/v1/items/{id}                        (built) move to trash
 > POST   /api/v1/items/{id}/restore                (built) restore from trash
+> POST   /api/v1/items/{id}/shares                 (built) create a public link
+> GET    /api/v1/items/{id}/shares                 (built) links for one item
+> GET    /api/v1/libraries/{id}/shares             (built) every live link, for auditing
+> DELETE /api/v1/shares/{id}                       (built) revoke a link
+> GET    /api/v1/public/{token}                    (built) what a link points at — no session
+> GET    /api/v1/public/{token}/content            (built) download through a link
+> GET    /api/v1/public/{token}/thumbnail          (built) preview through a link
 > ```
 >
 > Errors use the problem shape described in section 6, served as

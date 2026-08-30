@@ -132,6 +132,28 @@ pub async fn item_for_user(
     item_from_row(&row)
 }
 
+/// Loads an item by id within a library, without a membership check.
+///
+/// For callers that have already established access another way — a
+/// share capability, for instance — and must not widen it to the whole
+/// library.
+pub async fn item_in_library(
+    pool: &PgPool,
+    library: LibraryId,
+    item: ItemId,
+) -> Result<Item, CatalogError> {
+    let row = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items WHERE id = $1 AND library_id = $2"
+    ))
+    .bind(item.as_uuid())
+    .bind(library.as_uuid())
+    .fetch_optional(pool)
+    .await?
+    .ok_or(CatalogError::NotFound)?;
+
+    item_from_row(&row)
+}
+
 /// Looks an item up by its current path.
 pub async fn item_at_path(
     pool: &PgPool,

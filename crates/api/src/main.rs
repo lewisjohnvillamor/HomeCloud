@@ -90,6 +90,14 @@ fn spawn_session_purge(pool: sqlx::PgPool) {
                 Ok(removed) => tracing::info!(removed, "purged expired sessions"),
                 Err(error) => tracing::warn!(error = %error, "session purge failed"),
             }
+
+            // Expired share links are marked revoked in the same sweep,
+            // so an owner's list of live links stays truthful.
+            match homecloud_api::shares::purge_expired(&pool).await {
+                Ok(0) => {}
+                Ok(expired) => tracing::info!(expired, "closed expired share links"),
+                Err(error) => tracing::warn!(error = %error, "share purge failed"),
+            }
         }
     });
 }

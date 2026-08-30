@@ -8,12 +8,14 @@ import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
 import {
   fetchScanStatus,
+  fetchSharesForLibrary,
   fetchTrash,
   restoreItem,
+  revokeShare,
   startScan,
 } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
-import type { Item, ScanStatus } from "@/lib/api/types";
+import type { Item, ScanStatus, Share } from "@/lib/api/types";
 import { formatBytes } from "@/lib/format";
 import styles from "./more.module.css";
 
@@ -21,7 +23,7 @@ import styles from "./more.module.css";
 const SCAN_POLL_MS = 1500;
 
 /** What the More page needs in one look at the server. */
-type Overview = { scan: ScanStatus | null; trash: Item[] };
+type Overview = { scan: ScanStatus | null; trash: Item[]; shares: Share[] };
 
 export default function MorePage() {
   const { state, signOut } = useSession();
@@ -35,12 +37,13 @@ export default function MorePage() {
   const load = useCallback(
     async (signal: AbortSignal): Promise<ApiResult<Overview>> => {
       if (!libraryId) {
-        return { ok: true, data: { scan: null, trash: [] } };
+        return { ok: true, data: { scan: null, trash: [], shares: [] } };
       }
 
-      const [scan, trash] = await Promise.all([
+      const [scan, trash, shares] = await Promise.all([
         fetchScanStatus(libraryId, { signal }),
         fetchTrash(libraryId, { signal }),
+        fetchSharesForLibrary(libraryId, { signal }),
       ]);
 
       if (!scan.ok) {
@@ -49,8 +52,14 @@ export default function MorePage() {
       if (!trash.ok) {
         return trash;
       }
+      if (!shares.ok) {
+        return shares;
+      }
 
-      return { ok: true, data: { scan: scan.data, trash: trash.data } };
+      return {
+        ok: true,
+        data: { scan: scan.data, trash: trash.data, shares: shares.data },
+      };
     },
     [libraryId],
   );
@@ -58,6 +67,7 @@ export default function MorePage() {
   const { state: overview, reload } = useAsyncData<Overview>(load);
   const scan = overview.phase === "ready" ? overview.data.scan : null;
   const trash = overview.phase === "ready" ? overview.data.trash : null;
+  const shares = overview.phase === "ready" ? overview.data.shares : null;
 
   // Poll only while a scan is actually running, then stop. Nothing here
   // sets state directly; the reload does it from its own callback.
@@ -82,6 +92,17 @@ export default function MorePage() {
 
     if (result.ok) {
       setNotice("Scan started. It runs in the background.");
+      await reload();
+    } else {
+      setProblem(result.problem);
+    }
+  }
+
+  async function onRevokeShare(share: Share) {
+    const result = await revokeShare(share.id);
+
+    if (result.ok) {
+      setNotice(`The link to “${share.itemName}” was revoked.`);
       await reload();
     } else {
       setProblem(result.problem);
@@ -158,6 +179,39 @@ export default function MorePage() {
             description="This account is not a member of any library."
           />
         )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="shares-heading">
+        <h2 id="shares-heading" className={styles.heading}>
+          Shared links
+        </h2>
+        <p className={styles.detail}>
+          Anyone holding one of these links can read that item without signing
+          in. Revoking a link takes effect immediately.
+        </p>
+        {shares === null ? <PendingState label="Loading links…" /> : null}
+        {shares?.length === 0 ? (
+          <p className={styles.detail}>Nothing in this library is shared.</p>
+        ) : null}
+        {shares && shares.length > 0 ? (
+          <ul className={styles.trashList}>
+            {shares.map((share) => (
+              <li key={share.id} className={styles.trashItem}>
+                <span>
+                  <span className={styles.trashName}>{share.itemName}</span>
+                  <span className={styles.detail}>
+                    {" "}
+                    {share.expiresAt ? "expires soon" : "no expiry"} · opened{" "}
+                    {share.accessCount} time{share.accessCount === 1 ? "" : "s"}
+                  </span>
+                </span>
+                <Button variant="quiet" onClick={() => void onRevokeShare(share)}>
+                  Revoke<span className={styles.hidden}> the link to {share.itemName}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <section className={styles.section} aria-labelledby="trash-heading">

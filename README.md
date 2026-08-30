@@ -111,14 +111,18 @@ A single-user deployment is usable end to end:
   thumbnails so a large library loads on a phone. Images also preview inline in
   the file list.
 - **Search** — name search across the library.
-- **More** — rescan the library, restore from trash, sign out.
+- **Sharing** — create a read-only public link to one file or folder, with an
+  optional expiry, revocable at any moment. A link grants nothing else: no
+  browsing, no uploads, no other item.
+- **More** — rescan the library, audit and revoke shared links, restore from
+  trash, sign out.
 - **Security** — Argon2id passwords, `HttpOnly` session cookies, throttled
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: passkeys, sharing, multi-user invitations, video thumbnails and
-transcoding, offline sync, the TV interface, and the local AI features. See
-`ROADMAP.md`.
+Not yet built: passkeys, multi-user invitations, password-protected shares,
+video thumbnails and transcoding, offline sync, the TV interface, and the local
+AI features. See `ROADMAP.md`.
 
 ## Local Development
 

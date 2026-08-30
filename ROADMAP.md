@@ -3,9 +3,8 @@
 > **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
 > for the filesystem backend: the catalog reconciles against disk, and
 > transfers, folders, renames, moves, and trash/restore all work. Phase 3 has
-> landed in its single-user form — password-backed sessions and
-> server-enforced library membership — with passkeys, invitations, and sharing
-> still ahead. Phase 4 has the Photos
+> landed apart from passkeys and invitations: password-backed sessions,
+> server-enforced library membership, and revocable public share links. Phase 4 has the Photos
 > timeline over indexed images with generated thumbnails; video derivatives and
 > transcoding are still ahead. Phases 5 and 6 have not started.
 

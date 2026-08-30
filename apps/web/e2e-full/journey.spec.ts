@@ -200,3 +200,89 @@ test("the file list fits a phone screen without sideways scrolling", async ({ br
 
   await phone.close();
 });
+
+/// Opens a fresh, signed-in page and makes sure `name` exists in the
+/// library root. Independent of the shared journey page: these tests run
+/// after the sign-out steps, so they own their session.
+async function signedInPage(browser: Browser, name: string) {
+  const owner = await browser.newContext();
+  const ownerPage = await owner.newPage();
+
+  await ownerPage.goto("/files");
+
+  // The session check runs on load; wait for its outcome rather than
+  // reading the screen mid-flight.
+  const signIn = ownerPage.getByRole("heading", { name: "Sign in" });
+  await expect(signIn.or(ownerPage.getByRole("button", { name: "Upload files" })).first()).toBeVisible();
+
+  if (await signIn.isVisible()) {
+    await ownerPage.getByLabel("Your name").fill(OWNER.name);
+    await ownerPage.getByLabel("Password").fill(OWNER.password);
+    await ownerPage.getByRole("button", { name: "Sign in" }).click();
+    await expect(ownerPage.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+    await ownerPage.goto("/files");
+  }
+
+  const row = ownerPage.getByRole("row").filter({ hasText: name });
+  if ((await row.count()) === 0) {
+    await ownerPage
+      .getByLabel("Choose files to upload")
+      .setInputFiles(tempFile(name, "shared bytes"));
+  }
+  await expect(row).toBeVisible();
+
+  return { owner, ownerPage, row };
+}
+
+test("a share link opens for someone who is not signed in", async ({ browser }) => {
+  const { owner, ownerPage, row } = await signedInPage(browser, "shared-note.txt");
+
+  await row.getByRole("button", { name: /Share/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /Share/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Create link" }).click();
+
+  const link = await dialog.getByLabel("Share link").inputValue();
+  expect(link).toContain("/s/");
+
+  // A visitor with no session, no cookies, and no account opens it.
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto(link);
+
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toHaveText("shared-note.txt");
+  // The shell is not there: nothing invites them into the library.
+  await expect(visitorPage.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+
+  const download = await Promise.all([
+    visitorPage.waitForEvent("download"),
+    visitorPage.getByRole("link", { name: /Download/ }).click(),
+  ]);
+  expect(download[0].suggestedFilename()).toBe("shared-note.txt");
+
+  await visitor.close();
+  await owner.close();
+});
+
+test("a revoked share link stops opening", async ({ browser }) => {
+  const { owner, ownerPage, row } = await signedInPage(browser, "revoked-note.txt");
+
+  await row.getByRole("button", { name: /Share/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /Share/ });
+  await dialog.getByRole("button", { name: "Create link" }).click();
+  const link = await dialog.getByLabel("Share link").inputValue();
+
+  await dialog.getByRole("button", { name: "Revoke" }).first().click();
+  await expect(dialog.getByRole("button", { name: "Revoke" })).toHaveCount(0);
+
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto(link);
+
+  await expect(
+    visitorPage.getByRole("heading", { name: "This link is not available" }),
+  ).toBeVisible();
+
+  await visitor.close();
+  await owner.close();
+});
