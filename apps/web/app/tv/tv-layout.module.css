@@ -1,0 +1,19 @@
+/* Fixed dark surface: a television is watched in a dark room, and the
+   viewer's light/dark preference is about their phone, not this. */
+.tv {
+  --tv-background: #08090b;
+  --tv-surface: #16181d;
+  --tv-text: #f6f7f9;
+  --tv-muted: #a8b0bd;
+  --tv-focus: #7fa8ff;
+
+  min-block-size: 100dvh;
+  background: var(--tv-background);
+  color: var(--tv-text);
+}
+
+.main {
+  min-block-size: 100dvh;
+  /* Overscan margin: older sets crop the edges of the picture. */
+  padding: clamp(1.5rem, 4vw, 4rem);
+}

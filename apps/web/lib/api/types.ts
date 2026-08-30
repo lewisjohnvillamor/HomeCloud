@@ -453,3 +453,29 @@ export function parseChallenge(value: unknown): Challenge | undefined {
 
   return { ceremonyId: raw.ceremony_id, options: raw.options };
 }
+
+/** A deterministic collection shown on the TV and the home screen. */
+export type MemoryGroup = { title: string; subtitle: string; items: Item[] };
+
+export function parseMemories(value: unknown): MemoryGroup[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const groups: MemoryGroup[] = [];
+  for (const entry of value) {
+    const raw = record(entry);
+    const items = raw ? parseItems(raw.items) : undefined;
+    if (!raw || !items || typeof raw.title !== "string") {
+      return undefined;
+    }
+
+    groups.push({
+      title: raw.title,
+      subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
+      items,
+    });
+  }
+
+  return groups;
+}

@@ -9,8 +9,9 @@
 > timeline over indexed images with generated thumbnails; video derivatives and
 > transcoding are still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside
-> file names. OCR, embeddings, and Ask Your Library are still ahead, and
-> Phase 5 has not started.
+> file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
+> has the `/tv` interface, a remote-driven slideshow, and deterministic
+> memories; QR pairing and a TV-scoped token are not built.
 
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 

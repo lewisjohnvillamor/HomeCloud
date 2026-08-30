@@ -186,6 +186,22 @@ export default function MorePage() {
         )}
       </section>
 
+      <section className={styles.section} aria-labelledby="tv-heading">
+        <h2 id="tv-heading" className={styles.heading}>
+          Living room
+        </h2>
+        <p className={styles.detail}>
+          Open <code className={styles.code}>/tv</code> on a television or a
+          browser connected to one. It is designed for a remote: arrows to move,
+          Enter to play, Escape to go back.
+        </p>
+        <div className={styles.actions}>
+          <a className={styles.tvLink} href="/tv">
+            Open the TV view
+          </a>
+        </div>
+      </section>
+
       <section className={styles.section} aria-labelledby="people-heading">
         <h2 id="people-heading" className={styles.heading}>
           People

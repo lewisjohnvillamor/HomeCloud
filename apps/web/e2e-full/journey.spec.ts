@@ -457,3 +457,44 @@ test("a passkey belonging to nobody cannot sign anyone in", async ({ browser }) 
 
   await visitor.close();
 });
+
+test("the television view is driven entirely by a remote", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // Two photos, so the remote has somewhere to move to.
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([
+      tempFile("tv-one.png", Buffer.from(PNG_BASE64, "base64")),
+      tempFile("tv-two.png", Buffer.from(PNG_BASE64, "base64")),
+    ]);
+  await expect(ownerPage.getByRole("row").filter({ hasText: "tv-two.png" })).toBeVisible();
+
+  await ownerPage.goto("/tv");
+  await expect(ownerPage.getByRole("heading", { level: 1 })).toHaveText("Photos");
+
+  // No sidebar: the TV has its own interaction model.
+  await expect(ownerPage.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+
+  // The first tile is selected without anyone touching a mouse.
+  const tiles = ownerPage.locator("[data-tile]");
+  await expect(tiles.first()).toHaveAttribute("data-selected", "true");
+
+  // Right moves the selection; Enter starts the slideshow.
+  await ownerPage.keyboard.press("ArrowRight");
+  await expect(tiles.nth(1)).toHaveAttribute("data-selected", "true");
+
+  await ownerPage.keyboard.press("Enter");
+  const slideshow = ownerPage.getByRole("dialog", { name: "Slideshow" });
+  await expect(slideshow).toBeVisible();
+  await expect(slideshow).toContainText("Playing");
+
+  // Enter pauses, Escape goes back to the wall.
+  await ownerPage.keyboard.press("Enter");
+  await expect(slideshow).toContainText("Paused");
+  await ownerPage.keyboard.press("Escape");
+  await expect(slideshow).toHaveCount(0);
+  await expect(ownerPage.getByRole("heading", { level: 1 })).toHaveText("Photos");
+
+  await owner.close();
+});

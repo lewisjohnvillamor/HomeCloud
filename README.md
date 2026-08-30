@@ -118,8 +118,11 @@ A single-user deployment is usable end to end:
 - **Sharing** — create a read-only public link to one file or folder, with an
   optional expiry, revocable at any moment. A link grants nothing else: no
   browsing, no uploads, no other item.
-- **More** — rescan the library, audit and revoke shared links, restore from
-  trash, sign out.
+- **Living room** — `/tv` is a remote-first photo wall and slideshow: arrows to
+  move, Enter to play or pause, Escape to go back. It shows deterministic
+  collections (on this day, recently added) that need no AI.
+- **More** — rescan the library, manage people, audit and revoke shared links,
+  restore from trash, sign out.
 - **Passkeys** — register a device as a passkey and sign in with it instead of
   a password. Needs `HOMECLOUD_PUBLIC_ORIGIN` set, because WebAuthn binds a
   credential to a domain; without it the option is hidden rather than broken.
@@ -127,9 +130,9 @@ A single-user deployment is usable end to end:
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: account recovery, password-protected shares,
-video thumbnails and transcoding, offline sync, the TV interface, and the local
-AI features. See `ROADMAP.md`.
+Not yet built: account recovery, password-protected shares, TV pairing by QR
+code, video thumbnails and transcoding, offline sync, and the local AI
+features. See `ROADMAP.md`.
 
 ## Local Development
 

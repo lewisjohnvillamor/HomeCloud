@@ -222,6 +222,41 @@ pub async fn images(
     items_from_rows(rows)
 }
 
+/// Images taken on this day in previous years.
+///
+/// Deliberately deterministic: the day and month come from the file's
+/// own timestamp, so "on this day" means the same thing to everyone and
+/// works with no model, no clustering, and no network.
+pub async fn on_this_day(
+    pool: &PgPool,
+    library: LibraryId,
+    today: OffsetDateTime,
+    limit: i64,
+) -> Result<Vec<Item>, CatalogError> {
+    let rows = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items
+         WHERE library_id = $1
+           AND content_type LIKE 'image/%'
+           AND trashed_at IS NULL
+           AND missing_since IS NULL
+           AND modified_at IS NOT NULL
+           AND extract(month FROM modified_at) = $2
+           AND extract(day FROM modified_at) = $3
+           AND date_trunc('day', modified_at) < date_trunc('day', $4::timestamptz)
+         ORDER BY modified_at DESC
+         LIMIT $5"
+    ))
+    .bind(library.as_uuid())
+    .bind(i32::from(u8::from(today.month())))
+    .bind(i32::from(today.day()))
+    .bind(today)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    items_from_rows(rows)
+}
+
 /// Name search.
 ///
 /// The query is a user-supplied string: it is passed as a bind parameter

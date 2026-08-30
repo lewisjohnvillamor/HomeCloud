@@ -148,6 +148,65 @@ pub struct SearchQuery {
     pub limit: Option<i64>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct MemoryGroup {
+    pub title: String,
+    pub subtitle: String,
+    pub items: Vec<ItemView>,
+}
+
+/// `GET /api/v1/libraries/{library}/memories`
+///
+/// Deterministic collections for the TV and the home screen: what was
+/// photographed on this day in earlier years, and what arrived recently.
+/// No model is involved, so this works with AI disabled — which is the
+/// point.
+pub async fn memories(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(library): Path<String>,
+) -> Result<Json<Vec<MemoryGroup>>, ApiError> {
+    let library = parse_library(&library)?;
+    authorize(&state, user, library).await?;
+
+    let today = time::OffsetDateTime::now_utc();
+    let mut groups = Vec::new();
+
+    let on_this_day = repository::on_this_day(state.db(), library, today, DEFAULT_PAGE_SIZE)
+        .await
+        .map_err(catalog_error)?;
+    if !on_this_day.is_empty() {
+        let years: Vec<String> = {
+            let mut years: Vec<i32> = on_this_day
+                .iter()
+                .filter_map(|item| item.modified_at.map(|value| value.year()))
+                .collect();
+            years.sort_unstable();
+            years.dedup();
+            years.iter().rev().map(|year| year.to_string()).collect()
+        };
+
+        groups.push(MemoryGroup {
+            title: "On this day".to_owned(),
+            subtitle: years.join(" · "),
+            items: view::items(&on_this_day),
+        });
+    }
+
+    let recent = repository::images(state.db(), library, DEFAULT_PAGE_SIZE, 0)
+        .await
+        .map_err(catalog_error)?;
+    if !recent.is_empty() {
+        groups.push(MemoryGroup {
+            title: "Recently added".to_owned(),
+            subtitle: format!("{} photos", recent.len()),
+            items: view::items(&recent),
+        });
+    }
+
+    Ok(Json(groups))
+}
+
 /// `GET /api/v1/libraries/{library}/search?q=...`
 ///
 /// Matches file names and the text inside documents, ranked together: a

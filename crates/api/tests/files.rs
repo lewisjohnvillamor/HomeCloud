@@ -931,3 +931,84 @@ async fn an_unknown_thumbnail_size_is_refused() {
 
     app.cleanup().await;
 }
+
+// --- Memories ---
+
+#[tokio::test]
+async fn memories_collect_photos_from_this_day_in_earlier_years() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    app.upload(&library, "old.png", &png_bytes(200, 150)).await;
+    app.upload(&library, "recent.png", &png_bytes(200, 150))
+        .await;
+
+    // Backdate one photo to this day two years ago, the way a camera
+    // timestamp would.
+    sqlx::query("UPDATE items SET modified_at = now() - interval '2 years' WHERE name = 'old.png'")
+        .execute(&app.db.pool)
+        .await
+        .expect("backdate the photo");
+
+    let response = app
+        .get(&format!("/api/v1/libraries/{library}/memories"))
+        .await;
+
+    assert_eq!(response.status, StatusCode::OK);
+    let groups = response.json();
+    let on_this_day = groups
+        .as_array()
+        .expect("groups")
+        .iter()
+        .find(|group| group["title"] == "On this day")
+        .unwrap_or_else(|| panic!("no `On this day` group: {}", response.text()));
+
+    let names: Vec<String> = on_this_day["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|item| item["name"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["old.png"],
+        "today's own photos are not memories"
+    );
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn memories_are_empty_rather_than_invented_when_there_is_nothing_to_show() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+
+    let response = app
+        .get(&format!("/api/v1/libraries/{library}/memories"))
+        .await;
+
+    assert_eq!(response.status, StatusCode::OK);
+    assert!(response.json().as_array().expect("groups").is_empty());
+
+    app.cleanup().await;
+}
+
+#[tokio::test]
+async fn memories_need_a_session() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    app.forget_session();
+
+    let response = app
+        .get(&format!("/api/v1/libraries/{library}/memories"))
+        .await;
+
+    assert_eq!(response.status, StatusCode::UNAUTHORIZED);
+
+    app.cleanup().await;
+}

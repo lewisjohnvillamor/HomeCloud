@@ -191,6 +191,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/libraries", get(library::list))
         .route("/api/v1/libraries/{library}/browse", get(library::browse))
         .route("/api/v1/libraries/{library}/photos", get(library::photos))
+        .route(
+            "/api/v1/libraries/{library}/memories",
+            get(library::memories),
+        )
         .route("/api/v1/libraries/{library}/search", get(library::search))
         .route("/api/v1/libraries/{library}/trash", get(library::trash))
         .route(

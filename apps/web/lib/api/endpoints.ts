@@ -21,6 +21,7 @@ import {
   parseLibraries,
   parsePublicShare,
   parseChallenge,
+  parseMemories,
   parsePasskeys,
   parseScanStatus,
   parseSearchResults,
@@ -39,6 +40,7 @@ import {
   type InvitationPreview,
   type Member,
   type Challenge,
+  type MemoryGroup,
   type RegisteredPasskey,
   type ScanStatus,
   type SearchResult,
@@ -120,6 +122,17 @@ export function fetchPhotos(library: string, options?: RequestOptions): Promise<
   return getJson(
     `/api/v1/libraries/${encodeURIComponent(library)}/photos`,
     parseItems,
+    options,
+  );
+}
+
+export function fetchMemories(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<MemoryGroup[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/memories`,
+    parseMemories,
     options,
   );
 }
