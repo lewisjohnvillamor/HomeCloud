@@ -1128,8 +1128,19 @@ async fn a_file_that_only_claims_to_be_a_video_is_refused_cleanly() {
 
     let response = app.get(&format!("/api/v1/items/{id}/thumbnail")).await;
 
-    // A clear client error, and no host detail in the message.
-    assert_eq!(response.status, StatusCode::BAD_REQUEST);
+    // Two honest answers, depending on the deployment: "this video could
+    // not be read" where FFmpeg is installed, and "this server has no
+    // video support" where it is not. Both are client errors, and
+    // neither may carry host detail.
+    assert!(
+        matches!(
+            response.status,
+            StatusCode::BAD_REQUEST | StatusCode::CONFLICT
+        ),
+        "{} {}",
+        response.status,
+        response.text()
+    );
     assert!(!response.text().contains("/tmp"), "{}", response.text());
     assert!(!response.text().contains("ffmpeg"), "{}", response.text());
 
