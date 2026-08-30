@@ -128,6 +128,12 @@ A single-user deployment is usable end to end:
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
+- **Private AI, off by default** — a switch in More, owner-only. Turned on, it
+  reads the words in scans and screenshots so you can search for what is
+  written in a picture. It runs on the processor you already have, nothing
+  leaves the machine, and turning it off deletes everything it wrote. A server
+  without the recogniser installed says so rather than offering a switch that
+  does nothing.
 - **Places** — photos plotted by where the camera said they were taken. A
   coordinate plot rather than a street map, and deliberately so: asking a tile
   service for the squares around a coordinate tells that service where your
@@ -172,7 +178,8 @@ A single-user deployment is usable end to end:
   containment, and no symlink following.
 
 Not yet built: video transcoding for playback, photo-frame mode, offline sync,
-and the local AI features. See `ROADMAP.md`.
+and the rest of the local AI features — semantic search, faces, and Ask Your
+Library. See `ROADMAP.md`.
 
 ## Local Development
 

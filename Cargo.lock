@@ -1107,12 +1107,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "homecloud-ai"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "homecloud-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
  "futures",
+ "homecloud-ai",
  "homecloud-auth",
  "homecloud-catalog",
  "homecloud-domain",

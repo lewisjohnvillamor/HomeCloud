@@ -36,6 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The optional providers, so their tests run for real here rather
+      # than skipping. Both are found on PATH at runtime, and a
+      # deployment without them works — but CI is the one place that
+      # should be exercising the installed path.
+      - name: Install optional media and recognition tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-eng
+
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install
 
@@ -135,6 +142,13 @@ jobs:
       HOMECLOUD_E2E_DATABASE_URL: postgres://homecloud:homecloud@127.0.0.1:5432/homecloud_e2e
     steps:
       - uses: actions/checkout@v4
+
+      # The optional providers, so their tests run for real here rather
+      # than skipping. Both are found on PATH at runtime, and a
+      # deployment without them works — but CI is the one place that
+      # should be exercising the installed path.
+      - name: Install optional media and recognition tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-eng
 
       - name: Install toolchain from rust-toolchain.toml
         run: rustup show active-toolchain || rustup toolchain install

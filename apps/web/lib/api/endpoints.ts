@@ -34,6 +34,7 @@ import {
   parseInvitationPreview,
   parseInvitations,
   parseMembers,
+  parseAiSettings,
   parseAlbumContents,
   parseAlbums,
   parseDuplicateGroups,
@@ -60,6 +61,7 @@ import {
   type RegisteredPasskey,
   type ScanStatus,
   type SearchResult,
+  type AiSettings,
   type Album,
   type AlbumContents,
   type DuplicateGroup,
@@ -457,6 +459,27 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+/** The private AI switch. Readable by members, changed by the owner. */
+export function fetchAiSettings(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<AiSettings>> {
+  return getJson(`/api/v1/libraries/${encodeURIComponent(library)}/ai`, parseAiSettings, options);
+}
+
+export function updateAiSettings(
+  library: string,
+  profile: AiSettings["profile"],
+  options?: RequestOptions,
+): Promise<ApiResult<AiSettings>> {
+  return putJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/ai`,
+    { profile },
+    parseAiSettings,
+    options,
+  );
 }
 
 /** Photos that recorded where they were taken. Members only. */

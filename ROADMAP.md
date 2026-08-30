@@ -14,8 +14,10 @@
 > frames, capture dates and cameras read from EXIF, per-person favorites, and
 > albums, and map metadata with a places view; transcoding for playback, the
 > phone backup flow, and the RAW/motion capability matrix are still ahead. Phase 6 has its
-> non-AI half: document text is extracted during a scan and searched alongside
-> file names; OCR, embeddings, and Ask Your Library are still ahead. Phase 5
+> non-AI half plus the first AI provider: document text is extracted during a
+> scan and searched alongside file names, and OCR reads the words in pictures
+> when a library owner turns it on. Embeddings, faces, and Ask Your Library are
+> still ahead. Phase 5
 > has the `/tv` interface, a remote-driven slideshow, deterministic memories,
 > and QR pairing with a TV-scoped credential; photo-frame mode is still ahead.
 

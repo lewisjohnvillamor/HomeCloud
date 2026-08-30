@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
 import { RecoverySection } from "@/components/session/recovery-section";
+import { AiSection } from "@/components/ai/ai-section";
 import { DuplicateSection } from "@/components/files/duplicate-section";
 import { RequestSection } from "@/components/share/request-section";
 import { TvSection } from "@/components/tv/tv-section";
@@ -327,7 +328,22 @@ export default function MorePage() {
           ) : null}
         </section>
 
-        <section className={styles.section} aria-labelledby="duplicates-heading">
+        <section className={styles.section} aria-labelledby="ai-heading">
+        <h2 id="ai-heading" className={styles.heading}>
+          Private AI
+        </h2>
+        <p className={styles.detail}>
+          Off unless you turn it on. Everything runs on this machine — nothing is sent
+          anywhere, and no account is needed.
+        </p>
+        {library ? (
+          <AiSection library={library.id} isOwner={library.role === "owner"} />
+        ) : (
+          <p className={styles.detail}>This account is not a member of any library.</p>
+        )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="duplicates-heading">
         <h2 id="duplicates-heading" className={styles.heading}>
           Duplicates
         </h2>

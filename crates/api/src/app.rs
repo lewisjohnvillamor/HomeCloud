@@ -18,8 +18,8 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    albums, auth, bootstrap, health, items, library, members, observability, passkeys, recovery,
-    requests, security, shares, thumbnails, transfers, tv, uploads, versions,
+    ai, albums, auth, bootstrap, health, items, library, members, observability, passkeys,
+    recovery, requests, security, shares, thumbnails, transfers, tv, uploads, versions,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -274,6 +274,11 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
+        )
+        // The private AI switch. Off by default, owner-only to change.
+        .route(
+            "/api/v1/libraries/{library}/ai",
+            get(ai::read).put(ai::update),
         )
         // Where photos were taken.
         .route("/api/v1/libraries/{library}/places", get(library::places))

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/ai",
     "crates/domain",
     "crates/media",
     "crates/search",
@@ -24,6 +25,7 @@ homecloud-auth = { path = "crates/auth" }
 homecloud-catalog = { path = "crates/catalog" }
 homecloud-media = { path = "crates/media" }
 homecloud-search = { path = "crates/search" }
+homecloud-ai = { path = "crates/ai" }
 
 anyhow = "1"
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
