@@ -836,7 +836,9 @@ test("a large file is sent in pieces and arrives whole", async ({ browser }) => 
 
   const row = ownerPage.getByRole("row").filter({ hasText: "holiday.bin" });
   await expect(row).toBeVisible({ timeout: 30_000 });
-  await expect(ownerPage.getByRole("status")).toContainText("1 file uploaded");
+  await expect(ownerPage.getByRole("region", { name: "Transfers" })).toContainText(
+    "1 sent",
+  );
 
   // Downloaded back, it is the same file: 9 MB, byte for byte.
   const download = await Promise.all([
@@ -1188,6 +1190,46 @@ test("an album can be shared with someone who has no account", async ({ browser 
   ).toHaveCount(0);
 
   await visitor.close();
+  await owner.close();
+});
+
+test("the transfer tray says what was sent, and what it had to be renamed to", async ({
+  browser,
+}) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles([tempFile("receipt.txt", "first"), tempFile("invoice.txt", "second")]);
+
+  const tray = ownerPage.getByRole("region", { name: "Transfers" });
+  await expect(tray).toBeVisible();
+  await expect(tray).toContainText("2 sent");
+  await expect(tray).toContainText("receipt.txt");
+  await expect(tray).toContainText("invoice.txt");
+
+  // Sending the same name again never overwrites; the tray is where a
+  // person finds out what it was actually saved as.
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(tempFile("receipt.txt", "a different receipt"));
+
+  await expect(tray).toContainText("saved as");
+  await expect(tray).toContainText("receipt (2).txt");
+
+  // Both files are there, and neither lost its contents.
+  await expect(
+    ownerPage.getByRole("link", { name: "Download receipt.txt", exact: true }),
+  ).toBeVisible();
+  await expect(
+    ownerPage.getByRole("link", { name: "Download receipt (2).txt", exact: true }),
+  ).toBeVisible();
+
+  // The tray stays until it is dismissed, so a result cannot vanish
+  // while somebody is looking away.
+  await tray.getByRole("button", { name: /Dismiss/ }).click();
+  await expect(ownerPage.getByRole("region", { name: "Transfers" })).toHaveCount(0);
+
   await owner.close();
 });
 
