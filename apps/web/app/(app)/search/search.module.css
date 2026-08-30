@@ -13,6 +13,10 @@
 
 .row input {
   flex: 1 1 auto;
+  /* A text input carries an intrinsic minimum width that a flex item
+     will not shrink past, which pushed the Search button off the screen
+     on the narrowest phones. */
+  min-inline-size: 0;
 }
 
 .results {
