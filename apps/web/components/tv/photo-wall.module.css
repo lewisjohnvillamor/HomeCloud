@@ -96,9 +96,12 @@
   background: #000;
 }
 
+/* Fills the screen in both directions, scaling up as well as down: a
+   small photo on a large television should still be watchable, and
+   `contain` keeps it uncropped. */
 .slide {
-  max-inline-size: 100vw;
-  max-block-size: 100dvh;
+  inline-size: 100vw;
+  block-size: 100dvh;
   object-fit: contain;
 }
 
