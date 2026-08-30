@@ -168,11 +168,16 @@ test("a deleted file goes to the trash and can be restored", async () => {
 test("a scan picks up files placed in the library folder directly", async () => {
   await page.goto("/more");
 
-  await page.getByRole("button", { name: "Scan library" }).click();
+  await scanLibrary(page);
 
-  await expect(page.getByRole("status").filter({ hasText: "Last scan indexed" })).toBeVisible({
-    timeout: 30_000,
-  });
+  // The scan is what puts it there, so poll for the outcome rather than
+  // for a status line that an earlier scan already left behind.
+  await expect(async () => {
+    await page.goto("/more");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Last scan indexed" }),
+    ).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 60_000 });
 });
 
 test("signing out ends the session and signing back in restores it", async () => {
@@ -233,6 +238,22 @@ test("the file list fits a phone screen without sideways scrolling", async ({ br
 /// Opens a fresh, signed-in page and makes sure `name` exists in the
 /// library root. Independent of the shared journey page: these tests run
 /// after the sign-out steps, so they own their session.
+/**
+ * Starts a scan from More.
+ *
+ * Only the request is waited on here. Waiting for "Last scan indexed" to
+ * appear proves nothing: an earlier journey's scan has already left that
+ * on the page, so the assertion passes instantly. Callers that depend on
+ * what a scan produced should poll for that instead.
+ */
+async function scanLibrary(page: Page) {
+  await page.getByRole("button", { name: "Scan library" }).click();
+
+  await expect(page.getByRole("status").filter({ hasText: "Scan started" })).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
 async function signedInPage(browser: Browser, name: string) {
   const owner = await browser.newContext();
   const ownerPage = await owner.newPage();
@@ -390,19 +411,20 @@ test("search finds a document by a word inside it", async ({ browser }) => {
     );
   await expect(ownerPage.getByRole("row").filter({ hasText: "4021.txt" })).toBeVisible();
 
-  // Uploads are indexed by the next scan.
+  // Uploads are indexed by the next scan, which runs in the background.
   await ownerPage.goto("/more");
-  await ownerPage.getByRole("button", { name: "Scan library" }).click();
-  await expect(
-    ownerPage.getByRole("status").filter({ hasText: "Last scan indexed" }),
-  ).toBeVisible({ timeout: 30_000 });
+  await scanLibrary(ownerPage);
 
-  await ownerPage.goto("/search");
-  await ownerPage.getByRole("searchbox", { name: "Search your library" }).fill("generator");
-  await ownerPage.getByRole("button", { name: "Search" }).click();
-
+  // Search until it finds it, rather than guessing how long indexing
+  // takes: waiting on a status line that a previous scan already left on
+  // the page is how this raced.
   const result = ownerPage.getByRole("listitem").filter({ hasText: "4021.txt" });
-  await expect(result).toBeVisible();
+  await expect(async () => {
+    await ownerPage.goto("/search");
+    await ownerPage.getByRole("searchbox", { name: "Search your library" }).fill("generator");
+    await ownerPage.getByRole("button", { name: "Search" }).click();
+    await expect(result).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 60_000 });
   await expect(result).toContainText("found in the document");
   // The snippet shows the matching passage, with the word highlighted.
   await expect(result.locator("mark")).toContainText("generator");
@@ -744,8 +766,16 @@ test("photos can be gathered into an album", async ({ browser }) => {
   // Choosing pictures is a mode: the ordinary thing to do with a photo
   // is open it, not tick it.
   await ownerPage.getByRole("button", { name: "Select photos" }).click();
-  await ownerPage.getByRole("button", { name: /album-one\.png/ }).click();
-  await ownerPage.getByRole("button", { name: /album-two\.png/ }).click();
+
+  // Wait for each tile to become a checkbox before clicking it: the grid
+  // re-renders when selection mode turns on, and clicking into a
+  // re-render lands on nothing.
+  const first = ownerPage.getByRole("button", { name: /album-one\.png/ });
+  const second = ownerPage.getByRole("button", { name: /album-two\.png/ });
+  await expect(first).toBeVisible();
+  await first.click();
+  await expect(ownerPage.getByText("1 selected")).toBeVisible();
+  await second.click();
   await expect(ownerPage.getByText("2 selected")).toBeVisible();
 
   ownerPage.once("dialog", (dialog) => dialog.accept("Wales, summer 2019"));
