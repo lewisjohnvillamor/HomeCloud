@@ -127,7 +127,9 @@ describe("FileBrowser", () => {
         expect.anything(),
       ),
     );
-    expect(await screen.findByRole("status")).toHaveTextContent("1 file uploaded");
+    const tray = await screen.findByRole("region", { name: "Transfers" });
+    expect(tray).toHaveTextContent("1 sent");
+    expect(tray).toHaveTextContent("report.txt");
     // Twice: once on mount, once after the upload.
     expect(endpoints.browse).toHaveBeenCalledTimes(2);
   });
@@ -145,8 +147,14 @@ describe("FileBrowser", () => {
       new File(["contents"], "huge.bin"),
     );
 
+    // The failure is reported against the file that failed, not as a
+    // page-level message that does not say which one it was.
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("That file is too large.");
+    expect(alert).toHaveTextContent("1 of 1 did not send");
+
+    const tray = screen.getByRole("region", { name: "Transfers" });
+    expect(tray).toHaveTextContent("huge.bin");
+    expect(tray).toHaveTextContent("That file is too large.");
   });
 
   it("confirms before moving an item to the trash", async () => {

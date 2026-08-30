@@ -110,6 +110,11 @@ A single-user deployment is usable end to end:
   chunks and picked up again where it stopped, so one dropped connection does
   not mean starting a 40 GB video over; a photo still goes in one request,
   because three round trips to move two megabytes helps nobody.
+- **Transfers** — sending files shows a tray naming each one, how far it has
+  got, and what became of it. Nothing is overwritten, so a name that was
+  already taken is saved beside the original and the tray says which name it
+  landed under; a file that failed says so and stays on screen until it is
+  dismissed, rather than disappearing while you look away.
 - **Photos** — images and videos, grouped by the month the picture was *taken*
   — read from the camera's own metadata, because copying a folder to a new disk
   rewrites every file date — served as generated thumbnails (a poster frame for

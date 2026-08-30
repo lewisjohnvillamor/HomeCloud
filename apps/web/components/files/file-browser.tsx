@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { TransferTray, type Transfer } from "@/components/files/transfer-tray";
 import { VersionDialog } from "@/components/files/version-dialog";
 import { RequestDialog } from "@/components/share/request-dialog";
 import { ShareDialog } from "@/components/share/share-dialog";
@@ -43,6 +44,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
   const [sharing, setSharing] = useState<Item | null>(null);
   const [requesting, setRequesting] = useState<Item | null>(null);
   const [history, setHistory] = useState<Item | null>(null);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -81,33 +83,51 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
       return;
     }
 
-    let uploaded = 0;
-    for (const file of Array.from(files)) {
-      const ok = await run(`Uploading ${file.name}`, async () => {
-        const result = await sendFile(
-          { library, path: joinPath(path, file.name), file },
-          // A large file is sent in pieces, so say how far along it is
-          // rather than leaving a progress-free wait.
-          ({ sent, total }) => {
-            if (total > 0 && sent < total) {
-              setBusy(`Uploading ${file.name} — ${Math.floor((sent / total) * 100)}%`);
-            }
-          },
-        );
+    const chosen = Array.from(files);
+    // Everything chosen is listed at once, so a person can see the whole
+    // job rather than one file at a time with no idea how many are left.
+    const queued: Transfer[] = chosen.map((file, index) => ({
+      id: `${Date.now()}-${index}-${file.name}`,
+      name: file.name,
+      sizeBytes: file.size,
+      sent: 0,
+      status: "waiting",
+    }));
 
-        return result.ok
-          ? { ok: true }
-          : { ok: false, problem: result.problem };
-      });
+    setTransfers(queued);
+    setProblem(null);
+    setNotice(null);
 
-      if (ok) {
-        uploaded += 1;
+    function update(id: string, change: Partial<Transfer>) {
+      setTransfers((current) =>
+        current.map((transfer) => (transfer.id === id ? { ...transfer, ...change } : transfer)),
+      );
+    }
+
+    for (const [index, file] of chosen.entries()) {
+      const id = queued[index]?.id ?? "";
+      update(id, { status: "sending" });
+
+      const result = await sendFile(
+        { library, path: joinPath(path, file.name), file },
+        ({ sent }) => update(id, { sent }),
+      );
+
+      if (result.ok) {
+        update(id, {
+          status: "done",
+          sent: file.size,
+          // The server picks a free name rather than overwriting, so
+          // this is where a collision becomes visible.
+          landedAs: result.data.name,
+        });
+      } else {
+        update(id, { status: "failed", detail: result.problem.detail });
       }
     }
 
-    if (uploaded > 0) {
-      setNotice(`${uploaded} file${uploaded === 1 ? "" : "s"} uploaded.`);
-    }
+    await reload();
+
     if (uploadInput.current) {
       uploadInput.current.value = "";
     }
@@ -285,6 +305,9 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
       </nav>
 
       {busy ? <PendingState label={`${busy}…`} /> : null}
+
+      <TransferTray transfers={transfers} onDismiss={() => setTransfers([])} />
+
       {notice ? (
         <p className={styles.status} role="status">
           {notice}
@@ -332,7 +355,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                         <span className={styles.kindIcon}>
                           <Icon name="folder" />
                         </span>
-                        {item.name}
+                        <span className={styles.nameLabel}>{item.name}</span>
                       </button>
                     ) : (
                       <span className={styles.name}>
@@ -352,7 +375,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                             <Icon name="file" />
                           </span>
                         )}
-                        {item.name}
+                        <span className={styles.nameLabel}>{item.name}</span>
                       </span>
                     )}
                   </td>

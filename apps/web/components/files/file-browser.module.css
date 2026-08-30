@@ -82,10 +82,8 @@
 }
 
 .nameCell {
+  /* The name column takes whatever the other columns do not want. */
   inline-size: 100%;
-  /* Lets a long file name shrink and ellipsise instead of pushing the
-     actions out of the viewport. */
-  max-inline-size: 0;
 }
 
 .name {
@@ -105,6 +103,21 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
+}
+
+/* The ellipsis has to live on the text itself: `.name` is a flex
+   container, and `text-overflow` does nothing on one, so a clipped name
+   was losing its last characters silently — "receipt (2).txt" read back
+   as "receipt (2).tx", which is a different file name. */
+.nameLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* A cap on the name rather than on the column: collapsing the column
+     to its minimum did stop long names pushing the actions off screen,
+     but it also clipped ordinary ones to a few characters while the row
+     had room to spare. Only a genuinely long name is shortened now. */
+  max-inline-size: 24rem;
 }
 
 .name:focus-visible {
@@ -186,6 +199,13 @@
   .name {
     min-inline-size: 0;
     white-space: normal;
+  }
+
+  .nameLabel {
+    overflow: visible;
+    max-inline-size: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   /* Fixed columns, because the automatic algorithm gave the actions

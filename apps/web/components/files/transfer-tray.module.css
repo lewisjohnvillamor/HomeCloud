@@ -1,0 +1,84 @@
+.tray {
+  margin-block-end: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.header {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-md);
+}
+
+.name {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A rename is information, not an aside: it is the difference between
+   one file and two. */
+.renamed {
+  color: var(--text-muted);
+}
+
+.detail {
+  color: var(--danger);
+}
+
+.state {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.progress {
+  inline-size: 8rem;
+  block-size: 0.5rem;
+}
+
+.percent {
+  min-inline-size: 3ch;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.status {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.row[data-status="failed"] .status {
+  color: var(--danger);
+}
