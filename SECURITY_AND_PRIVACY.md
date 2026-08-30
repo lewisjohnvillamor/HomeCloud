@@ -221,9 +221,29 @@ A share link is a capability, deliberately narrower than a session:
 - the public page is `noindex`, and the shared view renders paths relative to
   the shared item, so a recipient never learns where it sits in the library.
 
-Not yet implemented: password-protected links, download limits, and per-link
-rate limiting. Entropy is currently the whole defence against guessing, which
-is sound but is not defence in depth.
+A link may also carry a password, for the common case of a link sent over a
+channel the sender does not fully trust — a group chat, an email that will be
+forwarded:
+
+- the password is hashed with Argon2id, like an account password, and is
+  never returned by any endpoint;
+- a protected link discloses **nothing** before the password is proved: not
+  the item's name, size, or kind. The listing request itself is refused with
+  `password_required`, so the gate is on the data, not on the page;
+- attempts are throttled per link through the same limiter that guards
+  sign-in, so a password sent in a message cannot be guessed at speed;
+- proving the password returns an opaque unlock key, good for one hour and
+  bound to that one link. A key from one link does not open another, and
+  there is a test for exactly that;
+- the key travels as `?key=`, not as a header, because an `<img>` tag and a
+  download link cannot send headers. The request log records paths only, and
+  the browser holds the key in memory rather than in the URL bar or in
+  storage, so a copied address carries no access with it;
+- the number of live keys is bounded and expired ones are swept, so unlocking
+  cannot be used to grow server memory without limit.
+
+Not yet implemented: download limits and per-link rate limiting beyond the
+password throttle.
 
 ## 17. Membership and Invitations
 
@@ -271,7 +291,32 @@ Passkeys are a second credential against the same session model as a password:
 - a passkey never replaces the password, so losing a device does not lock
   someone out of a server sitting in their own house.
 
-## 19. Video Poster Frames
+## 19. Account Recovery
+
+A server in someone's house has no support desk, and this deployment may have
+no way to send email at all. Making the most fragile flow depend on the most
+fragile infrastructure is how people lose access to their own files, so
+recovery is a code rather than a reset link:
+
+- a code is generated at setup whether or not it was asked for, and shown
+  once. The server stores only an Argon2id hash, so it genuinely cannot be
+  shown again — the UI says so;
+- the alphabet excludes `O`, `0`, `I`, `1`, and `L`, and case and separators
+  are ignored on entry, because this is a string a person copies off paper;
+- recovery shares the sign-in throttle rather than offering an unlimited side
+  door, and spends the same time whether or not the account exists and
+  whether or not it has a code, so neither is readable from the clock;
+- a correct code sets the new password and clears itself in the same
+  statement, so it cannot be used twice even under a race;
+- every existing session is revoked, because recovery is also what someone
+  does after a compromise;
+- a fresh code is issued in the same response. An account with no way back in
+  is the state this feature exists to prevent.
+
+Replacing a code is one action from **More**, which is what someone does when
+the paper copy has been seen by somebody else.
+
+## 20. Video Poster Frames
 
 Video files are the least trustworthy input in a personal cloud — arbitrary
 containers and codecs from arbitrary sources — so FFmpeg runs as a child

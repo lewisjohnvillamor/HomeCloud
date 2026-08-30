@@ -15,6 +15,13 @@ import { join } from "node:path";
 
 const OWNER = { name: "Ada", password: "correct horse battery staple" };
 
+/**
+ * Captured from the setup screen and used by the recovery journey at the
+ * end of this file, exactly as a person would use the code they wrote
+ * down on their first day.
+ */
+let recoveryCode = "";
+
 /** A tiny but genuinely valid PNG, so the Photos view has real content. */
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -51,6 +58,14 @@ test("a fresh deployment asks for setup and creates the owner", async () => {
   await page.getByLabel("Your name").fill(OWNER.name);
   await page.getByLabel("Password").fill(OWNER.password);
   await page.getByRole("button", { name: "Create owner account" }).click();
+
+  // The recovery code is shown once, before the app opens, because the
+  // server keeps only its hash.
+  await expect(page.getByRole("heading", { name: "Write this down" })).toBeVisible();
+  recoveryCode = (await page.getByLabel("Your recovery code").innerText()).trim();
+  expect(recoveryCode).toMatch(/[A-Z0-9-]{8,}/);
+
+  await page.getByRole("button", { name: "I have written it down" }).click();
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Welcome back, ${OWNER.name}`);
 });
@@ -543,4 +558,105 @@ test("a video shows a poster frame and joins the photo timeline", async ({ brows
     .toBeGreaterThan(0);
 
   await owner.close();
+});
+
+test("a password-protected link discloses nothing until the password is given", async ({
+  browser,
+}) => {
+  const { owner, ownerPage, row } = await signedInPage(browser, "locked-note.txt");
+
+  await row.getByRole("button", { name: /Share/ }).click();
+  const dialog = ownerPage.getByRole("dialog", { name: /Share/ });
+  await dialog.getByLabel("Password (optional)").fill("sunflower77");
+  await dialog.getByRole("button", { name: "Create link" }).click();
+
+  const link = await dialog.getByLabel("Share link").inputValue();
+
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto(link);
+
+  // Not even the file's name is on the page yet.
+  await expect(
+    visitorPage.getByRole("heading", { name: "This link is password protected" }),
+  ).toBeVisible();
+  await expect(visitorPage.getByText("locked-note.txt")).toHaveCount(0);
+
+  // A wrong password is refused and still discloses nothing.
+  await visitorPage.getByLabel("Password").fill("not the password");
+  await visitorPage.getByRole("button", { name: "Open link" }).click();
+  await expect(visitorPage.getByRole("alert")).toBeVisible();
+  await expect(visitorPage.getByText("locked-note.txt")).toHaveCount(0);
+
+  // The right one opens it, and the download works from the same key.
+  await visitorPage.getByLabel("Password").fill("sunflower77");
+  await visitorPage.getByRole("button", { name: "Open link" }).click();
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toHaveText("locked-note.txt");
+
+  const download = await Promise.all([
+    visitorPage.waitForEvent("download"),
+    visitorPage.getByRole("link", { name: /Download/ }).click(),
+  ]);
+  expect(download[0].suggestedFilename()).toBe("locked-note.txt");
+
+  await visitor.close();
+  await owner.close();
+});
+
+/**
+ * Last in the file on purpose: recovering changes the owner's password,
+ * so every journey that signs in with the original one runs first.
+ */
+test("a forgotten password can be recovered with the code from setup", async ({ browser }) => {
+  const replacement = "a different long passphrase";
+
+  const visitor = await browser.newContext();
+  const visitorPage = await visitor.newPage();
+  await visitorPage.goto("/");
+
+  await expect(visitorPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await visitorPage.getByRole("button", { name: "Forgot your password?" }).click();
+
+  await expect(visitorPage.getByRole("heading", { name: "Use your recovery code" })).toBeVisible();
+  await visitorPage.getByLabel("Your name").fill(OWNER.name);
+  await visitorPage.getByLabel("Recovery code").fill(recoveryCode);
+  await visitorPage.getByLabel("New password").fill(replacement);
+  await visitorPage.getByRole("button", { name: "Set a new password" }).click();
+
+  // A fresh code arrives with the recovery: the account is never left
+  // without a way back in.
+  await expect(visitorPage.getByRole("heading", { name: "Write this down" })).toBeVisible();
+  const nextCode = (await visitorPage.getByLabel("Your recovery code").innerText()).trim();
+  expect(nextCode).not.toBe(recoveryCode);
+
+  await visitorPage.getByRole("button", { name: "I have written it down" }).click();
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toHaveText(
+    `Welcome back, ${OWNER.name}`,
+  );
+
+  // The used code is spent, and the new password is the one that works.
+  await visitorPage.goto("/more");
+  await visitorPage.getByRole("button", { name: "Sign out" }).click();
+  await expect(visitorPage.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await visitorPage.getByRole("button", { name: "Forgot your password?" }).click();
+  await visitorPage.getByLabel("Your name").fill(OWNER.name);
+  await visitorPage.getByLabel("Recovery code").fill(recoveryCode);
+  await visitorPage.getByLabel("New password").fill(replacement);
+  await visitorPage.getByRole("button", { name: "Set a new password" }).click();
+  await expect(visitorPage.getByRole("alert")).toBeVisible();
+
+  await visitorPage.getByRole("button", { name: "Back to sign in" }).click();
+  await visitorPage.getByLabel("Your name").fill(OWNER.name);
+  await visitorPage.getByLabel("Password").fill(replacement);
+  await visitorPage.getByRole("button", { name: "Sign in" }).click();
+
+  // Signing in happens in place, so the page under the form comes back.
+  await expect(visitorPage.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+  await visitorPage.goto("/");
+  await expect(visitorPage.getByRole("heading", { level: 1 })).toHaveText(
+    `Welcome back, ${OWNER.name}`,
+  );
+
+  await visitor.close();
 });

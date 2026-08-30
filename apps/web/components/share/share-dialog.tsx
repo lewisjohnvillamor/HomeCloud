@@ -10,6 +10,9 @@ import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { formatDate } from "@/lib/format";
 import styles from "./share-dialog.module.css";
 
+/** Mirrors the server's minimum so the message arrives before a round trip. */
+const MIN_SHARE_PASSWORD_LENGTH = 8;
+
 /** Expiry choices, in days. `null` means "until I revoke it". */
 const EXPIRY_CHOICES: { label: string; days: number | null }[] = [
   { label: "7 days", days: 7 },
@@ -28,11 +31,13 @@ const EXPIRY_CHOICES: { label: string; days: number | null }[] = [
 export function ShareDialog({ item, onClose }: { item: Item; onClose: () => void }) {
   const titleId = useId();
   const expiryId = useId();
+  const passwordId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
 
   const [created, setCreated] = useState<Share | null>(null);
   const [expiry, setExpiry] = useState<string>("7");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
@@ -68,10 +73,22 @@ export function ShareDialog({ item, onClose }: { item: Item; onClose: () => void
     setCopied(false);
 
     const days = expiry === "never" ? null : Number(expiry);
-    const result = await createShare(item.id, days);
+    const secret = password.trim();
+
+    if (secret.length > 0 && secret.length < MIN_SHARE_PASSWORD_LENGTH) {
+      setProblem({
+        code: "bad_request",
+        detail: `A link password needs at least ${MIN_SHARE_PASSWORD_LENGTH} characters.`,
+      });
+      setBusy(false);
+      return;
+    }
+
+    const result = await createShare(item.id, days, secret.length > 0 ? secret : null);
 
     if (result.ok) {
       setCreated(result.data);
+      setPassword("");
       await reload();
     } else {
       setProblem(result.problem);
@@ -152,10 +169,30 @@ export function ShareDialog({ item, onClose }: { item: Item; onClose: () => void
           </select>
         </div>
 
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={passwordId}>
+            Password (optional)
+          </label>
+          <input
+            id={passwordId}
+            className={styles.link}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="off"
+            placeholder="Leave empty for no password"
+          />
+          <span className={styles.shareMeta}>
+            Add one when the link travels somewhere you do not fully trust. Send
+            it separately from the link itself.
+          </span>
+        </div>
+
         {created?.token ? (
           <>
             <p className={styles.detail}>
               Copy this link now — it is not shown again.
+              {created.protected ? " Whoever opens it will be asked for the password." : ""}
             </p>
             <div className={styles.linkRow}>
               <input
@@ -193,6 +230,7 @@ export function ShareDialog({ item, onClose }: { item: Item; onClose: () => void
                     Created {formatDate(share.createdAt)} ·{" "}
                     {share.expiresAt ? `expires ${formatDate(share.expiresAt)}` : "no expiry"} ·{" "}
                     opened {share.accessCount} time{share.accessCount === 1 ? "" : "s"}
+                    {share.protected ? " · password required" : ""}
                   </span>
                 </span>
                 <Button variant="quiet" onClick={() => void onRevoke(share)} disabled={busy}>

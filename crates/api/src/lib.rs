@@ -21,6 +21,7 @@ pub mod members;
 pub mod observability;
 pub mod passkeys;
 pub mod ratelimit;
+pub mod recovery;
 pub mod scanjob;
 pub mod security;
 pub mod shares;

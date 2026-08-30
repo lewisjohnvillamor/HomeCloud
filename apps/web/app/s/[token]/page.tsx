@@ -1,8 +1,15 @@
 "use client";
 
-import { use, useCallback, useState } from "react";
+import { use, useCallback, useId, useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
-import { fetchPublicShare, publicContentUrl, publicThumbnailUrl } from "@/lib/api/endpoints";
+import {
+  fetchPublicShare,
+  publicContentUrl,
+  publicThumbnailUrl,
+  unlockShare,
+} from "@/lib/api/endpoints";
+import type { ApiProblem } from "@/lib/api/problem";
 import type { Item } from "@/lib/api/types";
 import type { PublicShare } from "@/lib/api/types";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
@@ -19,14 +26,23 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
   const { token } = use(params);
   const [openItem, setOpenItem] = useState<string | undefined>(undefined);
 
+  // Held in memory only: a key in the URL or in storage would outlive
+  // the visit and travel onwards with a copied address.
+  const [key, setKey] = useState<string | null>(null);
+
   const load = useCallback(
-    (signal: AbortSignal) => fetchPublicShare(token, openItem, { signal }),
-    [token, openItem],
+    (signal: AbortSignal) => fetchPublicShare(token, openItem, key, { signal }),
+    [token, openItem, key],
   );
   const { state, reload } = useAsyncData<PublicShare>(load);
 
   if (state.phase === "loading") {
     return <PendingState label="Opening the shared link…" />;
+  }
+
+  if (state.phase === "failed" && state.problem.code === "password_required") {
+    // Nothing about the item has been disclosed yet — not even its name.
+    return <UnlockForm token={token} onUnlocked={setKey} />;
   }
 
   if (state.phase === "failed") {
@@ -70,14 +86,84 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
       {relativePath ? <p className={styles.meta}>{relativePath}</p> : null}
 
       {item.kind === "file" ? (
-        <FilePreview token={token} item={item} openItem={openItem} />
+        <FilePreview token={token} item={item} openItem={openItem} unlockKey={key} />
       ) : (
         <FolderListing
           token={token}
           items={items}
+          unlockKey={key}
           onOpen={(child) => setOpenItem(child.id)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * The gate on a protected link. Deliberately says only that a password
+ * is needed: the item’s name is part of what the password protects.
+ */
+function UnlockForm({
+  token,
+  onUnlocked,
+}: {
+  token: string;
+  onUnlocked: (key: string) => void;
+}) {
+  const passwordId = useId();
+  const [password, setPassword] = useState("");
+  const [problem, setProblem] = useState<ApiProblem | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setProblem(null);
+    setSubmitting(true);
+
+    const result = await unlockShare(token, password);
+
+    if (result.ok) {
+      onUnlocked(result.data.key);
+      return;
+    }
+
+    setProblem(result.problem);
+    setSubmitting(false);
+  }
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <p className={styles.brand}>Shared from HomeCloud</p>
+        <h1 className={styles.title}>This link is password protected</h1>
+        <p className={styles.meta}>
+          Whoever sent it should have given you the password separately.
+        </p>
+      </header>
+
+      <form className={styles.unlock} onSubmit={submit}>
+        <label className={styles.unlockLabel} htmlFor={passwordId}>
+          Password
+        </label>
+        <input
+          id={passwordId}
+          className={styles.unlockInput}
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="off"
+          autoFocus
+          required
+        />
+        {problem ? (
+          <p className={styles.unlockError} role="alert">
+            {problem.detail}
+          </p>
+        ) : null}
+        <Button type="submit" variant="primary" disabled={submitting}>
+          {submitting ? "Checking…" : "Open link"}
+        </Button>
+      </form>
     </div>
   );
 }
@@ -86,10 +172,12 @@ function FilePreview({
   token,
   item,
   openItem,
+  unlockKey,
 }: {
   token: string;
   item: Item;
   openItem?: string;
+  unlockKey: string | null;
 }) {
   return (
     <>
@@ -98,13 +186,17 @@ function FilePreview({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           className={styles.preview}
-          src={publicContentUrl(token, openItem)}
+          src={publicContentUrl(token, openItem, unlockKey)}
           alt={item.name}
           decoding="async"
         />
       ) : null}
 
-      <a className={styles.download} href={publicContentUrl(token, openItem)} download={item.name}>
+      <a
+        className={styles.download}
+        href={publicContentUrl(token, openItem, unlockKey)}
+        download={item.name}
+      >
         Download {item.name}
       </a>
     </>
@@ -114,10 +206,12 @@ function FilePreview({
 function FolderListing({
   token,
   items,
+  unlockKey,
   onOpen,
 }: {
   token: string;
   items: Item[];
+  unlockKey: string | null;
   onOpen: (item: Item) => void;
 }) {
   if (items.length === 0) {
@@ -134,7 +228,7 @@ function FolderListing({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 className={styles.thumb}
-                src={publicThumbnailUrl(token, child.id)}
+                src={publicThumbnailUrl(token, child.id, unlockKey)}
                 alt=""
                 loading="lazy"
                 decoding="async"
@@ -158,7 +252,7 @@ function FolderListing({
             ) : (
               <a
                 className={styles.action}
-                href={publicContentUrl(token, child.id)}
+                href={publicContentUrl(token, child.id, unlockKey)}
                 download={child.name}
               >
                 Download<span className={styles.hidden}> {child.name}</span>

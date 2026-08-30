@@ -33,6 +33,9 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > POST   /api/v1/auth/passkeys/login/verify        (built) finish a passkey sign-in — no session
 > GET    /api/v1/auth/passkeys                     (built) this account's passkeys
 > DELETE /api/v1/auth/passkeys/{id}                (built) remove a passkey
+> GET    /api/v1/auth/recovery                     (built) whether this account has a recovery code
+> POST   /api/v1/auth/recovery                     (built) issue a new code, replacing any old one
+> POST   /api/v1/auth/recover                      (built) set a new password from a code — no session
 > GET    /api/v1/session                           (built) who is signed in
 > GET    /api/v1/libraries                         (built) libraries this account can see
 > GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb
@@ -58,6 +61,7 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/public/{token}                    (built) what a link points at — no session
 > GET    /api/v1/public/{token}/content            (built) download through a link
 > GET    /api/v1/public/{token}/thumbnail          (built) preview through a link
+> POST   /api/v1/public/{token}/unlock             (built) prove a link's password — no session
 > GET    /api/v1/libraries/{id}/members            (built) who is in this library
 > DELETE /api/v1/libraries/{id}/members/{user}     (built) remove a member — owner only
 > POST   /api/v1/libraries/{id}/invitations        (built) invite someone — owner only
@@ -69,6 +73,12 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 >
 > Errors use the problem shape described in section 6, served as
 > `application/problem+json` with the request id that appears in the logs.
+> One code is worth calling out: `password_required` (401) means a share
+> link is protected and has not been unlocked yet. It is distinct from
+> `unauthenticated` because the visitor has no account to sign in to —
+> they need the link's password. The unlock key returned by
+> `/unlock` is passed back as `?key=`, not a header, because an `<img>`
+> or a download link cannot send one.
 
 ### Auth
 - `POST /api/v1/auth/passkeys/register/options`

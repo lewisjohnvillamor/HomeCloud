@@ -16,6 +16,7 @@ use serde::Serialize;
 pub enum ErrorCode {
     BadRequest,
     Unauthenticated,
+    PasswordRequired,
     Forbidden,
     Conflict,
     TooManyRequests,
@@ -30,6 +31,7 @@ impl ErrorCode {
         match self {
             ErrorCode::BadRequest => StatusCode::BAD_REQUEST,
             ErrorCode::Unauthenticated => StatusCode::UNAUTHORIZED,
+            ErrorCode::PasswordRequired => StatusCode::UNAUTHORIZED,
             ErrorCode::Forbidden => StatusCode::FORBIDDEN,
             ErrorCode::Conflict => StatusCode::CONFLICT,
             ErrorCode::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
@@ -78,6 +80,15 @@ impl ApiError {
     /// Credentials were supplied and rejected.
     pub fn unauthorized(detail: impl Into<String>) -> Self {
         Self::new(ErrorCode::Unauthenticated, detail)
+    }
+
+    /// A protected share link that has not been unlocked yet. Distinct
+    /// from "sign in", because the visitor has no account to sign in to.
+    pub fn password_required() -> Self {
+        Self::new(
+            ErrorCode::PasswordRequired,
+            "This link is password protected.",
+        )
     }
 
     pub fn conflict(detail: impl Into<String>) -> Self {

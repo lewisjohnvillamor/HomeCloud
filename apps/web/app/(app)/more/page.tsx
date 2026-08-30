@@ -6,6 +6,7 @@ import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { Button } from "@/components/ui/button";
 import { PasskeySection } from "@/components/passkeys/passkey-section";
 import { PeopleSection } from "@/components/people/people-section";
+import { RecoverySection } from "@/components/session/recovery-section";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary, useSession } from "@/components/session/session-provider";
 import {
@@ -141,6 +142,9 @@ export default function MorePage() {
 
         <h3 className={styles.subheading}>Passkeys</h3>
         <PasskeySection />
+
+        <h3 className={styles.subheading}>Recovery code</h3>
+        <RecoverySection />
       </section>
 
       <section className={styles.section} aria-labelledby="library-heading">

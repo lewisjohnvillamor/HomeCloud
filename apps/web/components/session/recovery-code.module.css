@@ -1,0 +1,40 @@
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-inline-size: 26rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.detail {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.code {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--background);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.125rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}

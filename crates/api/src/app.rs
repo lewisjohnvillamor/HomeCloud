@@ -18,8 +18,8 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    auth, bootstrap, health, items, library, members, observability, passkeys, security, shares,
-    thumbnails, transfers,
+    auth, bootstrap, health, items, library, members, observability, passkeys, recovery, security,
+    shares, thumbnails, transfers,
 };
 
 /// Everything a handler is allowed to reach. Cheap to clone: the pool is
@@ -39,6 +39,7 @@ struct Inner {
     scans: Arc<ScanRegistry>,
     passkeys: Option<homecloud_auth::PasskeyService>,
     ceremonies: Ceremonies,
+    share_unlocks: shares::ShareUnlocks,
 }
 
 /// How the server is deployed. Grouped rather than passed as a handful
@@ -105,6 +106,7 @@ impl AppState {
                 scans: Arc::new(ScanRegistry::new()),
                 passkeys,
                 ceremonies: Ceremonies::new(),
+                share_unlocks: shares::ShareUnlocks::new(),
             }),
         }
     }
@@ -150,6 +152,10 @@ impl AppState {
     pub fn ceremonies(&self) -> &Ceremonies {
         &self.inner.ceremonies
     }
+
+    pub fn share_unlocks(&self) -> &shares::ShareUnlocks {
+        &self.inner.share_unlocks
+    }
 }
 
 /// Builds the application router.
@@ -164,6 +170,12 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/auth/login", post(auth::login))
         .route("/api/v1/auth/logout", post(auth::logout))
         .route("/api/v1/session", get(auth::session_status))
+        .route(
+            "/api/v1/auth/recovery",
+            get(recovery::status).post(recovery::regenerate),
+        )
+        // Recovering takes no session, by definition.
+        .route("/api/v1/auth/recover", post(recovery::recover))
         .route(
             "/api/v1/auth/passkeys",
             get(passkeys::list).post(passkeys::register_options),
@@ -253,6 +265,7 @@ pub fn router(state: AppState) -> Router {
         // Public share routes take no session: the token in the path is
         // the entire credential, and it grants read access to one item.
         .route("/api/v1/public/{token}", get(shares::public_view))
+        .route("/api/v1/public/{token}/unlock", post(shares::unlock))
         .route(
             "/api/v1/public/{token}/content",
             get(shares::public_content),

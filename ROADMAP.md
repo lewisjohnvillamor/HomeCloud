@@ -3,9 +3,10 @@
 > **Status (August 2026).** Phase 0 is complete. Phases 1 and 2 are complete
 > for the filesystem backend: the catalog reconciles against disk, and
 > transfers, folders, renames, moves, and trash/restore all work. Phase 3 has
-> landed apart from account recovery and upload request links:
-> password-backed sessions, server-enforced library membership, invitations
-> with per-role powers, and revocable public share links. Phase 4 has the Photos
+> landed apart from upload request links: password-backed sessions, passkeys,
+> recovery codes, server-enforced library membership, invitations with
+> per-role powers, and revocable public share links that can carry a
+> password of their own. Phase 4 has the Photos
 > timeline over images and videos, with generated thumbnails and FFmpeg poster
 > frames; transcoding for playback is still ahead. Phase 6 has its
 > non-AI half: document text is extracted during a scan and searched alongside

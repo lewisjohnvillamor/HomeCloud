@@ -56,6 +56,11 @@ pub fn check_policy(password: &str) -> Result<(), PasswordError> {
 pub fn hash_password_blocking(password: &str) -> Result<String, PasswordError> {
     check_policy(password)?;
 
+    hash_secret(password)
+}
+
+/// Hashes any secret with the shared Argon2 parameters.
+fn hash_secret(secret: &str) -> Result<String, PasswordError> {
     // 16 random bytes: the salt only has to be unique per password, and
     // this is the size the PHC format expects for Argon2.
     let mut salt = [0u8; 16];
@@ -64,7 +69,7 @@ pub fn hash_password_blocking(password: &str) -> Result<String, PasswordError> {
         .map_err(|_| PasswordError::Hashing)?;
 
     hasher()
-        .hash_password_with_salt(password.as_bytes(), &salt)
+        .hash_password_with_salt(secret.as_bytes(), &salt)
         .map(|hash| hash.to_string())
         .map_err(|_| PasswordError::Hashing)
 }
@@ -75,14 +80,68 @@ pub fn hash_password_blocking(password: &str) -> Result<String, PasswordError> {
 /// unsupported algorithm — so a caller cannot accidentally turn a
 /// storage problem into an authentication bypass.
 pub fn verify_password_blocking(password: &str, stored_hash: &str) -> bool {
+    verify_secret(password, stored_hash)
+}
+
+fn verify_secret(secret: &str, stored_hash: &str) -> bool {
     let Ok(parsed) = PasswordHash::new(stored_hash) else {
-        tracing::error!("stored password hash is unreadable");
+        tracing::error!("a stored secret hash is unreadable");
         return false;
     };
 
-    hasher()
-        .verify_password(password.as_bytes(), &parsed)
-        .is_ok()
+    hasher().verify_password(secret.as_bytes(), &parsed).is_ok()
+}
+
+/// A recovery code: five groups of five characters from an alphabet
+/// with no look-alikes, so it can be written down and read back.
+///
+/// About 116 bits of entropy — far beyond guessing — while staying
+/// something a person can copy onto paper and keep in a drawer, which is
+/// the actual recovery story for a server in someone's house.
+pub const RECOVERY_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const RECOVERY_GROUPS: usize = 5;
+const RECOVERY_GROUP_LEN: usize = 5;
+
+/// Generates a recovery code in `XXXXX-XXXXX-…` form.
+pub fn generate_recovery_code() -> Result<String, PasswordError> {
+    use rand::rngs::SysRng;
+    use rand::TryRng;
+
+    let mut bytes = [0u8; RECOVERY_GROUPS * RECOVERY_GROUP_LEN];
+    SysRng
+        .try_fill_bytes(&mut bytes)
+        .map_err(|_| PasswordError::Hashing)?;
+
+    let code: String = bytes
+        .chunks(RECOVERY_GROUP_LEN)
+        .map(|group| {
+            group
+                .iter()
+                .map(|byte| RECOVERY_ALPHABET[usize::from(*byte) % RECOVERY_ALPHABET.len()] as char)
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("-");
+
+    Ok(code)
+}
+
+/// Normalises a code a person typed: case and separators are noise.
+pub fn normalise_recovery_code(code: &str) -> String {
+    code.chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .map(|character| character.to_ascii_uppercase())
+        .collect()
+}
+
+/// Hashes a recovery code. Blocking and CPU-bound, like a password.
+pub fn hash_recovery_code_blocking(code: &str) -> Result<String, PasswordError> {
+    hash_secret(&normalise_recovery_code(code))
+}
+
+/// Verifies a recovery code against its stored hash.
+pub fn verify_recovery_code_blocking(code: &str, stored_hash: &str) -> bool {
+    verify_secret(&normalise_recovery_code(code), stored_hash)
 }
 
 #[cfg(test)]
@@ -147,5 +206,64 @@ mod tests {
             "not-a-hash"
         ));
         assert!(!verify_password_blocking("", ""));
+    }
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+
+    #[test]
+    fn a_recovery_code_is_readable_and_verifies() {
+        let code = generate_recovery_code().expect("code");
+
+        // Five groups of five, so it can be written on paper.
+        assert_eq!(code.split('-').count(), 5);
+        assert!(code.split('-').all(|group| group.len() == 5), "{code}");
+
+        let hash = hash_recovery_code_blocking(&code).expect("hash");
+        assert!(verify_recovery_code_blocking(&code, &hash));
+    }
+
+    #[test]
+    fn codes_are_unique() {
+        let first = generate_recovery_code().expect("code");
+        let second = generate_recovery_code().expect("code");
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn typing_it_back_forgives_case_and_separators() {
+        let code = generate_recovery_code().expect("code");
+        let hash = hash_recovery_code_blocking(&code).expect("hash");
+
+        let as_typed = code.to_lowercase().replace('-', " ");
+
+        assert!(verify_recovery_code_blocking(&as_typed, &hash));
+    }
+
+    #[test]
+    fn a_wrong_code_is_refused() {
+        let hash =
+            hash_recovery_code_blocking(&generate_recovery_code().expect("code")).expect("hash");
+
+        assert!(!verify_recovery_code_blocking(
+            "ABCDE-FGHJK-MNPQR-STUVW-XYZ23",
+            &hash
+        ));
+        assert!(!verify_recovery_code_blocking("", &hash));
+    }
+
+    #[test]
+    fn the_alphabet_has_no_look_alike_characters() {
+        let alphabet = String::from_utf8(RECOVERY_ALPHABET.to_vec()).expect("ascii");
+
+        for confusing in ['O', '0', 'I', '1', 'L'] {
+            assert!(
+                !alphabet.contains(confusing),
+                "`{confusing}` is easy to misread on paper"
+            );
+        }
     }
 }

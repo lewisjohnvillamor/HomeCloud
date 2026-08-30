@@ -118,23 +118,28 @@ A single-user deployment is usable end to end:
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.
 - **Sharing** — create a read-only public link to one file or folder, with an
-  optional expiry, revocable at any moment. A link grants nothing else: no
-  browsing, no uploads, no other item.
+  optional expiry and an optional password, revocable at any moment. A link
+  grants nothing else: no browsing, no uploads, no other item. A protected
+  link discloses nothing at all — not even the file's name — until the
+  password is given.
 - **Living room** — `/tv` is a remote-first photo wall and slideshow: arrows to
   move, Enter to play or pause, Escape to go back. It shows deterministic
   collections (on this day, recently added) that need no AI.
 - **More** — rescan the library, manage people, audit and revoke shared links,
-  restore from trash, sign out.
+  restore from trash, replace your recovery code, sign out.
 - **Passkeys** — register a device as a passkey and sign in with it instead of
   a password. Needs `HOMECLOUD_PUBLIC_ORIGIN` set, because WebAuthn binds a
   credential to a domain; without it the option is hidden rather than broken.
+- **Recovery** — a recovery code is generated at setup and shown once. There is
+  no email reset on a server in someone's house, so the code is the way back in
+  after a forgotten password: it sets a new password, ends every existing
+  session, and is replaced with a fresh one in the same step.
 - **Security** — Argon2id passwords, `HttpOnly` session cookies, throttled
   sign-in, server-enforced library membership on every route, canonical-root
   containment, and no symlink following.
 
-Not yet built: account recovery, password-protected shares, TV pairing by QR
-code, video transcoding for playback, offline sync, and the local AI features.
-See `ROADMAP.md`.
+Not yet built: TV pairing by QR code, video transcoding for playback, offline
+sync, and the local AI features. See `ROADMAP.md`.
 
 ## Local Development
 

@@ -155,3 +155,33 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.unlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  inline-size: min(100%, 22rem);
+}
+
+.unlockLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.unlockInput {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.unlockError {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+}

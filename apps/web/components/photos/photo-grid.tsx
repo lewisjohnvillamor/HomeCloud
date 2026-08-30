@@ -7,6 +7,25 @@ import { useAsyncData } from "@/lib/hooks/use-async-data";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import styles from "./photo-grid.module.css";
 
+/**
+ * Says what is actually here rather than calling everything a photo: a
+ * timeline of eleven pictures and one clip is not "12 photos".
+ */
+function describe(items: Item[]): string {
+  const videos = items.filter((item) => item.isVideo).length;
+  const photos = items.length - videos;
+
+  const parts: string[] = [];
+  if (photos > 0) {
+    parts.push(`${photos} photo${photos === 1 ? "" : "s"}`);
+  }
+  if (videos > 0) {
+    parts.push(`${videos} video${videos === 1 ? "" : "s"}`);
+  }
+
+  return parts.join(" · ");
+}
+
 /** Photos grouped under the month they were taken. */
 type Month = { key: string; label: string; photos: Item[] };
 
@@ -83,9 +102,7 @@ export function PhotoGrid({ library }: { library: string }) {
 
   return (
     <>
-      <p className={styles.note}>
-        {photos.length} photo{photos.length === 1 ? "" : "s"}
-      </p>
+      <p className={styles.note}>{describe(photos)}</p>
 
       {months.map((month) => (
         <section key={month.key} className={styles.month} aria-labelledby={`month-${month.key}`}>

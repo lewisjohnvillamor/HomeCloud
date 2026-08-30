@@ -20,6 +20,22 @@ pub async fn hash_password(password: String) -> Result<String, PasswordError> {
         .unwrap_or(Err(PasswordError::Hashing))
 }
 
+/// Hashes a recovery code without blocking the async executor.
+pub async fn hash_recovery_code(code: String) -> Result<String, PasswordError> {
+    tokio::task::spawn_blocking(move || password::hash_recovery_code_blocking(&code))
+        .await
+        .unwrap_or(Err(PasswordError::Hashing))
+}
+
+/// Verifies a recovery code without blocking the async executor.
+pub async fn verify_recovery_code(code: String, stored_hash: String) -> bool {
+    tokio::task::spawn_blocking(move || {
+        password::verify_recovery_code_blocking(&code, &stored_hash)
+    })
+    .await
+    .unwrap_or(false)
+}
+
 /// Verifies a password without blocking the async executor.
 pub async fn verify_password(password: String, stored_hash: String) -> bool {
     tokio::task::spawn_blocking(move || password::verify_password_blocking(&password, &stored_hash))

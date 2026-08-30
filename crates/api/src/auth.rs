@@ -185,7 +185,17 @@ pub async fn setup(
         }
     }
 
-    issue_session(&state, owner.user, display_name).await
+    // A recovery code is generated whether or not the owner asks: the
+    // moment they need one is the moment they cannot sign in to make it.
+    let recovery_code = crate::recovery::issue_code(&state, owner.user).await?;
+
+    issue_session_with(
+        &state,
+        owner.user,
+        display_name,
+        Some(serde_json::json!({ "recovery_code": recovery_code })),
+    )
+    .await
 }
 
 /// `POST /api/v1/auth/login`
@@ -312,17 +322,38 @@ pub(crate) async fn issue_session(
     user: UserId,
     display_name: String,
 ) -> Result<Response, ApiError> {
+    issue_session_with(state, user, display_name, None).await
+}
+
+/// Issues a session and returns the usual body with extra fields merged
+/// in — for flows like recovery that must hand back one more value in
+/// the same response that signs the person in.
+pub(crate) async fn issue_session_with(
+    state: &AppState,
+    user: UserId,
+    display_name: String,
+    extra: Option<serde_json::Value>,
+) -> Result<Response, ApiError> {
     let token = session::create(state.db(), user).await.map_err(|error| {
         tracing::error!(error = %error, "session creation failed");
         ApiError::internal()
     })?;
 
-    let mut response = Json(SessionResponse {
+    let mut body = serde_json::to_value(SessionResponse {
         authenticated: true,
         user_id: Some(user.to_string()),
         display_name: Some(display_name),
     })
-    .into_response();
+    .map_err(|_| ApiError::internal())?;
+
+    if let (Some(object), Some(extra)) = (
+        body.as_object_mut(),
+        extra.and_then(|extra| extra.as_object().cloned()),
+    ) {
+        object.extend(extra);
+    }
+
+    let mut response = Json(body).into_response();
 
     match session_cookie(token.expose(), state.secure_cookies()) {
         Some(cookie) => {

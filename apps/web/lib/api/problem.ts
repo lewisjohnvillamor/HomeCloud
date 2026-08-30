@@ -8,6 +8,7 @@
 export const ERROR_CODES = [
   "bad_request",
   "unauthenticated",
+  "password_required",
   "forbidden",
   "not_found",
   "conflict",

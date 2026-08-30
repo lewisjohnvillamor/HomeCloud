@@ -35,6 +35,12 @@ export type Session = {
   authenticated: boolean;
   userId: string | null;
   displayName: string | null;
+  /**
+   * Present only on the response that creates or recovers an account.
+   * Shown once and never returned again, so the UI has to display it
+   * there and then.
+   */
+  recoveryCode: string | null;
 };
 
 export type ScanStatus = {
@@ -164,6 +170,7 @@ export function parseSession(value: unknown): Session | undefined {
     authenticated: raw.authenticated,
     userId: text(raw.user_id),
     displayName: text(raw.display_name),
+    recoveryCode: text(raw.recovery_code),
   };
 }
 
@@ -191,6 +198,8 @@ export type Share = {
   createdAt: string;
   expiresAt: string | null;
   accessCount: number;
+  /** Whether opening the link also needs a password. */
+  protected: boolean;
   /** Present only on the response that created the share. */
   token: string | null;
 };
@@ -208,6 +217,7 @@ export function parseShare(value: unknown): Share | undefined {
     createdAt: text(raw.created_at) ?? "",
     expiresAt: text(raw.expires_at),
     accessCount: typeof raw.access_count === "number" ? raw.access_count : 0,
+    protected: raw.protected === true,
     token: text(raw.token),
   };
 }

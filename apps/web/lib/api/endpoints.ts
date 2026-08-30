@@ -217,11 +217,12 @@ export function restoreItem(item: string, options?: RequestOptions): Promise<Api
 export function createShare(
   item: string,
   expiresInDays: number | null,
+  password: string | null,
   options?: RequestOptions,
 ): Promise<ApiResult<Share>> {
   return postJson(
     `/api/v1/items/${encodeURIComponent(item)}/shares`,
-    { expires_in_days: expiresInDays },
+    { expires_in_days: expiresInDays, password },
     parseShare,
     options,
   );
@@ -245,27 +246,57 @@ export function revokeShare(share: string, options?: RequestOptions): Promise<Ap
   return deleteJson(`/api/v1/shares/${encodeURIComponent(share)}`, asUnknown, options);
 }
 
+/**
+ * Query string for a public request. The unlock key travels as a query
+ * parameter rather than a header because `<img>` and download links
+ * cannot send headers; the server logs paths only.
+ */
+export function publicQuery(item?: string, key?: string | null): string {
+  const parts: string[] = [];
+  if (item) {
+    parts.push(`item=${encodeURIComponent(item)}`);
+  }
+  if (key) {
+    parts.push(`key=${encodeURIComponent(key)}`);
+  }
+
+  return parts.length > 0 ? `?${parts.join("&")}` : "";
+}
+
 /** What a visitor with a link can see. Takes no session. */
 export function fetchPublicShare(
   token: string,
   item?: string,
+  key?: string | null,
   options?: RequestOptions,
 ): Promise<ApiResult<PublicShare>> {
-  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
-
-  return getJson(`/api/v1/public/${encodeURIComponent(token)}${suffix}`, parsePublicShare, options);
+  return getJson(
+    `/api/v1/public/${encodeURIComponent(token)}${publicQuery(item, key)}`,
+    parsePublicShare,
+    options,
+  );
 }
 
-export function publicContentUrl(token: string, item?: string): string {
-  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
-
-  return `/api/v1/public/${encodeURIComponent(token)}/content${suffix}`;
+/** Proves the password on a protected link, returning a key good for an hour. */
+export function unlockShare(
+  token: string,
+  password: string,
+  options?: RequestOptions,
+): Promise<ApiResult<{ key: string }>> {
+  return postJson(
+    `/api/v1/public/${encodeURIComponent(token)}/unlock`,
+    { password },
+    parseUnlockKey,
+    options,
+  );
 }
 
-export function publicThumbnailUrl(token: string, item?: string): string {
-  const suffix = item ? `?item=${encodeURIComponent(item)}` : "";
+export function publicContentUrl(token: string, item?: string, key?: string | null): string {
+  return `/api/v1/public/${encodeURIComponent(token)}/content${publicQuery(item, key)}`;
+}
 
-  return `/api/v1/public/${encodeURIComponent(token)}/thumbnail${suffix}`;
+export function publicThumbnailUrl(token: string, item?: string, key?: string | null): string {
+  return `/api/v1/public/${encodeURIComponent(token)}/thumbnail${publicQuery(item, key)}`;
 }
 
 // --- People ---
@@ -401,6 +432,79 @@ export function removePasskey(
   options?: RequestOptions,
 ): Promise<ApiResult<unknown>> {
   return deleteJson(`/api/v1/auth/passkeys/${encodeURIComponent(passkey)}`, asUnknown, options);
+}
+
+// --- Account recovery ---
+
+export type RecoveryStatus = { hasCode: boolean; createdAt: string | null };
+
+function parseRecoveryStatus(value: unknown): RecoveryStatus | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.has_code !== "boolean") {
+    return undefined;
+  }
+
+  return {
+    hasCode: raw.has_code,
+    createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
+  };
+}
+
+function parseRecoveryCode(value: unknown): { code: string } | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+
+  return typeof raw.code === "string" ? { code: raw.code } : undefined;
+}
+
+function parseUnlockKey(value: unknown): { key: string } | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+
+  return typeof raw.key === "string" ? { key: raw.key } : undefined;
+}
+
+export function fetchRecoveryStatus(
+  options?: RequestOptions,
+): Promise<ApiResult<RecoveryStatus>> {
+  return getJson("/api/v1/auth/recovery", parseRecoveryStatus, options);
+}
+
+/** Replaces any existing code. The new one is shown once. */
+export function regenerateRecoveryCode(
+  options?: RequestOptions,
+): Promise<ApiResult<{ code: string }>> {
+  return postJson("/api/v1/auth/recovery", {}, parseRecoveryCode, options);
+}
+
+/**
+ * Sets a new password from a recovery code. Takes no session, ends every
+ * existing one, and hands back a fresh code in the same response.
+ */
+export function recoverAccount(
+  input: { displayName: string; recoveryCode: string; newPassword: string },
+  options?: RequestOptions,
+): Promise<ApiResult<Session>> {
+  return postJson(
+    "/api/v1/auth/recover",
+    {
+      display_name: input.displayName,
+      recovery_code: input.recoveryCode,
+      new_password: input.newPassword,
+    },
+    parseSession,
+    options,
+  );
 }
 
 export { contentUrl, thumbnailUrl };
