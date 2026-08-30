@@ -44,3 +44,17 @@ impl From<&Item> for ItemView {
 pub fn items(items: &[Item]) -> Vec<ItemView> {
     items.iter().map(ItemView::from).collect()
 }
+
+/// A search result: the item, plus why it matched.
+///
+/// The snippet is server-highlighted with `<<` and `>>` markers rather
+/// than HTML, so a client renders the emphasis itself and no markup from
+/// a user's document can reach the page.
+#[derive(Debug, Serialize)]
+pub struct SearchResultView {
+    #[serde(flatten)]
+    pub item: ItemView,
+    pub matched: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snippet: Option<String>,
+}

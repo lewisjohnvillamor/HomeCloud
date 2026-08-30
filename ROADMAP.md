@@ -7,7 +7,10 @@
 > password-backed sessions, server-enforced library membership, invitations
 > with per-role powers, and revocable public share links. Phase 4 has the Photos
 > timeline over indexed images with generated thumbnails; video derivatives and
-> transcoding are still ahead. Phases 5 and 6 have not started.
+> transcoding are still ahead. Phase 6 has its
+> non-AI half: document text is extracted during a scan and searched alongside
+> file names. OCR, embeddings, and Ask Your Library are still ahead, and
+> Phase 5 has not started.
 
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 

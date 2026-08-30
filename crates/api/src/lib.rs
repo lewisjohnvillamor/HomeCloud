@@ -14,6 +14,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod health;
+pub mod indexing;
 pub mod items;
 pub mod library;
 pub mod members;

@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use homecloud_catalog::scan::{self, ScanSummary};
 use homecloud_domain::identity::LibraryId;
+use homecloud_search::IndexSummary;
 use homecloud_storage::FilesystemStorage;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -20,6 +21,8 @@ pub struct ScanStatusView {
     /// RFC 3339 timestamp of when the last scan finished.
     pub finished_at: Option<String>,
     pub last_summary: Option<ScanSummary>,
+    /// What document indexing did in the same pass.
+    pub last_index: Option<IndexSummary>,
     /// A short, non-sensitive description of why the last scan failed.
     pub last_error: Option<String>,
 }
@@ -33,6 +36,7 @@ struct ScanState {
     rescan_requested: bool,
     finished_at: Option<OffsetDateTime>,
     last_summary: Option<ScanSummary>,
+    last_index: Option<IndexSummary>,
     last_error: Option<String>,
 }
 
@@ -46,6 +50,7 @@ impl ScanState {
                     .ok()
             }),
             last_summary: self.last_summary,
+            last_index: self.last_index,
             last_error: self.last_error.clone(),
         }
     }
@@ -96,9 +101,19 @@ impl ScanRegistry {
             loop {
                 let outcome = scan::reconcile(&pool, library, &storage).await;
 
+                // Reconciliation decides what exists; indexing then reads
+                // the documents that are new or changed.
+                let index = if outcome.is_ok() {
+                    Some(crate::indexing::index_library(&pool, library, &storage).await)
+                } else {
+                    None
+                };
+
                 let mut states = registry.lock();
                 let state = states.entry(library.as_uuid()).or_default();
                 state.finished_at = Some(OffsetDateTime::now_utc());
+
+                state.last_index = index;
 
                 match outcome {
                     Ok(summary) => {

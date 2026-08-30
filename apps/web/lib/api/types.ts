@@ -347,3 +347,67 @@ export function parseInvitationPreview(value: unknown): InvitationPreview | unde
     expiresAt: text(raw.expires_at) ?? "",
   };
 }
+
+/** A search hit: an item plus why it matched. */
+export type SearchResult = Item & {
+  matched: "name" | "content" | "name_and_content";
+  /** Passage around a content match, marked with `<<` and `>>`. */
+  snippet: string | null;
+};
+
+export function parseSearchResults(value: unknown): SearchResult[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const results: SearchResult[] = [];
+  for (const entry of value) {
+    const item = parseItem(entry);
+    const raw = record(entry);
+    if (!item || !raw) {
+      return undefined;
+    }
+
+    const matched = raw.matched;
+
+    results.push({
+      ...item,
+      matched:
+        matched === "content" || matched === "name_and_content" || matched === "name"
+          ? matched
+          : "name",
+      snippet: text(raw.snippet),
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Splits a server-highlighted snippet into plain and matched segments.
+ *
+ * The server marks matches with `<<` and `>>` rather than HTML so a
+ * document's own contents can never become markup on the page.
+ */
+export function snippetSegments(snippet: string): { text: string; matched: boolean }[] {
+  const segments: { text: string; matched: boolean }[] = [];
+  let rest = snippet;
+
+  while (rest.length > 0) {
+    const start = rest.indexOf("<<");
+    const end = start === -1 ? -1 : rest.indexOf(">>", start);
+
+    if (start === -1 || end === -1) {
+      segments.push({ text: rest, matched: false });
+      break;
+    }
+
+    if (start > 0) {
+      segments.push({ text: rest.slice(0, start), matched: false });
+    }
+    segments.push({ text: rest.slice(start + 2, end), matched: true });
+    rest = rest.slice(end + 2);
+  }
+
+  return segments.filter((segment) => segment.text.length > 0);
+}

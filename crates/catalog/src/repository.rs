@@ -254,6 +254,36 @@ pub async fn search(
     items_from_rows(rows)
 }
 
+/// Loads items by id, in the order the ids were given.
+///
+/// For search, where ranking happens in the query that produced the ids
+/// and must survive the fetch.
+pub async fn items_by_ids(
+    pool: &PgPool,
+    library: LibraryId,
+    ids: &[ItemId],
+) -> Result<Vec<Item>, CatalogError> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let uuids: Vec<uuid::Uuid> = ids.iter().map(|id| id.as_uuid()).collect();
+    let rows = sqlx::query(&format!(
+        "SELECT {ITEM_COLUMNS} FROM items WHERE library_id = $1 AND id = ANY($2)"
+    ))
+    .bind(library.as_uuid())
+    .bind(&uuids)
+    .fetch_all(pool)
+    .await?;
+
+    let items = items_from_rows(rows)?;
+
+    Ok(ids
+        .iter()
+        .filter_map(|id| items.iter().find(|item| item.id == *id).cloned())
+        .collect())
+}
+
 /// Items currently in the trash, most recently trashed first.
 pub async fn trashed(pool: &PgPool, library: LibraryId) -> Result<Vec<Item>, CatalogError> {
     let rows = sqlx::query(&format!(

@@ -110,7 +110,8 @@ A single-user deployment is usable end to end:
 - **Photos** — every indexed image, grouped by month, served as generated
   thumbnails so a large library loads on a phone. Images also preview inline in
   the file list.
-- **Search** — name search across the library.
+- **Search** — finds a file by its name *or* by the text inside it (plain text
+  and PDF today), with a snippet showing the matching passage.
 - **People** — invite someone to the library with a one-time link; they create
   their own account and can then read and add files. Only the owner manages
   membership, and removing someone ends their sessions immediately.

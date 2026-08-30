@@ -16,6 +16,7 @@ homecloud-auth.workspace = true
 homecloud-catalog.workspace = true
 homecloud-domain.workspace = true
 homecloud-media.workspace = true
+homecloud-search.workspace = true
 homecloud-storage.workspace = true
 
 
@@ -41,6 +42,7 @@ homecloud-auth.workspace = true
 image.workspace = true
 homecloud-domain.workspace = true
 homecloud-media.workspace = true
+homecloud-search.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 http.workspace = true

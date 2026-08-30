@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::app::AppState;
 use crate::auth::CurrentUser;
 use crate::error::ApiError;
-use crate::view::{self, ItemView};
+use crate::view::{self, ItemView, SearchResultView};
 
 /// Largest page a client may ask for. Bounds the work one request can
 /// cause regardless of what the client sends.
@@ -149,12 +149,15 @@ pub struct SearchQuery {
 }
 
 /// `GET /api/v1/libraries/{library}/search?q=...`
+///
+/// Matches file names and the text inside documents, ranked together: a
+/// person looking for "invoice" does not care which one it was found in.
 pub async fn search(
     State(state): State<AppState>,
     CurrentUser(user): CurrentUser,
     Path(library): Path<String>,
     Query(query): Query<SearchQuery>,
-) -> Result<Json<Vec<ItemView>>, ApiError> {
+) -> Result<Json<Vec<SearchResultView>>, ApiError> {
     let library = parse_library(&library)?;
     authorize(&state, user, library).await?;
 
@@ -167,11 +170,35 @@ pub async fn search(
         .limit
         .unwrap_or(DEFAULT_PAGE_SIZE)
         .clamp(1, MAX_PAGE_SIZE);
-    let items = repository::search(state.db(), library, term, limit)
+    let hits = homecloud_search::query::search(state.db(), library, term, limit)
+        .await
+        .map_err(|error| {
+            tracing::warn!(error = %error, "search failed");
+            ApiError::dependency_unavailable("database")
+        })?;
+
+    // The ranking happened in the query that produced these ids; loading
+    // the items must not reorder them.
+    let ids: Vec<_> = hits.iter().map(|hit| hit.item).collect();
+    let items = repository::items_by_ids(state.db(), library, &ids)
         .await
         .map_err(catalog_error)?;
 
-    Ok(Json(view::items(&items)))
+    Ok(Json(
+        items
+            .iter()
+            .zip(hits.iter())
+            .map(|(item, hit)| SearchResultView {
+                item: ItemView::from(item),
+                matched: match hit.kind {
+                    homecloud_search::MatchKind::Name => "name",
+                    homecloud_search::MatchKind::Content => "content",
+                    homecloud_search::MatchKind::NameAndContent => "name_and_content",
+                },
+                snippet: hit.snippet.clone(),
+            })
+            .collect(),
+    ))
 }
 
 /// `GET /api/v1/libraries/{library}/trash`

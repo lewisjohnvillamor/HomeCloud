@@ -21,6 +21,7 @@ import {
   parseLibraries,
   parsePublicShare,
   parseScanStatus,
+  parseSearchResults,
   parseInvitation,
   parseInvitationPreview,
   parseInvitations,
@@ -36,6 +37,7 @@ import {
   type InvitationPreview,
   type Member,
   type ScanStatus,
+  type SearchResult,
   type Session,
   type Share,
 } from "./types";
@@ -122,10 +124,10 @@ export function searchLibrary(
   library: string,
   query: string,
   options?: RequestOptions,
-): Promise<ApiResult<Item[]>> {
+): Promise<ApiResult<SearchResult[]>> {
   return getJson(
     `/api/v1/libraries/${encodeURIComponent(library)}/search?q=${encodeURIComponent(query)}`,
-    parseItems,
+    parseSearchResults,
     options,
   );
 }

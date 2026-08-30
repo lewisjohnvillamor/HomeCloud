@@ -349,3 +349,34 @@ test("a removed member loses access straight away", async ({ browser }) => {
   await guest.close();
   await owner.close();
 });
+
+test("search finds a document by a word inside it", async ({ browser }) => {
+  const { owner, ownerPage } = await signedInPage(browser, "placeholder.txt");
+
+  // A document whose name says nothing about its contents.
+  await ownerPage
+    .getByLabel("Choose files to upload")
+    .setInputFiles(
+      tempFile("4021.txt", "Invoice for one standby generator, delivered to the workshop."),
+    );
+  await expect(ownerPage.getByRole("row").filter({ hasText: "4021.txt" })).toBeVisible();
+
+  // Uploads are indexed by the next scan.
+  await ownerPage.goto("/more");
+  await ownerPage.getByRole("button", { name: "Scan library" }).click();
+  await expect(
+    ownerPage.getByRole("status").filter({ hasText: "Last scan indexed" }),
+  ).toBeVisible({ timeout: 30_000 });
+
+  await ownerPage.goto("/search");
+  await ownerPage.getByRole("searchbox", { name: "Search your library" }).fill("generator");
+  await ownerPage.getByRole("button", { name: "Search" }).click();
+
+  const result = ownerPage.getByRole("listitem").filter({ hasText: "4021.txt" });
+  await expect(result).toBeVisible();
+  await expect(result).toContainText("found in the document");
+  // The snippet shows the matching passage, with the word highlighted.
+  await expect(result.locator("mark")).toContainText("generator");
+
+  await owner.close();
+});

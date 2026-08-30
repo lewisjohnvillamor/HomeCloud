@@ -7,7 +7,8 @@ import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary } from "@/components/session/session-provider";
 import { contentUrl, searchLibrary } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
-import type { Item } from "@/lib/api/types";
+import type { SearchResult } from "@/lib/api/types";
+import { snippetSegments } from "@/lib/api/types";
 import { formatBytes, parentOf } from "@/lib/format";
 import formStyles from "@/components/ui/form.module.css";
 import styles from "./search.module.css";
@@ -15,7 +16,7 @@ import styles from "./search.module.css";
 type Results =
   | { phase: "idle" }
   | { phase: "searching" }
-  | { phase: "done"; term: string; items: Item[] }
+  | { phase: "done"; term: string; items: SearchResult[] }
   | { phase: "failed"; problem: ApiProblem };
 
 export default function SearchPage() {
@@ -65,7 +66,8 @@ export default function SearchPage() {
           </Button>
         </div>
         <p className={formStyles.hint}>
-          Searches names in the catalog. Content search arrives with the indexing pipeline.
+          Searches file names and the text inside documents. Run a scan from More after
+          adding files.
         </p>
       </form>
 
@@ -90,7 +92,23 @@ export default function SearchPage() {
               <span className={styles.resultMeta}>
                 {item.kind === "folder" ? "Folder" : formatBytes(item.sizeBytes)} ·{" "}
                 {item.path}
+                {item.matched !== "name" ? (
+                  <span className={styles.badge}>found in the document</span>
+                ) : null}
               </span>
+              {item.snippet ? (
+                <span className={styles.snippet}>
+                  {snippetSegments(item.snippet).map((segment, index) =>
+                    segment.matched ? (
+                      <mark key={index} className={styles.mark}>
+                        {segment.text}
+                      </mark>
+                    ) : (
+                      <span key={index}>{segment.text}</span>
+                    ),
+                  )}
+                </span>
+              ) : null}
               <span className={styles.resultActions}>
                 <Link
                   className={styles.action}
