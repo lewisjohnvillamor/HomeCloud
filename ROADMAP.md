@@ -20,7 +20,7 @@
 > still ahead. Phase 5
 > has the `/tv` interface, a remote-driven slideshow, deterministic memories
 > including trips clustered by date and location, hide controls, and QR pairing
-> with a TV-scoped credential; photo-frame mode is still ahead.
+> with a TV-scoped credential, and photo-frame mode. Phase 5 is complete.
 
 The project is intentionally phased. Each phase must feel useful before the next one begins.
 

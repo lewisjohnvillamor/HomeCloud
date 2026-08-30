@@ -146,3 +146,32 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* Photo-frame mode: a picture on a shelf. No chrome, no captions, and
+   nothing that asks to be read from across a room. */
+.frame {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+
+.frameImage {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* Deliberately faint. A photo frame that shouts the time is a clock
+   with a picture behind it. */
+.frameClock {
+  position: absolute;
+  margin: 0;
+  color: rgb(255 255 255 / 55%);
+  font-size: clamp(1.5rem, 3vw, 3rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 60%);
+}
