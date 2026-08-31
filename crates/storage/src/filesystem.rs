@@ -5,8 +5,10 @@
 //! so a link planted inside the library cannot be used to read the rest
 //! of the host.
 
+use std::future::Future;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -152,6 +154,122 @@ fn map_io_error(error: io::Error) -> StorageError {
             tracing::warn!(kind = ?error.kind(), "unexpected storage error");
             StorageError::Unavailable
         }
+    }
+}
+
+/// Whether a failed `rename` means the two paths are on different
+/// filesystems.
+///
+/// A library root is one path to this server, but it need not be one
+/// disk: mounting an external drive at `library/photos` is an ordinary
+/// thing to do, and it makes moving a file out of that folder a copy
+/// rather than a rename.
+fn is_cross_device(error: &io::Error) -> bool {
+    matches!(error.kind(), io::ErrorKind::CrossesDevices)
+}
+
+/// Whether a failed `hard_link` means this filesystem cannot link,
+/// rather than that this particular link was refused.
+fn cannot_link(error: &io::Error) -> bool {
+    is_cross_device(error)
+        || matches!(
+            error.kind(),
+            // exFAT and FAT32 — what most external drives are sold
+            // formatted as — have no hard links at all. They report the
+            // attempt as `EPERM` rather than as unsupported, which is
+            // indistinguishable here from a genuine permission problem;
+            // falling back on both costs nothing, because a copy that
+            // is truly not permitted fails the same way and reports the
+            // same error.
+            io::ErrorKind::Unsupported | io::ErrorKind::PermissionDenied
+        )
+}
+
+/// Copies `source` to `target`, which must not already exist.
+///
+/// `create_new` is what makes this a safe substitute for `hard_link`:
+/// it refuses an existing destination in the same atomic step the link
+/// would have, so two uploads racing for one name still cannot lose one
+/// another on a filesystem that has no links.
+async fn copy_into_new(source: &Path, target: &Path) -> io::Result<()> {
+    let mut reader = fs::File::open(source).await?;
+    let mut writer = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(target)
+        .await?;
+
+    // Anything that goes wrong from here leaves a partial file where a
+    // whole one belongs, which is worse than the failure itself: it
+    // looks like a real file to every later scan. So the destination is
+    // removed on the way out.
+    let copied = async {
+        tokio::io::copy(&mut reader, &mut writer).await?;
+        // A copy is only a move once the bytes are actually on the
+        // other disk; the source is about to be deleted.
+        writer.sync_all().await
+    }
+    .await;
+
+    if let Err(error) = copied {
+        drop(writer);
+        let _ = fs::remove_file(target).await;
+        return Err(error);
+    }
+
+    Ok(())
+}
+
+/// Links `source` at `target`, copying instead where the filesystem
+/// cannot link. The source is left alone either way.
+async fn link_into_new(source: &Path, target: &Path) -> io::Result<()> {
+    match fs::hard_link(source, target).await {
+        Err(error) if cannot_link(&error) => copy_into_new(source, target).await,
+        other => other,
+    }
+}
+
+/// Moves an entry that `rename` could not, by copying it across and
+/// removing the original.
+///
+/// Boxed because it recurses: a folder is moved by moving everything
+/// inside it. Nothing is removed until its copy is complete, so an
+/// interrupted move leaves the original where it was rather than
+/// somewhere between two disks.
+fn move_across(
+    source: PathBuf,
+    target: PathBuf,
+) -> Pin<Box<dyn Future<Output = io::Result<()>> + Send>> {
+    Box::pin(async move {
+        let metadata = fs::symlink_metadata(&source).await?;
+
+        if !metadata.is_dir() {
+            copy_into_new(&source, &target).await?;
+            return fs::remove_file(&source).await;
+        }
+
+        fs::create_dir(&target).await?;
+
+        let mut entries = fs::read_dir(&source).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            move_across(entry.path(), target.join(entry.file_name())).await?;
+        }
+
+        fs::remove_dir(&source).await
+    })
+}
+
+/// Renames `source` to `target`, falling back to a copy when the two are
+/// on different filesystems.
+async fn rename_or_move(source: &Path, target: &Path) -> io::Result<()> {
+    match fs::rename(source, target).await {
+        // Only a genuine cross-device rename falls back. Unlike linking,
+        // renaming works on every filesystem here, so any other failure
+        // is a real one and copying would not fix it.
+        Err(error) if is_cross_device(&error) => {
+            move_across(source.to_path_buf(), target.to_path_buf()).await
+        }
+        other => other,
     }
 }
 
@@ -338,7 +456,7 @@ impl FilesystemStorage {
         // atomically. `rename` would silently replace a file that
         // appeared between a check and the move, which is how two
         // simultaneous uploads of the same name lose one of them.
-        let result = fs::hard_link(&staged.temporary, &target).await;
+        let result = link_into_new(&staged.temporary, &target).await;
         let _ = fs::remove_file(&staged.temporary).await;
 
         match result {
@@ -413,7 +531,7 @@ impl MutableStorage for FilesystemStorage {
             fs::create_dir_all(parent).await.map_err(map_io_error)?;
         }
 
-        fs::rename(&source, &target).await.map_err(map_io_error)
+        rename_or_move(&source, &target).await.map_err(map_io_error)
     }
 
     async fn move_to_trash(&self, path: &LibraryPath) -> Result<LibraryPath, StorageError> {
@@ -434,7 +552,9 @@ impl MutableStorage for FilesystemStorage {
         let trash_path = LibraryPath::parse(&format!("{TRASH_DIRECTORY}/{}-{name}", uuid_like()))?;
         let target = self.resolve_for_write(&trash_path).await?;
 
-        fs::rename(&source, &target).await.map_err(map_io_error)?;
+        rename_or_move(&source, &target)
+            .await
+            .map_err(map_io_error)?;
 
         Ok(trash_path)
     }
@@ -575,7 +695,7 @@ impl FilesystemStorage {
         fs::create_dir_all(&store).await.map_err(map_io_error)?;
 
         let name = format!("version-{}", uuid_like());
-        fs::rename(&source, store.join(&name))
+        rename_or_move(&source, &store.join(&name))
             .await
             .map_err(map_io_error)?;
 
@@ -611,7 +731,7 @@ impl FilesystemStorage {
 
         // As with finishing an upload: `hard_link` refuses an existing
         // destination atomically, where `rename` would replace it.
-        let result = fs::hard_link(&source, &target).await;
+        let result = link_into_new(&source, &target).await;
 
         match result {
             Ok(()) => {
@@ -720,5 +840,64 @@ impl FilesystemStorage {
 
         (safe && !key.is_empty() && !key.contains(".."))
             .then(|| self.root.join(DERIVATIVES_DIRECTORY).join(key))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The asymmetry between the two predicates is deliberate and easy to
+    /// undo by accident, so it is written down as a test.
+    ///
+    /// `hard_link` has to fall back on a refusal, because a filesystem
+    /// with no links reports one. `rename` must not: it works everywhere,
+    /// so a refusal there is a real refusal, and copying instead would
+    /// turn "you may not touch this" into a duplicate file.
+    #[test]
+    fn only_linking_falls_back_on_a_refusal() {
+        let refused = io::Error::from(io::ErrorKind::PermissionDenied);
+        assert!(cannot_link(&refused));
+        assert!(!is_cross_device(&refused));
+
+        let elsewhere = io::Error::from(io::ErrorKind::CrossesDevices);
+        assert!(cannot_link(&elsewhere));
+        assert!(is_cross_device(&elsewhere));
+
+        let unsupported = io::Error::from(io::ErrorKind::Unsupported);
+        assert!(cannot_link(&unsupported));
+        assert!(!is_cross_device(&unsupported));
+
+        // Everything else is a real failure that a copy would not fix.
+        let missing = io::Error::from(io::ErrorKind::NotFound);
+        assert!(!cannot_link(&missing));
+        assert!(!is_cross_device(&missing));
+    }
+
+    /// The guarantee `copy_into_new` exists to preserve. Losing it would
+    /// mean an upload silently replacing a file of the same name on a
+    /// filesystem that happens not to support links.
+    #[tokio::test]
+    async fn copying_refuses_a_destination_that_already_exists() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let source = temp.path().join("new.txt");
+        let target = temp.path().join("taken.txt");
+
+        std::fs::write(&source, b"the new bytes").expect("write source");
+        std::fs::write(&target, b"the bytes already there").expect("write target");
+
+        let error = copy_into_new(&source, &target).await;
+
+        assert_eq!(
+            error
+                .expect_err("an occupied destination must be refused")
+                .kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert_eq!(
+            std::fs::read_to_string(&target).expect("read"),
+            "the bytes already there",
+            "the existing file was overwritten"
+        );
     }
 }

@@ -21,6 +21,7 @@ pub struct TestDatabase {
     pub pool: PgPool,
     admin_url: String,
     name: String,
+    removed: bool,
 }
 
 impl TestDatabase {
@@ -39,9 +40,20 @@ impl TestDatabase {
 
         let name = format!("homecloud_test_{}", Uuid::new_v4().simple());
 
-        let mut admin = PgConnection::connect(&admin_url)
-            .await
-            .expect("connect to the configured PostgreSQL server");
+        // Bounded, because an unreachable server is not always a server
+        // that refuses. A wedged container accepts the connection and
+        // then says nothing, and an unbounded wait there does not fail
+        // the test — it hangs the job until the six-hour CI timeout
+        // kills it, with no output saying why. Ten seconds is far longer
+        // than a healthy server needs and far shorter than a wasted
+        // afternoon.
+        let mut admin = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            PgConnection::connect(&admin_url),
+        )
+        .await
+        .expect("the configured PostgreSQL server did not answer within ten seconds")
+        .expect("connect to the configured PostgreSQL server");
         admin
             .execute(format!(r#"CREATE DATABASE "{name}""#).as_str())
             .await
@@ -62,6 +74,7 @@ impl TestDatabase {
             pool,
             admin_url,
             name,
+            removed: false,
         })
     }
 
@@ -69,8 +82,9 @@ impl TestDatabase {
         database_url_for(&self.admin_url, &self.name)
     }
 
-    /// Drops the database. Called explicitly because `Drop` cannot await.
-    pub async fn cleanup(self) {
+    /// Drops the database. Called explicitly at the end of a test that
+    /// passes; [`Drop`] covers the one that does not.
+    pub async fn cleanup(mut self) {
         self.pool.close().await;
 
         if let Ok(mut admin) = PgConnection::connect(&self.admin_url).await {
@@ -81,6 +95,60 @@ impl TestDatabase {
                 .await;
             let _ = admin.close().await;
         }
+
+        self.removed = true;
+    }
+}
+
+impl Drop for TestDatabase {
+    /// A failing test fails by panicking, which skips the `cleanup` call
+    /// at the end of its body and leaves the database behind. One is
+    /// nothing. A day of them filled the disk and took the PostgreSQL
+    /// server down with it, which then failed every later run for a
+    /// reason that had nothing to do with the code under test.
+    ///
+    /// `Drop` cannot await, so the removal runs on a thread of its own
+    /// and is waited for: the test process may exit immediately after,
+    /// and a detached thread would not survive it.
+    fn drop(&mut self) {
+        if self.removed {
+            return;
+        }
+
+        let admin_url = self.admin_url.clone();
+        let name = self.name.clone();
+
+        let removal = std::thread::spawn(move || {
+            let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+
+            runtime.block_on(async move {
+                // Bounded, because this is joined: a cleanup that hung
+                // would hang the whole test process with it, and a
+                // database left behind is much the better failure. It
+                // also cannot connect when the server is the thing that
+                // died, which is exactly when this runs.
+                let removal = async {
+                    if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
+                        let _ = admin
+                            .execute(
+                                format!(r#"DROP DATABASE IF EXISTS "{name}" WITH (FORCE)"#)
+                                    .as_str(),
+                            )
+                            .await;
+                        let _ = admin.close().await;
+                    }
+                };
+
+                let _ = tokio::time::timeout(std::time::Duration::from_secs(10), removal).await;
+            });
+        });
+
+        let _ = removal.join();
     }
 }
 
