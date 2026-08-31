@@ -1128,6 +1128,12 @@ test("a memory can be dismissed and brought back", async ({ browser }) => {
   await expect(hidden).toContainText("Recently added");
   await hidden.getByRole("button", { name: /Show again/ }).click();
 
+  // Wait for it to leave the hidden list before navigating. Leaving a
+  // page cancels its in-flight requests, so going straight to the home
+  // screen can outrun the un-hiding — a race this won on a fast machine
+  // and lost on CI.
+  await expect(hidden).not.toContainText("Recently added");
+
   await ownerPage.goto("/");
   await expect(
     ownerPage.getByRole("region", { name: /Recently added/ }),
