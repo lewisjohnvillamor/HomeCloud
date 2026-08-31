@@ -17,6 +17,11 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-latest
+    # A wedged job is worse than a failing one: without a ceiling it runs
+    # to GitHub's six-hour default, so nobody learns anything for six
+    # hours. These are far above what a healthy run takes — minutes, or
+    # tens of minutes from a cold cache — and far below a wasted day.
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -62,6 +67,7 @@ jobs:
   web:
     name: Web
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/web
@@ -91,6 +97,7 @@ jobs:
   e2e:
     name: Web end-to-end
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: apps/web
@@ -124,6 +131,7 @@ jobs:
   journeys:
     name: Full-stack journeys
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
