@@ -829,3 +829,69 @@ export function parseAiSettings(value: unknown): AiSettings | undefined {
     pendingItems: typeof raw.pending_items === "number" ? raw.pending_items : 0,
   };
 }
+
+/** A phone somebody backs photographs up from. */
+export type BackupDevice = {
+  id: string;
+  name: string;
+  /** Where its photographs land. Shown, because they are ordinary files. */
+  folder: string;
+  /** Null until the first backup finishes: "never" is a real answer. */
+  lastBackupAt: string | null;
+  photoCount: number;
+};
+
+export function parseBackupDevice(value: unknown): BackupDevice | undefined {
+  const raw = record(value);
+  if (!raw || typeof raw.id !== "string" || typeof raw.name !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    folder: typeof raw.folder === "string" ? raw.folder : "",
+    lastBackupAt: typeof raw.last_backup_at === "string" ? raw.last_backup_at : null,
+    photoCount: typeof raw.photo_count === "number" ? raw.photo_count : 0,
+  };
+}
+
+export function parseBackupDevices(value: unknown): BackupDevice[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const devices: BackupDevice[] = [];
+  for (const entry of value) {
+    const device = parseBackupDevice(entry);
+    if (!device) {
+      return undefined;
+    }
+    devices.push(device);
+  }
+
+  return devices;
+}
+
+/** What a backup still has to send. */
+export type BackupCheck = {
+  missing: string[];
+  alreadyHere: number;
+  folder: string;
+};
+
+export function parseBackupCheck(value: unknown): BackupCheck | undefined {
+  const raw = record(value);
+  if (!raw || !Array.isArray(raw.missing)) {
+    return undefined;
+  }
+  if (!raw.missing.every((name) => typeof name === "string")) {
+    return undefined;
+  }
+
+  return {
+    missing: raw.missing as string[],
+    alreadyHere: typeof raw.already_here === "number" ? raw.already_here : 0,
+    folder: typeof raw.folder === "string" ? raw.folder : "",
+  };
+}

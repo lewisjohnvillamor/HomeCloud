@@ -11,6 +11,7 @@ pub mod ai;
 pub mod albums;
 pub mod app;
 pub mod auth;
+pub mod backup;
 pub mod bootstrap;
 pub mod config;
 pub mod db;

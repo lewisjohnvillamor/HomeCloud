@@ -95,9 +95,12 @@
   color: var(--text-muted);
 }
 
-.tvLink {
+/* A link out of More to a page of its own — the television, the phone
+   backup. Sized as a control because it is one to a finger. */
+.pageLink {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   min-block-size: var(--control-height);
   padding: 0 var(--space-5);
   border: 1px solid var(--border);
@@ -107,11 +110,11 @@
   text-decoration: none;
 }
 
-.tvLink:hover {
+.pageLink:hover {
   background: var(--surface-hover);
 }
 
-.tvLink:focus-visible {
+.pageLink:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

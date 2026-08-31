@@ -35,6 +35,9 @@ import {
   parseInvitations,
   parseMembers,
   parseAiSettings,
+  parseBackupCheck,
+  parseBackupDevice,
+  parseBackupDevices,
   parseAlbumContents,
   parseAlbums,
   parseDuplicateGroups,
@@ -62,6 +65,8 @@ import {
   type ScanStatus,
   type SearchResult,
   type AiSettings,
+  type BackupCheck,
+  type BackupDevice,
   type Album,
   type AlbumContents,
   type DuplicateGroup,
@@ -1018,3 +1023,78 @@ export function tvContentUrl(token: string, item: string): string {
 }
 
 export { contentUrl, thumbnailUrl };
+
+// --- Phone backup ---
+//
+// The photographs themselves go through `sendFile` like any other
+// upload. These endpoints only answer "which of these have you not
+// got?", which is what makes the second backup quick.
+
+/** How many files one check may ask about; the server refuses more. */
+export const BACKUP_BATCH = 2000;
+
+export function fetchBackupDevices(
+  library: string,
+  options?: RequestOptions,
+): Promise<ApiResult<BackupDevice[]>> {
+  return getJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/backup/devices`,
+    parseBackupDevices,
+    options,
+  );
+}
+
+/** Registers a phone, or returns the existing one of that name. */
+export function registerBackupDevice(
+  library: string,
+  name: string,
+  options?: RequestOptions,
+): Promise<ApiResult<BackupDevice>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/backup/devices`,
+    { name },
+    parseBackupDevice,
+    options,
+  );
+}
+
+export function checkBackup(
+  library: string,
+  device: string,
+  files: { name: string; sizeBytes: number }[],
+  options?: RequestOptions,
+): Promise<ApiResult<BackupCheck>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/backup/devices/${encodeURIComponent(device)}/check`,
+    { files: files.map((file) => ({ name: file.name, size_bytes: file.sizeBytes })) },
+    parseBackupCheck,
+    options,
+  );
+}
+
+export function finishBackup(
+  library: string,
+  device: string,
+  sent: number,
+  options?: RequestOptions,
+): Promise<ApiResult<BackupDevice>> {
+  return postJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/backup/devices/${encodeURIComponent(device)}/finish`,
+    { sent },
+    parseBackupDevice,
+    options,
+  );
+}
+
+/** Forgets a phone. Its photographs stay where they are. */
+export function forgetBackupDevice(
+  library: string,
+  device: string,
+  options?: RequestOptions,
+): Promise<ApiResult<unknown>> {
+  return deleteJson(
+    `/api/v1/libraries/${encodeURIComponent(library)}/backup/devices/${encodeURIComponent(device)}`,
+    (value) => value ?? null,
+    options,
+  );
+}
