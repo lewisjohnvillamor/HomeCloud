@@ -40,9 +40,20 @@ impl TestDatabase {
 
         let name = format!("homecloud_test_{}", Uuid::new_v4().simple());
 
-        let mut admin = PgConnection::connect(&admin_url)
-            .await
-            .expect("connect to the configured PostgreSQL server");
+        // Bounded, because an unreachable server is not always a server
+        // that refuses. A wedged container accepts the connection and
+        // then says nothing, and an unbounded wait there does not fail
+        // the test — it hangs the job until the six-hour CI timeout
+        // kills it, with no output saying why. Ten seconds is far longer
+        // than a healthy server needs and far shorter than a wasted
+        // afternoon.
+        let mut admin = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            PgConnection::connect(&admin_url),
+        )
+        .await
+        .expect("the configured PostgreSQL server did not answer within ten seconds")
+        .expect("connect to the configured PostgreSQL server");
         admin
             .execute(format!(r#"CREATE DATABASE "{name}""#).as_str())
             .await
