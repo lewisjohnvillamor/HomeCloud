@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { ApiResult } from "@/lib/api/client";
 import { useAsyncData } from "@/lib/hooks/use-async-data";
@@ -226,7 +227,7 @@ export default function MorePage() {
             move, Enter to play, Escape to go back.
           </p>
           <div className={styles.actions}>
-            <a className={styles.tvLink} href="/tv">
+            <a className={styles.pageLink} href="/tv">
               <Icon name="tv" />
             Open the TV view
             </a>
@@ -342,6 +343,20 @@ export default function MorePage() {
         ) : (
           <p className={styles.detail}>This account is not a member of any library.</p>
         )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="backup-heading">
+        <h2 id="backup-heading" className={styles.heading}>
+          Phone backup
+        </h2>
+        <p className={styles.detail}>
+          Send a phone&rsquo;s photographs here, skipping everything already saved. Open this
+          on the phone itself — a web page cannot reach its camera roll from another device.
+        </p>
+        <Link className={styles.pageLink} href="/backup">
+          <Icon name="upload" />
+          Back up this phone
+        </Link>
       </section>
 
       <section className={styles.section} aria-labelledby="ai-heading">

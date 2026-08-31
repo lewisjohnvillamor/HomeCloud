@@ -110,6 +110,13 @@ A single-user deployment is usable end to end:
   chunks and picked up again where it stopped, so one dropped connection does
   not mean starting a 40 GB video over; a photo still goes in one request,
   because three round trips to move two megabytes helps nobody.
+- **Phone backup** — open `/backup` on a phone, choose your photographs, and
+  only the ones this library does not already hold are sent. The second run is
+  the point: selecting the same ten thousand pictures again next month sends
+  the handful taken since. It is **not** a background service — a web page
+  cannot read a camera roll while it is closed, so this needs opening, and the
+  page says so rather than implying otherwise. A photograph you deleted here
+  does not come back on the next backup.
 - **Transfers** — sending files shows a tray naming each one, how far it has
   got, and what became of it. Nothing is overwritten, so a name that was
   already taken is saved beside the original and the tray says which name it

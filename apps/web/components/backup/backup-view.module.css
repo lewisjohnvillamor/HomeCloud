@@ -1,0 +1,153 @@
+.backup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-inline-size: 42rem;
+}
+
+/* The one paragraph that stops somebody assuming this runs by itself.
+   Bordered rather than coloured: it is a fact about the product, not a
+   warning, and the palette has no colour to spare for it. */
+.truth {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.device {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.deviceName {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.fact dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+/* A path can be long and has no spaces to break at, so it is allowed to
+   break anywhere rather than widening the page. */
+.folder {
+  overflow-wrap: anywhere;
+  font-size: var(--text-md);
+}
+
+/* The whole control is the label: a file input cannot be styled, so the
+   real one sits off-screen and this is what gets tapped. */
+.choose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--control-height);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--focus);
+  border-radius: var(--radius-md);
+  background: var(--focus);
+  color: var(--background);
+  cursor: pointer;
+}
+
+.choose:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.choose:has(.file:disabled) {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.file {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.chooseLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.summary {
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  inline-size: 100%;
+  /* Without this the input's intrinsic width pushes the page sideways
+     on a narrow screen. */
+  min-inline-size: 0;
+  font-size: var(--text-md);
+}
+
+.input {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--text);
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}

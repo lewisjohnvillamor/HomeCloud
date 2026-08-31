@@ -1128,6 +1128,12 @@ test("a memory can be dismissed and brought back", async ({ browser }) => {
   await expect(hidden).toContainText("Recently added");
   await hidden.getByRole("button", { name: /Show again/ }).click();
 
+  // Wait for it to leave the hidden list before navigating. Leaving a
+  // page cancels its in-flight requests, so going straight to the home
+  // screen can outrun the un-hiding — a race this won on a fast machine
+  // and lost on CI.
+  await expect(hidden).not.toContainText("Recently added");
+
   await ownerPage.goto("/");
   await expect(
     ownerPage.getByRole("region", { name: /Recently added/ }),
@@ -1237,6 +1243,64 @@ test("the transfer tray says what was sent, and what it had to be renamed to", a
  * Last in the file on purpose: recovering changes the owner's password,
  * so every journey that signs in with the original one runs first.
  */
+test("a phone backup sends what is new and skips what is already there", async ({ browser }) => {
+  // On a phone, which is where this is actually used.
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 780 },
+    hasTouch: true,
+  });
+  const page = await phone.newPage();
+
+  await page.goto("/backup");
+
+  const signIn = page.getByRole("heading", { name: "Sign in" });
+  await expect(
+    signIn.or(page.getByRole("heading", { level: 1, name: "Back up this phone" })).first(),
+  ).toBeVisible();
+
+  if (await signIn.isVisible()) {
+    await page.getByLabel("Your name").fill(OWNER.name);
+    await page.getByLabel("Password").fill(OWNER.password);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+    await page.goto("/backup");
+  }
+
+  // The page must not imply a background service it does not have.
+  await expect(page.getByText(/does not run on its own/i)).toBeVisible();
+
+  await page.getByLabel("What is this phone called?").fill("Ada's phone");
+  await page.getByRole("button", { name: "Set up backup" }).click();
+
+  await expect(page.getByRole("heading", { name: "Ada's phone" })).toBeVisible();
+  await expect(page.getByText("Never")).toBeVisible();
+
+  const first = tempFile("IMG_0001.jpg", "one photograph");
+  const second = tempFile("IMG_0002.jpg", "another photograph");
+
+  await page.getByLabel("Choose photos to back up").setInputFiles([first, second]);
+  await expect(page.getByText("2 sent.")).toBeVisible({ timeout: 30_000 });
+
+  // The whole point: the same roll again, plus one taken since. Only
+  // the new one goes up, and the page says so rather than going quiet.
+  const third = tempFile("IMG_0003.jpg", "taken since");
+  await page.getByLabel("Choose photos to back up").setInputFiles([first, second, third]);
+
+  await expect(page.getByText("1 sent. 2 were already here.")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // And the photographs are ordinary files in an ordinary folder.
+  await page.goto("/files");
+  // Exact, because the row's actions carry the folder name too
+  // ("Share Phone backups", and so on).
+  await page.getByRole("button", { name: "Phone backups", exact: true }).click();
+  await page.getByRole("button", { name: "Ada's phone", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: "IMG_0003.jpg" })).toBeVisible();
+
+  await phone.close();
+});
+
 test("a forgotten password can be recovered with the code from setup", async ({ browser }) => {
   const replacement = "a different long passphrase";
 

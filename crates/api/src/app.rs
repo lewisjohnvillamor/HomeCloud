@@ -18,7 +18,7 @@ use crate::ratelimit::AttemptLimiter;
 use crate::scanjob::ScanRegistry;
 use crate::security::OriginPolicy;
 use crate::{
-    ai, albums, auth, bootstrap, health, items, library, members, observability, passkeys,
+    ai, albums, auth, backup, bootstrap, health, items, library, members, observability, passkeys,
     recovery, requests, security, shares, thumbnails, transfers, tv, uploads, versions,
 };
 
@@ -274,6 +274,25 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/public/{token}/thumbnail",
             get(shares::public_thumbnail),
+        )
+        // Phone backup. The photographs go through the ordinary upload
+        // routes; these only answer "which of these have you not got?"
+        // so a repeat backup sends the new ones and nothing else.
+        .route(
+            "/api/v1/libraries/{library}/backup/devices",
+            get(backup::list).post(backup::register),
+        )
+        .route(
+            "/api/v1/libraries/{library}/backup/devices/{device}",
+            axum::routing::delete(backup::forget),
+        )
+        .route(
+            "/api/v1/libraries/{library}/backup/devices/{device}/check",
+            post(backup::check),
+        )
+        .route(
+            "/api/v1/libraries/{library}/backup/devices/{device}/finish",
+            post(backup::finish),
         )
         // The private AI switch. Off by default, owner-only to change.
         .route(
