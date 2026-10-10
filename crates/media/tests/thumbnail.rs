@@ -4,7 +4,7 @@
 use std::io::Cursor;
 
 use homecloud_media::thumbnail::{is_thumbnailable, ThumbnailSize};
-use homecloud_media::{generate_thumbnail, MediaError};
+use homecloud_media::{decode_for_analysis, generate_thumbnail, MediaError};
 use image::{DynamicImage, ImageFormat, RgbImage};
 
 /// Encodes a solid-colour image of the given size in the given format.
@@ -142,11 +142,10 @@ fn an_empty_file_is_refused() {
     assert!(generate_thumbnail(&[], ThumbnailSize::Small).is_err());
 }
 
-#[test]
-fn a_decompression_bomb_is_refused_before_any_pixels_are_allocated() {
-    // A PNG header describing a 30,000 × 30,000 image: 900 megapixels,
-    // which would need gigabytes of memory once decoded. The file itself
-    // is a few hundred bytes because the pixel data is all zeroes.
+/// A PNG header describing a 30,000 × 30,000 image: 900 megapixels,
+/// which would need gigabytes of memory once decoded. The file itself is
+/// a few hundred bytes because the pixel data is all zeroes.
+fn decompression_bomb() -> Vec<u8> {
     let mut buffer = image::GrayImage::new(1, 1);
     buffer.put_pixel(0, 0, image::Luma([0]));
     let mut bomb = Vec::new();
@@ -161,6 +160,13 @@ fn a_decompression_bomb_is_refused_before_any_pixels_are_allocated() {
     let crc = crc32(&bomb[ihdr_start..ihdr_start + 17]);
     bomb[ihdr_start + 17..ihdr_start + 21].copy_from_slice(&crc.to_be_bytes());
 
+    bomb
+}
+
+#[test]
+fn a_decompression_bomb_is_refused_before_any_pixels_are_allocated() {
+    let bomb = decompression_bomb();
+
     let started = std::time::Instant::now();
     let error = generate_thumbnail(&bomb, ThumbnailSize::Small).expect_err("bomb");
 
@@ -168,6 +174,38 @@ fn a_decompression_bomb_is_refused_before_any_pixels_are_allocated() {
     assert!(
         started.elapsed() < std::time::Duration::from_secs(2),
         "the bomb was not refused quickly"
+    );
+}
+
+#[test]
+fn a_photo_for_a_model_is_reduced_to_its_edge_and_keeps_its_shape() {
+    let source = image_bytes(1600, 1200, ImageFormat::Jpeg);
+
+    let pixels = decode_for_analysis(&source, 640).expect("decodes");
+
+    assert_eq!(pixels.dimensions(), (640, 480));
+}
+
+#[test]
+fn a_small_photo_for_a_model_is_not_enlarged() {
+    let source = image_bytes(300, 200, ImageFormat::Png);
+    assert_eq!(
+        decode_for_analysis(&source, 640)
+            .expect("decodes")
+            .dimensions(),
+        (300, 200)
+    );
+}
+
+#[test]
+fn a_model_is_not_a_way_around_the_decoding_limits() {
+    assert_eq!(
+        decode_for_analysis(&decompression_bomb(), 640),
+        Err(MediaError::TooLarge)
+    );
+    assert_eq!(
+        decode_for_analysis(b"%PDF-1.7 not a picture", 640),
+        Err(MediaError::UnsupportedFormat)
     );
 }
 

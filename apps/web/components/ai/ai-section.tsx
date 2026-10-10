@@ -16,9 +16,9 @@ import styles from "./ai-section.module.css";
  * machine can actually do. A server without the recogniser installed
  * says so, rather than accepting a setting and quietly doing nothing.
  *
- * Only what is built is offered. Photo understanding and face grouping
- * exist in the setting the server stores, but nothing implements them
- * yet, so putting them on screen would be a switch that lies.
+ * Only what is built is offered. Face grouping exists in the setting the
+ * server stores, but nothing implements it yet, so putting it on screen
+ * would be a switch that lies.
  */
 const CHOICES = [
   {
@@ -32,6 +32,12 @@ const CHOICES = [
     label: "Read text in pictures",
     detail:
       "Reads the words in scans, screenshots and photographs of documents, so you can search for what is written in them. Runs on the processor you already have — no graphics card, and nothing leaves this server.",
+  },
+  {
+    profile: "photos" as const,
+    label: "Also recognise what is in photos",
+    detail:
+      "Everything above, and looks at each photo for everyday things — people, dogs, cars, cake — so a search for “dog” finds pictures nobody named. Needs a desktop-class processor; a first pass over a large library takes a while. Nothing leaves this server.",
   },
 ];
 
@@ -74,11 +80,20 @@ export function AiSection({ library, isOwner }: { library: string; isOwner: bool
   }
 
   const settings = state.data;
-  const installed = settings.ocrAvailable;
+
+  // Each choice needs its own piece of the machine. Photos is offered
+  // when the model is there even without the text recogniser: recognising
+  // what is in a photo is useful on its own, and the notice says what
+  // is missing.
+  function unavailable(profile: AiSettings["profile"]) {
+    if (profile === "text") return !settings.ocrAvailable;
+    if (profile === "photos") return !settings.objectsAvailable;
+    return false;
+  }
 
   return (
     <>
-      {!installed ? (
+      {!settings.ocrAvailable ? (
         <p className={styles.notice}>
           This server cannot read text in pictures yet — the recogniser is not installed.
           Install <code className={styles.code}>tesseract-ocr</code> on the machine and
@@ -86,10 +101,17 @@ export function AiSection({ library, isOwner }: { library: string; isOwner: bool
         </p>
       ) : null}
 
+      {!settings.objectsAvailable ? (
+        <p className={styles.notice}>
+          This server cannot recognise what is in photos yet — no object model is set up.
+          The administrator sets <code className={styles.code}>HOMECLOUD_OBJECT_MODEL</code>{" "}
+          and installs ONNX Runtime, then restarts HomeCloud. The README explains how.
+        </p>
+      ) : null}
+
       <ul className={styles.choices}>
         {CHOICES.map((choice) => {
           const chosen = settings.profile === choice.profile;
-          const unavailable = choice.profile !== "off" && !installed;
 
           return (
             <li key={choice.profile}>
@@ -98,7 +120,7 @@ export function AiSection({ library, isOwner }: { library: string; isOwner: bool
                 className={styles.choice}
                 aria-pressed={chosen ? "true" : "false"}
                 data-chosen={chosen ? "true" : undefined}
-                disabled={busy || !isOwner || unavailable}
+                disabled={busy || !isOwner || unavailable(choice.profile)}
                 onClick={() => void onChoose(choice.profile)}
               >
                 <span className={styles.choiceLabel}>{choice.label}</span>
@@ -117,6 +139,14 @@ export function AiSection({ library, isOwner }: { library: string; isOwner: bool
         </p>
       ) : null}
 
+      {settings.objectsPending > 0 ? (
+        <p className={styles.notice} role="status">
+          {settings.objectsPending} {settings.objectsPending === 1 ? "photo" : "photos"} still
+          to look at. Each scan spends up to ten minutes on them, newest first, using half the
+          processor so uploads and previews stay quick.
+        </p>
+      ) : null}
+
       {!isOwner ? (
         <p className={styles.notice}>Only the library owner can change this.</p>
       ) : null}
@@ -124,8 +154,8 @@ export function AiSection({ library, isOwner }: { library: string; isOwner: bool
       {problem ? <ErrorState title="That did not work" description={problem.detail} /> : null}
 
       <p className={styles.notice}>
-        Understanding what is <em>in</em> a photograph, and grouping the people in one, are
-        still ahead. Both will be their own choice here rather than arriving switched on.
+        Grouping the people in your photos is still ahead. It will be its own choice here
+        rather than arriving switched on.
       </p>
     </>
   );

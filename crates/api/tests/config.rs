@@ -113,3 +113,47 @@ fn debug_output_never_contains_the_database_password() {
         "postgres://homecloud:sup3r-s3cret@db:5432/homecloud"
     );
 }
+
+#[test]
+fn photo_understanding_is_absent_unless_a_model_is_configured() {
+    let config = ServerConfig::from_source(&minimal()).expect("valid config");
+
+    assert_eq!(config.object_model, None);
+    assert_eq!(config.onnxruntime, None);
+}
+
+#[test]
+fn the_object_model_and_its_runtime_are_read_as_paths() {
+    let mut env = minimal();
+    env.insert(
+        vars::OBJECT_MODEL.to_owned(),
+        "/opt/homecloud/models/yolox_s.onnx".to_owned(),
+    );
+    env.insert(
+        vars::ONNXRUNTIME.to_owned(),
+        " /opt/onnxruntime/lib/libonnxruntime.so ".to_owned(),
+    );
+
+    let config = ServerConfig::from_source(&env).expect("valid config");
+
+    assert_eq!(
+        config.object_model.as_deref(),
+        Some(std::path::Path::new("/opt/homecloud/models/yolox_s.onnx"))
+    );
+    assert_eq!(
+        config.onnxruntime.as_deref(),
+        Some(std::path::Path::new(
+            "/opt/onnxruntime/lib/libonnxruntime.so"
+        ))
+    );
+}
+
+#[test]
+fn a_blank_model_path_is_no_model() {
+    let mut env = minimal();
+    env.insert(vars::OBJECT_MODEL.to_owned(), "   ".to_owned());
+
+    let config = ServerConfig::from_source(&env).expect("valid config");
+
+    assert_eq!(config.object_model, None);
+}

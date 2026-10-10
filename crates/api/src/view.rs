@@ -115,4 +115,8 @@ pub struct SearchResultView {
     pub matched: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet: Option<String>,
+    /// What a model recognised in the picture, when that matched the
+    /// search. Inferred, and labelled as such by the interface.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<String>,
 }

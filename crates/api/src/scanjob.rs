@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use homecloud_ai::objects::ObjectDetector;
 use homecloud_catalog::scan::{self, ScanSummary};
 use homecloud_domain::identity::LibraryId;
 use homecloud_search::IndexSummary;
@@ -60,11 +61,17 @@ impl ScanState {
 #[derive(Debug, Default)]
 pub struct ScanRegistry {
     states: Mutex<HashMap<uuid::Uuid, ScanState>>,
+    /// The object model, when one loaded. Shared by every library's scan:
+    /// it is tens of megabytes and a second to load.
+    objects: Option<Arc<ObjectDetector>>,
 }
 
 impl ScanRegistry {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(objects: Option<Arc<ObjectDetector>>) -> Self {
+        Self {
+            states: Mutex::default(),
+            objects,
+        }
     }
 
     pub fn status(&self, library: LibraryId) -> ScanStatusView {
@@ -97,6 +104,7 @@ impl ScanRegistry {
         }
 
         let registry = Arc::clone(self);
+        let objects = self.objects.clone();
         tokio::spawn(async move {
             loop {
                 let outcome = scan::reconcile(&pool, library, &storage).await;
@@ -118,6 +126,12 @@ impl ScanRegistry {
                     if let Ok(profile) = crate::ai::profile_of(&pool, library).await {
                         if profile.includes_ocr() {
                             crate::ocr::read_library(&pool, library, &storage).await;
+                        }
+
+                        // After OCR: a photograph's text is cheaper to
+                        // read than its contents are to recognise.
+                        if let (true, Some(detector)) = (profile.includes_objects(), &objects) {
+                            crate::objects::label_library(&pool, library, &storage, detector).await;
                         }
                     }
 

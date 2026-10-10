@@ -51,6 +51,14 @@ impl Profile {
         !matches!(self, Self::Off)
     }
 
+    /// Whether photographs are searched for what is in them.
+    ///
+    /// `people` includes it for the same reason every profile includes
+    /// OCR: asking for more never takes away the cheaper thing.
+    pub fn includes_objects(self) -> bool {
+        matches!(self, Self::Photos | Self::People)
+    }
+
     pub fn is_off(self) -> bool {
         matches!(self, Self::Off)
     }
@@ -69,13 +77,20 @@ impl fmt::Display for Profile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Capabilities {
     pub ocr: bool,
+    /// Whether an object model and its runtime loaded at startup.
+    pub objects: bool,
 }
 
 impl Capabilities {
     /// Asks the machine rather than assuming.
-    pub async fn detect() -> Self {
+    ///
+    /// Whether object recognition works is passed in rather than probed:
+    /// the answer is whether the model loaded at startup, and loading it
+    /// again on every request would cost a second each time.
+    pub async fn detect(objects_loaded: bool) -> Self {
         Self {
             ocr: crate::ocr::is_available().await,
+            objects: objects_loaded,
         }
     }
 
@@ -85,11 +100,14 @@ impl Capabilities {
     /// not to silently overrule it: the setting is theirs, and hardware
     /// they add later should start working without them having to find
     /// this screen again.
+    ///
+    /// `photos` needs both halves of what it promises. Face grouping is
+    /// not built, so `people` is never reported as supported.
     pub fn supported(self) -> Profile {
-        if self.ocr {
-            Profile::Text
-        } else {
-            Profile::Off
+        match (self.ocr, self.objects) {
+            (true, true) => Profile::Photos,
+            (true, false) => Profile::Text,
+            (false, _) => Profile::Off,
         }
     }
 }
@@ -134,8 +152,38 @@ mod tests {
     }
 
     #[test]
+    fn only_photo_profiles_look_for_objects() {
+        assert!(!Profile::Off.includes_objects());
+        assert!(!Profile::Text.includes_objects());
+        assert!(Profile::Photos.includes_objects());
+        assert!(
+            Profile::People.includes_objects(),
+            "asking for faces did not ask to lose objects"
+        );
+    }
+
+    #[test]
     fn a_machine_with_nothing_installed_supports_nothing() {
         assert_eq!(Capabilities::default().supported(), Profile::Off);
-        assert_eq!(Capabilities { ocr: true }.supported(), Profile::Text);
+    }
+
+    #[test]
+    fn photos_are_supported_only_when_both_halves_are_there() {
+        let text_only = Capabilities {
+            ocr: true,
+            objects: false,
+        };
+        let both = Capabilities {
+            ocr: true,
+            objects: true,
+        };
+        let objects_only = Capabilities {
+            ocr: false,
+            objects: true,
+        };
+
+        assert_eq!(text_only.supported(), Profile::Text);
+        assert_eq!(both.supported(), Profile::Photos);
+        assert_eq!(objects_only.supported(), Profile::Off);
     }
 }

@@ -37,6 +37,7 @@ struct Inner {
     origin_policy: OriginPolicy,
     login_attempts: AttemptLimiter,
     scans: Arc<ScanRegistry>,
+    objects: Option<Arc<homecloud_ai::objects::ObjectDetector>>,
     passkeys: Option<homecloud_auth::PasskeyService>,
     ceremonies: Ceremonies,
     share_unlocks: shares::ShareUnlocks,
@@ -57,6 +58,9 @@ pub struct AppSettings {
     /// `https://home.example`. Passkeys are bound to it, so without it
     /// they are unavailable rather than guessed.
     pub public_origin: Option<String>,
+    /// The object model, loaded at startup when the operator installed
+    /// one. `None` means photo understanding is unavailable here.
+    pub objects: Option<Arc<homecloud_ai::objects::ObjectDetector>>,
 }
 
 impl AppSettings {
@@ -67,6 +71,7 @@ impl AppSettings {
             production: false,
             trusted_origins: Vec::new(),
             public_origin: None,
+            objects: None,
         }
     }
 }
@@ -103,7 +108,8 @@ impl AppState {
                     allow_loopback: !settings.production,
                 },
                 login_attempts: AttemptLimiter::new(),
-                scans: Arc::new(ScanRegistry::new()),
+                scans: Arc::new(ScanRegistry::new(settings.objects.clone())),
+                objects: settings.objects,
                 passkeys,
                 ceremonies: Ceremonies::new(),
                 share_unlocks: shares::ShareUnlocks::new(),
@@ -137,6 +143,12 @@ impl AppState {
 
     pub fn scans(&self) -> &Arc<ScanRegistry> {
         &self.inner.scans
+    }
+
+    /// The object model, or `None` when photo understanding cannot run
+    /// on this server.
+    pub fn objects(&self) -> Option<&Arc<homecloud_ai::objects::ObjectDetector>> {
+        self.inner.objects.as_ref()
     }
 
     pub fn origin_policy(&self) -> &OriginPolicy {

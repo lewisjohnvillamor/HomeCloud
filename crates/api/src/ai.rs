@@ -29,12 +29,18 @@ pub struct AiSettingsView {
     pub profile: &'static str,
     /// What this machine can do, whatever was asked for.
     pub ocr_available: bool,
+    /// Whether an object model loaded, so photographs can be searched for
+    /// what is in them.
+    pub objects_available: bool,
     /// The most this deployment can honour, so the interface can say
     /// plainly that a choice will not take effect yet.
     pub supported_profile: &'static str,
     /// How many files are waiting to be read, so enabling this is not a
     /// silent commitment of somebody's evening.
     pub pending_items: i64,
+    /// How many photographs are waiting to be looked at for what is in
+    /// them. Zero unless photo understanding is chosen and available.
+    pub objects_pending: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,14 +58,8 @@ pub async fn read(
     authorize(&state, user, library).await?;
 
     let profile = profile_of(state.db(), library).await?;
-    let capabilities = Capabilities::detect().await;
 
-    Ok(Json(AiSettingsView {
-        profile: profile.as_str(),
-        ocr_available: capabilities.ocr,
-        supported_profile: capabilities.supported().as_str(),
-        pending_items: pending_count(state.db(), library, profile).await,
-    }))
+    Ok(Json(view(&state, library, profile).await))
 }
 
 /// `PUT /api/v1/libraries/{library}/ai`
@@ -94,10 +94,19 @@ pub async fn update(
         ApiError::internal()
     })?;
 
-    // Turning it off takes the derived text with it. Everything AI wrote
-    // is derived: dropping it costs a rescan and nothing else, and
+    // Turning something off takes what it wrote with it. Everything AI
+    // wrote is derived: dropping it costs a rescan and nothing else, and
     // leaving it behind after someone said no would be the wrong answer
     // to the only question they asked.
+    if !profile.includes_objects() {
+        let removed = forget_labels(state.db(), library).await?;
+        if removed > 0 {
+            tracing::info!(
+                removed,
+                "photo understanding turned off and its labels removed"
+            );
+        }
+    }
     if profile.is_off() {
         let removed = forget_derived(state.db(), library).await?;
         tracing::info!(removed, "private AI turned off and its text removed");
@@ -105,14 +114,33 @@ pub async fn update(
         tracing::info!(profile = profile.as_str(), "private AI turned on");
     }
 
-    let capabilities = Capabilities::detect().await;
+    Ok(Json(view(&state, library, profile).await))
+}
 
-    Ok(Json(AiSettingsView {
+async fn view(state: &AppState, library: LibraryId, profile: Profile) -> AiSettingsView {
+    let capabilities = Capabilities::detect(state.objects().is_some()).await;
+    let objects_pending = match state.objects() {
+        Some(detector) if profile.includes_objects() => {
+            objects_pending_count(state.db(), library, detector.model()).await
+        }
+        _ => 0,
+    };
+
+    AiSettingsView {
         profile: profile.as_str(),
         ocr_available: capabilities.ocr,
+        objects_available: capabilities.objects,
         supported_profile: capabilities.supported().as_str(),
-        pending_items: pending_count(state.db(), library, profile).await,
-    }))
+        // Text nobody can read is not waiting to be read. Without this, a
+        // server with a model but no recogniser promised work it would
+        // never do.
+        pending_items: if capabilities.ocr {
+            pending_count(state.db(), library, profile).await
+        } else {
+            0
+        },
+        objects_pending,
+    }
 }
 
 /// What a library has turned on. Absent means off.
@@ -147,6 +175,47 @@ pub async fn forget_derived(pool: &PgPool, library: LibraryId) -> Result<u64, Ap
         .rows_affected();
 
     Ok(removed)
+}
+
+/// Removes every object label for a library. The photographs are not
+/// touched; nothing here ever is.
+pub async fn forget_labels(pool: &PgPool, library: LibraryId) -> Result<u64, ApiError> {
+    let removed = sqlx::query("DELETE FROM item_objects WHERE library_id = $1")
+        .bind(library.as_uuid())
+        .execute(pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(error = %error, "could not remove object labels");
+            ApiError::internal()
+        })?
+        .rows_affected();
+
+    Ok(removed)
+}
+
+/// Photographs not yet looked at by the current model, including ones
+/// changed since. Best effort, like the count below.
+async fn objects_pending_count(pool: &PgPool, library: LibraryId, model: &str) -> i64 {
+    sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM items i
+         LEFT JOIN item_objects o ON o.item_id = i.id
+         WHERE i.library_id = $1
+           AND i.kind = 'file'
+           AND i.trashed_at IS NULL
+           AND i.missing_since IS NULL
+           AND i.content_type LIKE 'image/%'
+           AND (
+               o.item_id IS NULL
+               OR o.model <> $2
+               OR o.source_size IS DISTINCT FROM i.size_bytes
+               OR o.source_modified_at IS DISTINCT FROM i.modified_at
+           )",
+    )
+    .bind(library.as_uuid())
+    .bind(model)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0)
 }
 
 /// How much work turning this on would mean. Best effort: a number the

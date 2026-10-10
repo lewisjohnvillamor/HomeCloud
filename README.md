@@ -146,6 +146,13 @@ A single-user deployment is usable end to end:
   leaves the machine, and turning it off deletes everything it wrote. A server
   without the recogniser installed says so rather than offering a switch that
   does nothing.
+- **Photo understanding** — a further step on the same switch. It looks at each
+  photo for everyday things (people, dogs, bicycles, cake: the 80 everyday
+  object types the model was trained on) so a search for "dog", "puppies" or
+  "sofa" finds pictures nobody named. A hit says "recognised in the photo",
+  because it is the model's reading, not a fact. Needs a model the operator
+  installs (see *Photo understanding* below); without one the choice is shown
+  as unavailable and nothing else changes.
 - **Memories** — what you took on this day in earlier years, trips away from
   home worked out from capture dates and coordinates, and what arrived
   recently. Deterministic arithmetic, so it works with AI switched off. Any
@@ -203,8 +210,8 @@ A single-user deployment is usable end to end:
   containment, and no symlink following.
 
 Not yet built: video transcoding for playback, offline sync,
-and the rest of the local AI features — semantic search, faces, and Ask Your
-Library. See `ROADMAP.md`.
+and the rest of the local AI features — open-ended semantic search, faces, and
+Ask Your Library. See `ROADMAP.md`.
 
 ## Local Development
 
@@ -243,6 +250,38 @@ deletes the development database and its volume; nothing else does.
 If you prefer to run PostgreSQL yourself, point `HOMECLOUD_DATABASE_URL`
 at it and skip `make db-up`. All configuration is documented in
 `.env.example`.
+
+### Photo understanding (optional)
+
+Recognising what is in photos uses the YOLOX-s model through ONNX Runtime,
+both installed by the operator. Neither is needed to build or run HomeCloud.
+ADR 0005 explains the choice.
+
+```bash
+mkdir -p ~/homecloud-models && cd ~/homecloud-models
+
+# The model: Apache-2.0, 35 MB.
+curl -LO https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
+sha256sum yolox_s.onnx
+# c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063
+
+# The runtime: any release from 1.20 on. 1.26 is the last built against
+# CUDA 12, which matters only if you later want an older NVIDIA card.
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.26.0/onnxruntime-linux-x64-1.26.0.tgz | tar xz
+```
+
+Then, in `.env`, with absolute paths (`~` and `$HOME` are not expanded there):
+
+```bash
+HOMECLOUD_OBJECT_MODEL=/home/you/homecloud-models/yolox_s.onnx
+HOMECLOUD_ONNXRUNTIME=/home/you/homecloud-models/onnxruntime-linux-x64-1.26.0/lib/libonnxruntime.so
+```
+
+Restart the API. It logs `photo understanding enabled` with the model's stamp,
+or says why not. The owner then chooses **Also recognise what is in photos** in
+More, and the next scan starts labelling, newest photos first, up to ten
+minutes per scan. Expect roughly 50–150 ms per photo on a recent six-core
+desktop processor; it runs on the processor only, using half its cores.
 
 ## Developer Commands
 

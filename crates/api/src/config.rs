@@ -22,6 +22,8 @@ pub mod vars {
     pub const ENVIRONMENT: &str = "HOMECLOUD_ENV";
     pub const TRUSTED_ORIGINS: &str = "HOMECLOUD_TRUSTED_ORIGINS";
     pub const PUBLIC_ORIGIN: &str = "HOMECLOUD_PUBLIC_ORIGIN";
+    pub const OBJECT_MODEL: &str = "HOMECLOUD_OBJECT_MODEL";
+    pub const ONNXRUNTIME: &str = "HOMECLOUD_ONNXRUNTIME";
 }
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8080";
@@ -108,6 +110,12 @@ pub struct ServerConfig {
     /// to it by the WebAuthn specification, so it cannot be inferred
     /// from a request header.
     pub public_origin: Option<String>,
+    /// The model photo understanding uses, if the operator installed one.
+    /// Absent is the ordinary case: everything else works without it.
+    pub object_model: Option<PathBuf>,
+    /// Where the ONNX Runtime shared library is, when it is not where the
+    /// platform's loader looks.
+    pub onnxruntime: Option<PathBuf>,
 }
 
 /// Where configuration values come from. Tests supply a map instead of
@@ -194,11 +202,16 @@ impl ServerConfig {
         let public_origin = optional(source, vars::PUBLIC_ORIGIN)
             .map(|origin| origin.trim_end_matches('/').to_owned());
 
+        let object_model = optional(source, vars::OBJECT_MODEL).map(PathBuf::from);
+        let onnxruntime = optional(source, vars::ONNXRUNTIME).map(PathBuf::from);
+
         Ok(Self {
             listen_addr,
             storage_root,
             trusted_origins,
             public_origin,
+            object_model,
+            onnxruntime,
             database: DatabaseConfig {
                 url: Secret(database_url),
                 max_connections,

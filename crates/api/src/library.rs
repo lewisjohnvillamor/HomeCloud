@@ -425,8 +425,10 @@ pub async fn search(
                     homecloud_search::MatchKind::Name => "name",
                     homecloud_search::MatchKind::Content => "content",
                     homecloud_search::MatchKind::NameAndContent => "name_and_content",
+                    homecloud_search::MatchKind::Objects => "objects",
                 },
                 snippet: hit.snippet.clone(),
+                objects: hit.objects.clone(),
             })
             .collect(),
     ))
