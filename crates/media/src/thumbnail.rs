@@ -5,7 +5,7 @@ use std::io::Cursor;
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
 use image::metadata::Orientation;
-use image::{ImageFormat, ImageReader, Limits};
+use image::{DynamicImage, ImageFormat, ImageReader, Limits, RgbImage};
 
 /// Largest source file accepted. A file bigger than this is almost
 /// certainly not a photo anyone wants a thumbnail of, and reading it
@@ -102,6 +102,63 @@ pub fn is_thumbnailable(content_type: Option<&str>) -> bool {
 /// Blocking and CPU-bound by nature: callers must run it on a blocking
 /// pool, never on an async request executor.
 pub fn generate_thumbnail(source: &[u8], size: ThumbnailSize) -> Result<Vec<u8>, MediaError> {
+    let image = decode_upright(source)?;
+
+    // `thumbnail` is a cheap box filter; `resize` with Lanczos is what
+    // makes a downscaled photo still look like the photo.
+    let edge = size.max_edge();
+    let scaled = if image.width().max(image.height()) <= edge {
+        image
+    } else {
+        image.resize(edge, edge, FilterType::Lanczos3)
+    };
+
+    // JPEG: universally supported, and a thumbnail has no transparency
+    // worth preserving. Flattening to RGB8 avoids an encoder error on
+    // images that carry an alpha channel.
+    let rgb = scaled.to_rgb8();
+    let mut output = Vec::new();
+    JpegEncoder::new_with_quality(&mut output, JPEG_QUALITY)
+        .encode(
+            rgb.as_raw(),
+            rgb.width(),
+            rgb.height(),
+            image::ExtendedColorType::Rgb8,
+        )
+        .map_err(|error| {
+            tracing::warn!(error = %error, "thumbnail encoding failed");
+            MediaError::Encoding
+        })?;
+
+    Ok(output)
+}
+
+/// Decodes `source` for a model to look at, scaled so its longer side is
+/// at most `max_edge`.
+///
+/// The same limits and the same orientation handling as a thumbnail —
+/// a model must not be the easier way to spend a server's memory, and a
+/// sideways photograph is harder to recognise — but kept as pixels
+/// rather than encoded, since a model would only decode it again.
+///
+/// Blocking and CPU-bound: callers run it on a blocking pool.
+pub fn decode_for_analysis(source: &[u8], max_edge: u32) -> Result<RgbImage, MediaError> {
+    let image = decode_upright(source)?;
+
+    // Triangle rather than Lanczos: a model looking at 640 pixels gains
+    // nothing from the sharper filter, and it is several times slower.
+    let scaled = if image.width().max(image.height()) <= max_edge {
+        image
+    } else {
+        image.resize(max_edge, max_edge, FilterType::Triangle)
+    };
+
+    Ok(scaled.to_rgb8())
+}
+
+/// Decodes an untrusted image under explicit limits and turns it the way
+/// the camera was held.
+fn decode_upright(source: &[u8]) -> Result<DynamicImage, MediaError> {
     if source.len() as u64 > MAX_SOURCE_BYTES {
         return Err(MediaError::TooLarge);
     }
@@ -150,33 +207,7 @@ pub fn generate_thumbnail(source: &[u8], size: ThumbnailSize) -> Result<Vec<u8>,
         image.apply_orientation(orientation);
     }
 
-    // `thumbnail` is a cheap box filter; `resize` with Lanczos is what
-    // makes a downscaled photo still look like the photo.
-    let edge = size.max_edge();
-    let scaled = if image.width().max(image.height()) <= edge {
-        image
-    } else {
-        image.resize(edge, edge, FilterType::Lanczos3)
-    };
-
-    // JPEG: universally supported, and a thumbnail has no transparency
-    // worth preserving. Flattening to RGB8 avoids an encoder error on
-    // images that carry an alpha channel.
-    let rgb = scaled.to_rgb8();
-    let mut output = Vec::new();
-    JpegEncoder::new_with_quality(&mut output, JPEG_QUALITY)
-        .encode(
-            rgb.as_raw(),
-            rgb.width(),
-            rgb.height(),
-            image::ExtendedColorType::Rgb8,
-        )
-        .map_err(|error| {
-            tracing::warn!(error = %error, "thumbnail encoding failed");
-            MediaError::Encoding
-        })?;
-
-    Ok(output)
+    Ok(image)
 }
 
 /// Content type of everything this crate produces.

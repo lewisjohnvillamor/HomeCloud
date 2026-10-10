@@ -9,6 +9,11 @@
 //! No model is named in domain logic. Callers ask for a capability and
 //! get whichever provider the deployment has, or none.
 
+// Application crates have no need for `unsafe`. Loading the model runtime
+// is the one native boundary here, and it lives inside `ort`.
+#![forbid(unsafe_code)]
+
+pub mod objects;
 pub mod ocr;
 pub mod profile;
 

@@ -41,7 +41,7 @@ Browser sessions use secure, HttpOnly, SameSite cookies with CSRF defense approp
 > GET    /api/v1/libraries/{id}/browse?path=       (built) folder listing with breadcrumb
 > GET    /api/v1/libraries/{id}/photos             (built) images and videos, by capture date
 > GET    /api/v1/libraries/{id}/memories           (built) on this day, recently added
-> GET    /api/v1/libraries/{id}/search?q=          (built) name and document-text search
+> GET    /api/v1/libraries/{id}/search?q=          (built) name, document-text and recognised-object search; an object hit is `matched: "objects"` with its `objects` labels
 > GET    /api/v1/libraries/{id}/trash              (built) trashed items
 > POST   /api/v1/libraries/{id}/scan               (built) start a background reconciliation
 > GET    /api/v1/libraries/{id}/scan               (built) scan status

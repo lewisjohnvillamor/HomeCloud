@@ -298,3 +298,23 @@ async fn with_ai_on_a_scan_reads_the_words_in_a_picture() {
         .await;
     assert_eq!(removed.json().as_array().expect("results").len(), 0);
 }
+
+#[tokio::test]
+async fn a_server_that_cannot_read_text_promises_none_will_be_read() {
+    let Some(app) = TestApp::create().await else {
+        return;
+    };
+    let library = signed_in_library(&app).await;
+    app.put_on_disk("scans/receipt.png", b"\x89PNG\r\n\x1a\n not really a png");
+    app.scan(&library).await;
+
+    let settings = set_profile(&app, &library, "photos").await;
+
+    // Either the machine can read the picture, and counts it, or it
+    // cannot, and must not say it is waiting to.
+    if settings.json()["ocr_available"] == false {
+        assert_eq!(settings.json()["pending_items"], 0, "{}", settings.text());
+    } else {
+        assert_eq!(settings.json()["pending_items"], 1, "{}", settings.text());
+    }
+}

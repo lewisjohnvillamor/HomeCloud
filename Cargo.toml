@@ -65,6 +65,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 url = "2"
+# ONNX Runtime, loaded from a shared library at runtime rather than linked:
+# a deployment without it builds, starts, and reports the capability absent.
+# `api-20` is the oldest runtime accepted (1.20), so an operator who must pin
+# an older release for an older graphics card still can.
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic", "api-20"] }
 
 [profile.dev]
 debug = 1

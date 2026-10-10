@@ -66,8 +66,8 @@ export default function SearchPage() {
           </Button>
         </div>
         <p className={formStyles.hint}>
-          Searches file names and the text inside documents. Run a scan from More after
-          adding files.
+          Searches file names, the text inside documents and, when photo understanding is
+          on, what is in your photos. Run a scan from More after adding files.
         </p>
       </form>
 
@@ -92,10 +92,17 @@ export default function SearchPage() {
               <span className={styles.resultMeta}>
                 {item.kind === "folder" ? "Folder" : formatBytes(item.sizeBytes)} ·{" "}
                 {item.path}
-                {item.matched !== "name" ? (
+                {item.matched === "content" || item.matched === "name_and_content" ? (
                   <span className={styles.badge}>found in the document</span>
                 ) : null}
               </span>
+              {item.objects.length > 0 ? (
+                // Said as what it is: the model's reading of the picture,
+                // not something the file says about itself.
+                <span className={styles.snippet}>
+                  Recognised in the photo: {item.objects.join(", ")}
+                </span>
+              ) : null}
               {item.snippet ? (
                 <span className={styles.snippet}>
                   {snippetSegments(item.snippet).map((segment, index) =>

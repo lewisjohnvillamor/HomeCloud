@@ -51,6 +51,8 @@ async fn run() -> anyhow::Result<()> {
         tracing::warn!("video previews are disabled: ffmpeg was not found on PATH");
     }
 
+    let objects = load_object_model(&config).await;
+
     let listener = TcpListener::bind(config.listen_addr).await?;
     let bound = listener.local_addr()?;
 
@@ -68,6 +70,7 @@ async fn run() -> anyhow::Result<()> {
             production: config.environment.is_production(),
             trusted_origins: config.trusted_origins.clone(),
             public_origin: config.public_origin.clone(),
+            objects,
         },
     );
 
@@ -80,6 +83,41 @@ async fn run() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
+}
+
+/// Loads the model photo understanding uses, when one is configured.
+///
+/// Never fails startup. A missing or broken model leaves photo
+/// understanding unavailable — the settings screen says so — and
+/// everything else unaffected.
+async fn load_object_model(
+    config: &ServerConfig,
+) -> Option<std::sync::Arc<homecloud_ai::objects::ObjectDetector>> {
+    let Some(model) = config.object_model.clone() else {
+        tracing::info!("photo understanding is unavailable: no object model is configured");
+        return None;
+    };
+    let runtime = config.onnxruntime.clone();
+
+    let loaded = tokio::task::spawn_blocking(move || {
+        homecloud_ai::objects::ObjectDetector::load(runtime.as_deref(), &model)
+    })
+    .await;
+
+    match loaded {
+        Ok(Ok(detector)) => {
+            tracing::info!(model = detector.model(), "photo understanding enabled");
+            Some(std::sync::Arc::new(detector))
+        }
+        Ok(Err(error)) => {
+            tracing::warn!(error = %error, "photo understanding is unavailable: the object model did not load");
+            None
+        }
+        Err(error) => {
+            tracing::error!(error = %error, "loading the object model panicked");
+            None
+        }
+    }
 }
 
 /// Periodically removes what has expired: sessions, share links,

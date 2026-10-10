@@ -15,6 +15,7 @@ pub mod video;
 
 pub use exif::{read as read_photo_metadata, PhotoMetadata};
 pub use thumbnail::{
-    generate_thumbnail, MediaError, ThumbnailSize, MAX_SOURCE_BYTES, MAX_SOURCE_PIXELS,
+    decode_for_analysis, generate_thumbnail, MediaError, ThumbnailSize, MAX_SOURCE_BYTES,
+    MAX_SOURCE_PIXELS,
 };
 pub use video::{is_video, poster_frame, VideoError};

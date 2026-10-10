@@ -22,6 +22,7 @@ pub mod indexing;
 pub mod items;
 pub mod library;
 pub mod members;
+pub mod objects;
 pub mod observability;
 pub mod ocr;
 pub mod passkeys;

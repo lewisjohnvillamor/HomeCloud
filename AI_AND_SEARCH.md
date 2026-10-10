@@ -163,11 +163,28 @@ GPU, and this is tens of megabytes on any processor. The rule the rest of this
 phase follows: reach for a small specialised model per job, and only reach for
 something bigger when no small tool does the job well.
 
+**Object labels are built** (October 2026, ADR 0005). The `photos` profile now
+means OCR plus recognising everyday things in photographs, so a search for
+"dog" finds pictures nobody named:
+
+- YOLOX-s through ONNX Runtime, both installed by the operator and loaded at
+  startup; absent either, the choice is reported unavailable;
+- labels only — the 80 COCO classes, confidence 0.5 or above, no boxes — in
+  `item_objects`, a sibling of `item_text`, stamped with the model that wrote
+  them so a model change relabels instead of mixing;
+- searched in the same ranked query as names and text, below both, and
+  returned as `matched: "objects"` with the labels so the interface can call
+  it an inference;
+- last in the scan, after OCR, half the processor, ten minutes per pass;
+- deleted when the owner steps below `photos`.
+
 Still to come, in the order they make sense:
 
-1. **Embeddings** for semantic search, in a sibling table keyed by item. The
-   first place ONNX earns its place, since there is no good command-line tool.
-2. **Faces**, behind the explicit opt-in §5 requires.
+1. **Image and text embeddings** for open-ended semantic search ("sunset by the
+   lake"), in a sibling table keyed by item, on the same ONNX Runtime.
+2. **Faces**, behind the explicit opt-in §5 requires. YuNet and SFace (both
+   permissively licensed) rather than the InsightFace models, whose weights
+   are non-commercial only.
 3. **Ask Your Library**, which orchestrates the above plus catalog metadata.
 
 Each step is optional at runtime: with no model configured, search continues to

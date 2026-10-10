@@ -384,9 +384,14 @@ export function parseInvitationPreview(value: unknown): InvitationPreview | unde
 
 /** A search hit: an item plus why it matched. */
 export type SearchResult = Item & {
-  matched: "name" | "content" | "name_and_content";
+  matched: "name" | "content" | "name_and_content" | "objects";
   /** Passage around a content match, marked with `<<` and `>>`. */
   snippet: string | null;
+  /**
+   * What a model recognised in the picture, when that matched. Inferred,
+   * so it is shown as such and never as something the file says.
+   */
+  objects: string[];
 };
 
 export function parseSearchResults(value: unknown): SearchResult[] | undefined {
@@ -403,14 +408,21 @@ export function parseSearchResults(value: unknown): SearchResult[] | undefined {
     }
 
     const matched = raw.matched;
+    const objects = Array.isArray(raw.objects)
+      ? raw.objects.filter((label): label is string => typeof label === "string")
+      : [];
 
     results.push({
       ...item,
       matched:
-        matched === "content" || matched === "name_and_content" || matched === "name"
+        matched === "content" ||
+        matched === "name_and_content" ||
+        matched === "name" ||
+        matched === "objects"
           ? matched
           : "name",
       snippet: text(raw.snippet),
+      objects,
     });
   }
 
@@ -806,10 +818,14 @@ export type AiSettings = {
   profile: "off" | "text" | "photos" | "people";
   /** Whether this server can read text out of pictures at all. */
   ocrAvailable: boolean;
+  /** Whether an object model loaded, so photos can be searched by content. */
+  objectsAvailable: boolean;
   /** The most this deployment can honour, whatever was asked for. */
   supportedProfile: "off" | "text" | "photos" | "people";
   /** Pictures waiting to be read, so enabling is not a silent commitment. */
   pendingItems: number;
+  /** Photos still to be looked at for what is in them. */
+  objectsPending: number;
 };
 
 function parseProfile(value: unknown): AiSettings["profile"] {
@@ -825,8 +841,10 @@ export function parseAiSettings(value: unknown): AiSettings | undefined {
   return {
     profile: parseProfile(raw.profile),
     ocrAvailable: raw.ocr_available === true,
+    objectsAvailable: raw.objects_available === true,
     supportedProfile: parseProfile(raw.supported_profile),
     pendingItems: typeof raw.pending_items === "number" ? raw.pending_items : 0,
+    objectsPending: typeof raw.objects_pending === "number" ? raw.objects_pending : 0,
   };
 }
 
