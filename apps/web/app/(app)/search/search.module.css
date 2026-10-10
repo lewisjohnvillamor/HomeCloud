@@ -30,12 +30,39 @@
 
 .result {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  align-items: flex-start;
+  gap: var(--space-4);
   padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 0.625rem;
   background: var(--surface);
+}
+
+/* Square, cropped, and small enough that a page of results is still a
+   list to scan rather than a gallery. */
+.thumbnail {
+  flex: none;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--surface-hover);
+}
+
+@media (min-width: 64rem) {
+  .thumbnail {
+    inline-size: 6rem;
+    block-size: 6rem;
+  }
+}
+
+.resultBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
+  /* Long paths wrap inside the column instead of pushing it wider. */
+  min-inline-size: 0;
 }
 
 .resultName {
@@ -50,7 +77,8 @@
 
 .resultActions {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  column-gap: 0.75rem;
   margin-block-start: 0.25rem;
 }
 
@@ -59,6 +87,9 @@
   align-items: center;
   min-block-size: 2.25rem;
   color: var(--focus);
+  /* Beside a thumbnail on the narrowest phones, a two-word link broke
+     across lines; whole links wrap instead. */
+  white-space: nowrap;
 }
 
 .action:focus-visible {

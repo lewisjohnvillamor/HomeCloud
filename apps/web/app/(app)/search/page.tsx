@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, PendingState } from "@/components/ui/states";
 import { useActiveLibrary } from "@/components/session/session-provider";
-import { contentUrl, searchLibrary } from "@/lib/api/endpoints";
+import { contentUrl, searchLibrary, thumbnailUrl } from "@/lib/api/endpoints";
 import type { ApiProblem } from "@/lib/api/problem";
 import type { SearchResult } from "@/lib/api/types";
 import { snippetSegments } from "@/lib/api/types";
@@ -88,51 +88,67 @@ export default function SearchPage() {
         <ul className={styles.results}>
           {results.items.map((item) => (
             <li key={item.id} className={styles.result}>
-              <span className={styles.resultName}>{item.name}</span>
-              <span className={styles.resultMeta}>
-                {item.kind === "folder" ? "Folder" : formatBytes(item.sizeBytes)} ·{" "}
-                {item.path}
-                {item.matched === "content" || item.matched === "name_and_content" ? (
-                  <span className={styles.badge}>found in the document</span>
-                ) : null}
-              </span>
-              {item.objects.length > 0 ? (
-                // Said as what it is: the model's reading of the picture,
-                // not something the file says about itself.
-                <span className={styles.snippet}>
-                  Recognised in the photo: {item.objects.join(", ")}
-                </span>
+              {item.isImage || item.isVideo ? (
+                // A photo found by what is in it is easiest to confirm by
+                // looking at it. Decorative: the name beside it is the label.
+                // The optimizer cannot reach a private, session-protected
+                // origin.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className={styles.thumbnail}
+                  src={thumbnailUrl(item.id, "small")}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
               ) : null}
-              {item.snippet ? (
-                <span className={styles.snippet}>
-                  {snippetSegments(item.snippet).map((segment, index) =>
-                    segment.matched ? (
-                      <mark key={index} className={styles.mark}>
-                        {segment.text}
-                      </mark>
-                    ) : (
-                      <span key={index}>{segment.text}</span>
-                    ),
-                  )}
+              <div className={styles.resultBody}>
+                <span className={styles.resultName}>{item.name}</span>
+                <span className={styles.resultMeta}>
+                  {item.kind === "folder" ? "Folder" : formatBytes(item.sizeBytes)} ·{" "}
+                  {item.path}
+                  {item.matched === "content" || item.matched === "name_and_content" ? (
+                    <span className={styles.badge}>found in the document</span>
+                  ) : null}
                 </span>
-              ) : null}
-              <span className={styles.resultActions}>
-                <Link
-                  className={styles.action}
-                  href={
-                    item.kind === "folder"
-                      ? `/files?path=${encodeURIComponent(item.path)}`
-                      : `/files?path=${encodeURIComponent(parentOf(item.path))}`
-                  }
-                >
-                  Show in Files
-                </Link>
-                {item.kind === "file" ? (
-                  <a className={styles.action} href={contentUrl(item.id)} download={item.name}>
-                    Download
-                  </a>
+                {item.objects.length > 0 ? (
+                  // Said as what it is: the model's reading of the picture,
+                  // not something the file says about itself.
+                  <span className={styles.snippet}>
+                    Recognised in the photo: {item.objects.join(", ")}
+                  </span>
                 ) : null}
-              </span>
+                {item.snippet ? (
+                  <span className={styles.snippet}>
+                    {snippetSegments(item.snippet).map((segment, index) =>
+                      segment.matched ? (
+                        <mark key={index} className={styles.mark}>
+                          {segment.text}
+                        </mark>
+                      ) : (
+                        <span key={index}>{segment.text}</span>
+                      ),
+                    )}
+                  </span>
+                ) : null}
+                <span className={styles.resultActions}>
+                  <Link
+                    className={styles.action}
+                    href={
+                      item.kind === "folder"
+                        ? `/files?path=${encodeURIComponent(item.path)}`
+                        : `/files?path=${encodeURIComponent(parentOf(item.path))}`
+                    }
+                  >
+                    Show in Files
+                  </Link>
+                  {item.kind === "file" ? (
+                    <a className={styles.action} href={contentUrl(item.id)} download={item.name}>
+                      Download
+                    </a>
+                  ) : null}
+                </span>
+              </div>
             </li>
           ))}
         </ul>
