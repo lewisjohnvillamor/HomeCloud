@@ -92,3 +92,13 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* The bottom bar is fixed on phones. Padding the end of the page was not
+   enough: tabbing down a long page scrolled each control just into view,
+   which put it underneath the bar. This keeps a focused control (and
+   anything scrolled to by anchor) clear of it. */
+@media (max-width: 47.999rem) {
+  html {
+    scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -50,6 +50,10 @@
     position: fixed;
     inset-block-end: 0;
     inset-inline: 0;
+    /* Above anything in the page that makes its own stacking context —
+       photo tiles and sticky month headings painted over the bar — and
+       below dialogs (20). */
+    z-index: 15;
     border-block-start: 1px solid var(--border);
     padding-block-end: env(safe-area-inset-bottom, 0);
   }
