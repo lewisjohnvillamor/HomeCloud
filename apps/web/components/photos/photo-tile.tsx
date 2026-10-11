@@ -57,7 +57,9 @@ export function PhotoTile({
         className={styles.image}
         src={thumbnailUrl(photo.id, "small")}
         srcSet={`${thumbnailUrl(photo.id, "small")} 1x, ${thumbnailUrl(photo.id, "medium")} 2x`}
-        alt={photo.name}
+        // Empty: the caption beside it is the name. With both, a screen
+        // reader said every file name twice.
+        alt=""
         loading="lazy"
         decoding="async"
       />

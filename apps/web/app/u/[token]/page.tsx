@@ -115,6 +115,9 @@ export default function SendPage({ params }: { params: Promise<{ token: string }
               type="file"
               multiple
               aria-label="Choose files to send"
+              // The visible button beside it opens this; as a tab stop of its own it
+              // was an invisible one, where focus seemed to vanish for a key press.
+              tabIndex={-1}
               disabled={busy !== null}
               onChange={(event) => void onSend(event.target.files)}
             />

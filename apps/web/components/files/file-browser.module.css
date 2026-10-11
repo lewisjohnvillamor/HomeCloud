@@ -82,8 +82,12 @@
 }
 
 .nameCell {
-  /* The name column takes whatever the other columns do not want. */
+  /* The name column takes whatever the other columns do not want, and
+     can shrink below its text: `max-inline-size: 0` is what lets a table
+     cell give way, so a long name is ellipsised instead of pushing the
+     row actions off the right edge (it overflowed a 1440px window). */
   inline-size: 100%;
+  max-inline-size: 0;
 }
 
 .name {
@@ -113,11 +117,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* A cap on the name rather than on the column: collapsing the column
-     to its minimum did stop long names pushing the actions off screen,
-     but it also clipped ordinary ones to a few characters while the row
-     had room to spare. Only a genuinely long name is shortened now. */
-  max-inline-size: 24rem;
 }
 
 .name:focus-visible {
@@ -149,31 +148,26 @@
 
 .rowActions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
   justify-content: flex-end;
+  align-items: center;
 }
 
-/* The actions column sizes to its own content and the name takes what is
-   left. Without this the automatic algorithm gives the name everything
-   and the actions wrap one per line, which adding icons was enough to
-   trigger at a full desktop width. */
-@media (min-width: 40.001rem) {
-  .table td:last-child,
-  .table th:last-child {
-    inline-size: 1%;
-    white-space: nowrap;
-  }
-
-  .rowActions {
-    flex-wrap: nowrap;
-  }
+/* Download, Share and More: short enough for one line at any width, so
+   the actions column sizes to its content and the name takes the rest.
+   Six inline verbs used to wrap here — on a phone into a block taller
+   than the screen for every file. */
+.table td:last-child,
+.table th:last-child {
+  inline-size: 1%;
+  white-space: nowrap;
 }
 
-/* Narrow screens: size and date are secondary to name and actions, and
-   the actions tighten up so a row still reads as one line. */
+/* Narrow screens: size and date are secondary to the name, Share moves
+   into More, and a long name wraps rather than being cut. */
 @media (max-width: 40rem) {
-  .hideNarrow {
+  .hideNarrow,
+  .wideOnly {
     display: none;
   }
 
@@ -181,48 +175,47 @@
     padding: 0.375rem 0.25rem;
   }
 
-  /* The actions wrap onto as many lines as they need. Forcing them onto
-     one line was fine with three of them and squeezed the file name —
-     the one thing a file row exists to show — down to nothing once
-     there were five. */
-  .rowActions {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
   .rowActions > * {
-    padding-inline: 0.5rem;
-    font-size: 0.8125rem;
+    padding-inline: var(--space-3);
+    font-size: var(--text-sm);
   }
 
-  /* Whatever else is in the row, the name keeps a readable share of it. */
   .name {
-    min-inline-size: 0;
     white-space: normal;
+    /* A finger target, like every other control on a phone. */
+    min-block-size: var(--control-height);
   }
 
   .nameLabel {
     overflow: visible;
-    max-inline-size: none;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  /* Fixed columns, because the automatic algorithm gave the actions
-     whatever the name did not want and left them stacking one per line —
-     which turned a two-file folder into a full screen. Split explicitly
-     instead, so the actions flow across in a couple of lines. */
-  .table {
-    table-layout: fixed;
+  .crumbButton {
+    min-block-size: var(--control-height);
+  }
+}
+
+/* The narrowest phones: Download keeps its arrow and loses its word, as
+   More does, so a file name has room to read as one word. Its spoken
+   name is unchanged ("Download IMG_101.jpg"). */
+@media (max-width: 22.5rem) {
+  .downloadLink {
+    justify-content: center;
+    min-inline-size: var(--control-height);
+    padding-inline: 0;
+    font-size: var(--text-body);
   }
 
-  .table th:first-child,
-  .table td:first-child {
-    inline-size: 40%;
-  }
-
-  .rowActions {
-    justify-content: flex-start;
+  .actionLabel {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
@@ -245,9 +238,12 @@
 .downloadLink {
   display: inline-flex;
   align-items: center;
-  min-block-size: 2.25rem;
-  padding: 0 0.625rem;
-  border-radius: 0.5rem;
+  /* The same shape as the quiet buttons beside it, icon gap included:
+     without one the arrow sat against the word. */
+  gap: var(--space-2);
+  min-block-size: var(--control-height-compact);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
   color: var(--text);
   font-weight: 400;
   text-decoration: none;

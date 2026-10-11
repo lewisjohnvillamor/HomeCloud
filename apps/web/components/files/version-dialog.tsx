@@ -134,6 +134,9 @@ export function VersionDialog({
             className={styles.hidden}
             type="file"
             aria-label={`Replace ${item.name}`}
+            // The visible button beside it opens this; as a tab stop of its own it
+            // was an invisible one, where focus seemed to vanish for a key press.
+            tabIndex={-1}
             onChange={(event) => void onReplace(event.target.files)}
           />
           <Button

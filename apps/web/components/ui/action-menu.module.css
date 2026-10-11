@@ -1,0 +1,97 @@
+/* The popover's default is a centred, bordered box; this one is placed
+   next to its button by script and looks like a short list of buttons. */
+.menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-inline-size: 11rem;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--control-height-compact);
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-md);
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--surface-hover);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.item svg {
+  flex: none;
+}
+
+.item[data-danger="true"] {
+  color: var(--danger);
+}
+
+/* Items that are inline on the row at wider widths. */
+.item[data-narrow-only="true"] {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  .item {
+    min-block-size: var(--control-height);
+  }
+
+  .item[data-narrow-only="true"] {
+    display: flex;
+  }
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* On the narrowest phones the word goes and the three dots stay: the
+   file name beside it was breaking mid-word for want of forty pixels.
+   The name is still read out in full ("More actions for …"). */
+@media (max-width: 22.5rem) {
+  /* Square, and still a full finger target once it is only an icon. */
+  .trigger {
+    min-inline-size: var(--control-height);
+    font-size: var(--text-body);
+  }
+
+  .triggerLabel {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

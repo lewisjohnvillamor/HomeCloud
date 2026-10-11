@@ -85,7 +85,9 @@ export default function HomePage() {
             <li className={styles.card}>
               <Link className={styles.cardLink} href="/search">
                 <span className={styles.cardTitle}>Search</span>
-                <span className={styles.cardDetail}>Find something by name</span>
+                <span className={styles.cardDetail}>
+                  By name, by what a document says, or by what is in a photo
+                </span>
               </Link>
             </li>
             <li className={styles.card}>

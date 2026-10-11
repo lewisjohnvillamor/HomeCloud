@@ -43,6 +43,12 @@
 .quiet {
   min-block-size: var(--control-height-compact);
   padding: 0 var(--space-4);
+  /* The phone media query below was once spliced into the middle of this
+     rule, which left quiet buttons bordered on desktop and borderless on
+     phones, so a file row mixed both looks. */
+  border-color: transparent;
+  background: transparent;
+  font-weight: 400;
 }
 
 /* The quiet variant is sized for a mouse pointer. On a phone it is a
@@ -51,10 +57,8 @@
    is not reliably reported. */
 @media (max-width: 40rem) {
   .quiet {
-    min-block-size: 2.75rem;
-  border-color: transparent;
-  background: transparent;
-  font-weight: 400;
+    min-block-size: var(--control-height);
+  }
 }
 
 /* An icon never shrinks to fit a long label: it is a fixed companion to
