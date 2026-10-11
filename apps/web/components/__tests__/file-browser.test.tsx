@@ -16,6 +16,12 @@ const endpoints = vi.hoisted(() => ({
 
 vi.mock("@/lib/api/endpoints", () => endpoints);
 
+/** Opens a row's More menu and picks an action from it. */
+async function chooseFromMenu(row: HTMLElement, action: string) {
+  await userEvent.click(within(row).getByRole("button", { name: /^More/ }));
+  await userEvent.click(within(row).getByRole("menuitem", { name: action }));
+}
+
 function file(name: string, overrides: Partial<Item> = {}): Item {
   return {
     id: `id-${name}`,
@@ -164,13 +170,13 @@ describe("FileBrowser", () => {
     renderBrowser();
 
     const row = (await screen.findAllByRole("row"))[1];
-    await userEvent.click(within(row!).getByRole("button", { name: /Delete/ }));
+    await chooseFromMenu(row!, "Delete");
 
     expect(confirm).toHaveBeenCalled();
     expect(endpoints.trashItem).not.toHaveBeenCalled();
 
     confirm.mockReturnValue(true);
-    await userEvent.click(within(row!).getByRole("button", { name: /Delete/ }));
+    await chooseFromMenu(row!, "Delete");
 
     await waitFor(() => expect(endpoints.trashItem).toHaveBeenCalledWith("id-notes.txt"));
     confirm.mockRestore();
@@ -186,7 +192,7 @@ describe("FileBrowser", () => {
     renderBrowser();
 
     const row = (await screen.findAllByRole("row"))[1];
-    await userEvent.click(within(row!).getByRole("button", { name: /Rename/ }));
+    await chooseFromMenu(row!, "Rename");
 
     await waitFor(() =>
       expect(endpoints.moveItem).toHaveBeenCalledWith("id-notes.txt", "documents/renamed.txt"),

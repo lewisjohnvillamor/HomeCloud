@@ -1,4 +1,11 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -40,6 +47,21 @@ const JPEG_TAKEN_2019_BASE64 =
 /** A tiny but genuinely valid PNG, so the Photos view has real content. */
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+/**
+ * The picture in a photo tile. Found through the tile's link, which is
+ * named by its caption: the image itself has empty alt text, because the
+ * caption already says the name and a screen reader read it twice.
+ */
+function photoTile(page: Page, name: string) {
+  return page.getByRole("link", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).locator("img");
+}
+
+/** Opens a file row's More menu and picks one of its actions. */
+async function chooseRowAction(row: Locator, action: string) {
+  await row.getByRole("button", { name: /^More/ }).click();
+  await row.getByRole("menuitem", { name: action }).click();
+}
 
 function tempFile(name: string, contents: Buffer | string): string {
   const directory = mkdtempSync(join(tmpdir(), "homecloud-e2e-"));
@@ -130,7 +152,7 @@ test("an uploaded image appears in Photos", async () => {
 
   await page.goto("/photos");
 
-  const photo = page.getByRole("img", { name: "sunrise.png" });
+  const photo = photoTile(page, "sunrise.png");
   await expect(photo).toBeVisible();
   // The image really loaded from the API, rather than showing alt text.
   await expect
@@ -154,7 +176,7 @@ test("a deleted file goes to the trash and can be restored", async () => {
 
   const row = page.getByRole("row").filter({ hasText: "notes.txt" });
   page.once("dialog", (dialog) => dialog.accept());
-  await row.getByRole("button", { name: /Delete/ }).click();
+  await chooseRowAction(row, "Delete");
 
   await expect(page.getByRole("row").filter({ hasText: "notes.txt" })).toHaveCount(0);
 
@@ -593,7 +615,7 @@ test("a video shows a poster frame and joins the photo timeline", async ({ brows
 
   // And it sits in the timeline beside the photos, marked as a video.
   await ownerPage.goto("/photos");
-  const tile = ownerPage.getByRole("img", { name: "holiday.mp4" });
+  const tile = photoTile(ownerPage, "holiday.mp4");
   await expect(tile).toBeVisible();
   await expect
     .poll(() => tile.evaluate((image: HTMLImageElement) => image.naturalWidth))
@@ -748,7 +770,7 @@ test("a photo can be starred, and starring is one person's own", async ({ browse
   ).toBeVisible();
 
   await ownerPage.getByRole("tab", { name: "Favorites" }).click();
-  await expect(ownerPage.getByRole("img", { name: "starred.png" })).toBeVisible();
+  await expect(photoTile(ownerPage, "starred.png")).toBeVisible();
 
   // Taking the star back empties the view again.
   await ownerPage.getByRole("button", { name: "Remove starred.png from favorites" }).click();
@@ -800,11 +822,11 @@ test("photos can be gathered into an album", async ({ browser }) => {
 
   // Opening it shows the pictures, and one can be taken back out.
   await card.click();
-  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toBeVisible();
+  await expect(photoTile(ownerPage, "album-one.png")).toBeVisible();
   await ownerPage
     .getByRole("button", { name: "Remove from this album: album-one.png" })
     .click();
-  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toHaveCount(0);
+  await expect(photoTile(ownerPage, "album-one.png")).toHaveCount(0);
 
   // Deleting the album keeps the photos.
   ownerPage.once("dialog", (dialog) => dialog.accept());
@@ -812,8 +834,8 @@ test("photos can be gathered into an album", async ({ browser }) => {
   await expect(ownerPage.getByRole("heading", { name: "No albums yet" })).toBeVisible();
 
   await ownerPage.getByRole("tab", { name: "Timeline" }).click();
-  await expect(ownerPage.getByRole("img", { name: "album-one.png" })).toBeVisible();
-  await expect(ownerPage.getByRole("img", { name: "album-two.png" })).toBeVisible();
+  await expect(photoTile(ownerPage, "album-one.png")).toBeVisible();
+  await expect(photoTile(ownerPage, "album-two.png")).toBeVisible();
 
   await owner.close();
 });
@@ -861,7 +883,7 @@ test("someone with no account can send files into one folder", async ({ browser 
   const row = ownerPage.getByRole("row").filter({ hasText: "Wedding photos" });
   await expect(row).toBeVisible();
 
-  await row.getByRole("button", { name: /Ask for files/ }).click();
+  await chooseRowAction(row, "Ask for files");
   const dialog = ownerPage.getByRole("dialog", { name: /Ask for files/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Create link" }).click();
@@ -924,7 +946,7 @@ test("a replaced file keeps what it was, and can be put back", async ({ browser 
   const row = ownerPage.getByRole("row").filter({ hasText: "draft.txt" });
   await expect(row).toBeVisible();
 
-  await row.getByRole("button", { name: /History/ }).click();
+  await chooseRowAction(row, "History");
   const dialog = ownerPage.getByRole("dialog", { name: /History/ });
   await expect(dialog).toContainText("no earlier contents kept");
 
@@ -1011,7 +1033,7 @@ test("a file can be copied without losing the original", async ({ browser }) => 
   await expect(row).toBeVisible();
 
   ownerPage.once("dialog", (dialog) => dialog.accept("report-backup.txt"));
-  await row.getByRole("button", { name: /Copy/ }).click();
+  await chooseRowAction(row, "Copy");
 
   await expect(
     ownerPage.getByRole("row").filter({ hasText: "report-backup.txt" }),
@@ -1119,7 +1141,7 @@ test("a memory can be dismissed and brought back", async ({ browser }) => {
 
   // Hiding hid the memory, not the photographs.
   await ownerPage.goto("/photos");
-  await expect(ownerPage.getByRole("img", { name: "memory.png" })).toBeVisible();
+  await expect(photoTile(ownerPage, "memory.png")).toBeVisible();
 
   // And the decision is findable again, or "hide" would be
   // indistinguishable from "delete" to whoever did it.

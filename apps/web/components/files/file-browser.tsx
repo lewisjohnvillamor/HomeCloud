@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionMenu, type MenuAction } from "@/components/ui/action-menu";
 import { Icon } from "@/components/ui/icon";
 import { TransferTray, type Transfer } from "@/components/files/transfer-tray";
 import { VersionDialog } from "@/components/files/version-dialog";
@@ -219,6 +220,45 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
 
   const listing = state.data;
 
+
+  // Download and Share are what a row is mostly for, so they stay on it;
+  // the rest live behind More. On a phone Share joins them there too.
+  function rowActions(item: Item): MenuAction[] {
+    const actions: MenuAction[] = [
+      {
+        key: "share",
+        label: "Share",
+        icon: "share",
+        narrowOnly: true,
+        onSelect: () => setSharing(item),
+      },
+    ];
+    if (item.kind === "file") {
+      actions.push(
+        { key: "copy", label: "Copy", icon: "copy", onSelect: () => void onCopy(item) },
+        { key: "history", label: "History", icon: "history", onSelect: () => setHistory(item) },
+      );
+    } else {
+      actions.push({
+        key: "request",
+        label: "Ask for files",
+        icon: "inbox",
+        onSelect: () => setRequesting(item),
+      });
+    }
+    actions.push(
+      { key: "rename", label: "Rename", icon: "rename", onSelect: () => void onRename(item) },
+      {
+        key: "delete",
+        label: "Delete",
+        icon: "trash",
+        danger: true,
+        onSelect: () => void onTrash(item),
+      },
+    );
+    return actions;
+  }
+
   return (
     <div>
       {history ? (
@@ -256,6 +296,9 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
           type="file"
           multiple
           aria-label="Choose files to upload"
+          // The visible button beside it opens this; as a tab stop of its own it
+          // was an invisible one, where focus seemed to vanish for a key press.
+          tabIndex={-1}
           onChange={(event) => void onUpload(event.target.files)}
         />
       </div>
@@ -396,14 +439,18 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           download={item.name}
                         >
                           <Icon name="download" />
-                          Download
+                          <span className={styles.actionLabel}>Download</span>
                           <span className={styles.visuallyHidden}>
                             {" "}
                             {item.name}
                           </span>
                         </a>
                       ) : null}
-                      <Button variant="quiet" onClick={() => setSharing(item)}>
+                      <Button
+                        variant="quiet"
+                        className={styles.wideOnly}
+                        onClick={() => setSharing(item)}
+                      >
                         <Icon name="share" />
                         Share
                         <span className={styles.visuallyHidden}>
@@ -411,58 +458,7 @@ export function FileBrowser({ library, path, onNavigate }: FileBrowserProps) {
                           {item.name}
                         </span>
                       </Button>
-                      {item.kind === "file" ? (
-                        <Button variant="quiet" onClick={() => void onCopy(item)}>
-                          <Icon name="copy" />
-                          Copy
-                          <span className={styles.visuallyHidden}>
-                            {" "}
-                            {item.name}
-                          </span>
-                        </Button>
-                      ) : null}
-                      {item.kind === "file" ? (
-                        <Button variant="quiet" onClick={() => setHistory(item)}>
-                          <Icon name="history" />
-                          History
-                          <span className={styles.visuallyHidden}>
-                            {" "}
-                            {item.name}
-                          </span>
-                        </Button>
-                      ) : null}
-                      {item.kind === "folder" ? (
-                        <Button variant="quiet" onClick={() => setRequesting(item)}>
-                          <Icon name="inbox" />
-                          Ask for files
-                          <span className={styles.visuallyHidden}>
-                            {" "}
-                            {item.name}
-                          </span>
-                        </Button>
-                      ) : null}
-                      <Button
-                        variant="quiet"
-                        onClick={() => void onRename(item)}
-                      >
-                        <Icon name="rename" />
-                        Rename
-                        <span className={styles.visuallyHidden}>
-                          {" "}
-                          {item.name}
-                        </span>
-                      </Button>
-                      <Button
-                        variant="quiet"
-                        onClick={() => void onTrash(item)}
-                      >
-                        <Icon name="trash" />
-                        Delete
-                        <span className={styles.visuallyHidden}>
-                          {" "}
-                          {item.name}
-                        </span>
-                      </Button>
+                      <ActionMenu name={item.name} actions={rowActions(item)} />
                     </div>
                   </td>
                 </tr>
