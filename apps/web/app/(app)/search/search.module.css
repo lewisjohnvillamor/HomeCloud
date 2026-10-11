@@ -92,6 +92,12 @@
   white-space: nowrap;
 }
 
+@media (max-width: 40rem) {
+  .action {
+    min-block-size: var(--control-height);
+  }
+}
+
 .action:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

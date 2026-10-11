@@ -241,9 +241,27 @@ button.tile {
 
 .views {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-block-end: 1rem;
+  gap: var(--space-1);
+  margin-block-end: var(--space-5);
+  /* One row of tabs. Wrapping left "Places" alone on a second line on a
+     phone, which read as a different kind of control; at 320px the row
+     scrolls inside itself instead. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.views > * {
+  flex: none;
+}
+
+/* At 320px the last tab scrolled out of sight with nothing to say it was
+   there. The four share the row instead, at a smaller size. */
+@media (max-width: 22.5rem) {
+  .views > * {
+    flex: 1 1 auto;
+    padding-inline: var(--space-2);
+    font-size: var(--text-sm);
+  }
 }
 
 .albums {

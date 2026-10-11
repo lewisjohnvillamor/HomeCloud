@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // A television is a fixed, distant display; pinch-zoom is not the
-  // interaction model and the layout is sized for the room instead.
-  maximumScale: 1,
+  // No zoom lock. A television never pinches, so locking cost it nothing,
+  // but `/tv` also opens on phones, where it stopped people who need to
+  // zoom from doing so.
   themeColor: "#000000",
 };
 

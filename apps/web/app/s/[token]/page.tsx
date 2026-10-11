@@ -88,9 +88,9 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
 
       {relativePath ? <p className={styles.meta}>{relativePath}</p> : null}
 
-      {album || item.kind !== "file" ? (
-        // An album shows its pictures in the order they were arranged.
-        // The listing already knows how to open one from a share.
+      {album ? (
+        <AlbumGrid token={token} items={items} unlockKey={key} />
+      ) : item.kind !== "file" ? (
         <FolderListing
           token={token}
           items={items}
@@ -205,6 +205,64 @@ function FilePreview({
         Download {item.name}
       </a>
     </>
+  );
+}
+
+/**
+ * A shared album, as photos.
+ *
+ * It used to reuse the folder listing: a column of file names with
+ * thumbnails the size of an icon. Someone opening a link to "Summer at
+ * the coast" came for the pictures, so the pictures are the page, in the
+ * order they were arranged, each one opening at full size.
+ */
+function AlbumGrid({
+  token,
+  items,
+  unlockKey,
+}: {
+  token: string;
+  items: Item[];
+  unlockKey: string | null;
+}) {
+  if (items.length === 0) {
+    return <EmptyState title="This album is empty" description="There are no photos in it yet." />;
+  }
+
+  return (
+    <ul className={styles.grid}>
+      {items.map((photo) => (
+        <li key={photo.id} className={styles.tile}>
+          <a
+            className={styles.tileImageLink}
+            href={publicContentUrl(token, photo.id, unlockKey)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- as above: a
+                capability-protected origin. */}
+            <img
+              className={styles.tileImage}
+              src={publicThumbnailUrl(token, photo.id, unlockKey)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+            <span className={styles.hidden}>Open {photo.name}</span>
+          </a>
+          <span className={styles.tileCaption}>
+            <span className={styles.tileName}>{photo.name}</span>
+            <a
+              className={styles.action}
+              href={publicContentUrl(token, photo.id, unlockKey)}
+              download={photo.name}
+            >
+              Download<span className={styles.hidden}> {photo.name}</span>
+            </a>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
